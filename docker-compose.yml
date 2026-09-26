@@ -33,7 +33,7 @@ services:
 
   api:
     build: ./api
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     environment:
       DATABASE_URL: postgresql+psycopg://portfolio:portfolio@db:5432/portfolio
       TEST_DATABASE_URL: postgresql+psycopg://portfolio:portfolio@db-test:5432/portfolio_test

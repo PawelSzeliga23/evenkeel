@@ -1,7 +1,10 @@
 import os
 from collections.abc import Callable, Iterator
+from pathlib import Path
 
 import pytest
+from alembic import command
+from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine, text
@@ -16,6 +19,8 @@ TEST_DATABASE_URL = os.environ.get(
     "postgresql+psycopg://portfolio:portfolio@localhost:5433/portfolio_test",
 )
 
+API_DIR = Path(__file__).resolve().parents[1]
+
 BASE_SETTINGS = {
     "database_url": TEST_DATABASE_URL,
     "jwt_secret": "test-secret-that-is-at-least-32-bytes-long",
@@ -29,6 +34,11 @@ BASE_SETTINGS = {
 
 @pytest.fixture(scope="session")
 def engine() -> Iterator[Engine]:
+    """Test database built by running the real migrations (down to base, then up to head)."""
+    config = Config(str(API_DIR / "alembic.ini"))
+    config.set_main_option("sqlalchemy.url", TEST_DATABASE_URL)
+    command.downgrade(config, "base")
+    command.upgrade(config, "head")
     eng = create_engine(TEST_DATABASE_URL)
     yield eng
     eng.dispose()
