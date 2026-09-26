@@ -34,3 +34,14 @@ def test_keys_are_independent() -> None:
     assert limiter.hit("a") is True
     assert limiter.hit("b") is True
     assert limiter.hit("a") is False
+
+
+def test_idle_key_is_evicted_after_window_passes() -> None:
+    clock = FakeClock()
+    limiter = RateLimiter(2, window_seconds=60, clock=clock)
+
+    limiter.hit("ip")
+    clock.now = 60
+    limiter.hit("other")
+
+    assert "ip" not in limiter._hits
