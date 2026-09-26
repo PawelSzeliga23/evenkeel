@@ -114,3 +114,56 @@ def login(
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)) -> User:
     return user
+
+
+def _invalid_refresh() -> ApiError:
+    return ApiError(401, "invalid_refresh", "Sesja wygasła. Zaloguj się ponownie.")
+
+
+@router.post("/refresh", response_model=TokenOut)
+def refresh(
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> TokenOut:
+    raw = request.cookies.get(REFRESH_COOKIE)
+    if not raw:
+        raise _invalid_refresh()
+    token = db.scalar(select(RefreshToken).where(RefreshToken.token_hash == hash_refresh_token(raw)))
+    if token is None:
+        raise _invalid_refresh()
+
+    now = datetime.now(UTC)
+    if token.revoked_at is not None:
+        # A rotated token came back: assume it was stolen and end every session of this user.
+        db.execute(
+            update(RefreshToken)
+            .where(RefreshToken.user_id == token.user_id, RefreshToken.revoked_at.is_(None))
+            .values(revoked_at=now)
+        )
+        db.commit()
+        raise _invalid_refresh()
+    if token.expires_at <= now:
+        raise _invalid_refresh()
+
+    token.revoked_at = now
+    user = db.get(User, token.user_id)
+    if user is None:
+        raise _invalid_refresh()
+    return _issue_tokens(db, user, response, settings, now)
+
+
+@router.post("/logout", status_code=204)
+def logout(request: Request, db: Session = Depends(get_db)) -> Response:
+    raw = request.cookies.get(REFRESH_COOKIE)
+    if raw:
+        db.execute(
+            update(RefreshToken)
+            .where(RefreshToken.token_hash == hash_refresh_token(raw), RefreshToken.revoked_at.is_(None))
+            .values(revoked_at=datetime.now(UTC))
+        )
+        db.commit()
+    response = Response(status_code=204)
+    response.delete_cookie(REFRESH_COOKIE, path=REFRESH_COOKIE_PATH)
+    return response
