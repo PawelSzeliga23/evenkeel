@@ -1,8 +1,11 @@
+import threading
 from collections.abc import Callable
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, text
+
+from app.auth.security import hash_refresh_token
 
 PASSWORD = "bardzo-tajne-haslo"
 
@@ -71,3 +74,45 @@ def test_logout_revokes_refresh_token_and_clears_cookie(make_app: Callable[..., 
 
 def test_logout_without_cookie_is_harmless(client: TestClient) -> None:
     assert client.post("/api/auth/logout").status_code == 204
+
+
+def test_concurrent_claims_of_the_same_token_only_succeed_once(
+    client: TestClient, engine: Engine
+) -> None:
+    """Regression test for the check-then-act race: the claim must be a single
+    atomic UPDATE, so two overlapping attempts on the same still-valid token
+    can never both succeed. One thread holds the row lock inside an open
+    transaction (simulating a concurrent request mid-claim); a second,
+    independent connection then runs the exact same conditional UPDATE the
+    endpoint uses. Whether it blocks on the lock or arrives after the first
+    commits, it must see the row already claimed."""
+    raw_cookie = _register_and_login(client)
+    token_hash = hash_refresh_token(raw_cookie)
+    claim_sql = text(
+        "UPDATE refresh_tokens SET revoked_at = now() "
+        "WHERE token_hash = :token_hash AND revoked_at IS NULL AND expires_at > now() "
+        "RETURNING user_id"
+    )
+
+    holder_claimed = threading.Event()
+    release_holder = threading.Event()
+    results: dict[str, object] = {}
+
+    def hold_claim() -> None:
+        with engine.begin() as conn:
+            results["first"] = conn.execute(claim_sql, {"token_hash": token_hash}).scalar()
+            holder_claimed.set()
+            release_holder.wait(timeout=5)
+        # Transaction commits on exiting the `with` block, releasing the row lock.
+
+    holder = threading.Thread(target=hold_claim)
+    holder.start()
+    assert holder_claimed.wait(timeout=5), "holder thread never claimed the token"
+
+    release_holder.set()
+    with engine.begin() as conn:
+        results["second"] = conn.execute(claim_sql, {"token_hash": token_hash}).scalar()
+    holder.join(timeout=5)
+
+    assert results["first"] is not None
+    assert results["second"] is None

@@ -130,11 +130,35 @@ def refresh(
     raw = request.cookies.get(REFRESH_COOKIE)
     if not raw:
         raise _invalid_refresh()
-    token = db.scalar(select(RefreshToken).where(RefreshToken.token_hash == hash_refresh_token(raw)))
+
+    token_hash = hash_refresh_token(raw)
+    now = datetime.now(UTC)
+
+    # Atomically claim the token: only one concurrent request can flip revoked_at
+    # from NULL to now, so a racing replay of the same still-valid cookie can
+    # never rotate twice (check-then-act would let both requests read
+    # revoked_at IS NULL and both succeed).
+    claimed_user_id = db.execute(
+        update(RefreshToken)
+        .where(
+            RefreshToken.token_hash == token_hash,
+            RefreshToken.revoked_at.is_(None),
+            RefreshToken.expires_at > now,
+        )
+        .values(revoked_at=now)
+        .returning(RefreshToken.user_id)
+    ).scalar_one_or_none()
+
+    if claimed_user_id is not None:
+        user = db.get(User, claimed_user_id)
+        if user is None:
+            raise _invalid_refresh()
+        return _issue_tokens(db, user, response, settings, now)
+
+    # Nothing claimed: the token is unknown, already revoked (reuse), or expired.
+    token = db.scalar(select(RefreshToken).where(RefreshToken.token_hash == token_hash))
     if token is None:
         raise _invalid_refresh()
-
-    now = datetime.now(UTC)
     if token.revoked_at is not None:
         # A rotated token came back: assume it was stolen and end every session of this user.
         db.execute(
@@ -144,14 +168,9 @@ def refresh(
         )
         db.commit()
         raise _invalid_refresh()
-    if token.expires_at <= now:
-        raise _invalid_refresh()
-
-    token.revoked_at = now
-    user = db.get(User, token.user_id)
-    if user is None:
-        raise _invalid_refresh()
-    return _issue_tokens(db, user, response, settings, now)
+    # Otherwise the token was simply expired.
+    db.rollback()
+    raise _invalid_refresh()
 
 
 @router.post("/logout", status_code=204)
