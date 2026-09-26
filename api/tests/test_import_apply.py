@@ -1,6 +1,6 @@
 import dataclasses
 from collections.abc import Iterator
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -102,6 +102,12 @@ def _transfer(direction: str, amount: float, op_id: str, counterparty: str, prod
                        comment=f"Transfer {direction} operation on account with id {counterparty}")
 
 
+def _own_transfer(direction: str, amount: float, op_id: str, time: datetime, own_number: str, product: str) -> dict:
+    """Shaped like a real XTB export: the comment names the transaction's OWN account, not the counterparty's."""
+    return xf.cash_row("IKE deposit", amount, op_id, time, product=product,
+                       comment=f"Transfer {direction} operation on account with id {own_number}")
+
+
 def test_transfers_between_own_accounts_are_paired(scope: UserScope) -> None:
     pln = xf.build_report(account_number=PLN, product="My Trades", include_open=False,
                           cash=[_transfer("out", -500.0, "9001", IKE, "My Trades")])
@@ -160,6 +166,43 @@ def test_transfers_are_not_paired_when_ambiguous_between_two_accounts(scope: Use
 
     out = scope.db.scalar(select(Transaction).where(Transaction.external_id == "9001"))
     assert out.transfer_pair_id is None
+
+
+def test_real_shaped_transfers_naming_their_own_account_are_still_paired(scope: UserScope) -> None:
+    """Real XTB exports put each side's OWN account number in the comment, not the counterparty's."""
+    pln = xf.build_report(account_number=PLN, product="My Trades", include_open=False,
+                          cash=[_own_transfer("out", -500.0, "9001", AT, PLN, "My Trades")])
+    ike = _ike([_own_transfer("in", 500.0, "9002", AT, IKE, "IKE")])
+
+    _import(scope, (xf.filename("PLN", PLN), pln), (xf.filename("IKE", IKE), ike))
+
+    out, in_ = (scope.db.scalar(select(Transaction).where(Transaction.external_id == i)) for i in ("9001", "9002"))
+    assert (out.transfer_pair_id, in_.transfer_pair_id) == (in_.id, out.id)
+
+
+def test_real_shaped_transfers_pair_each_out_with_its_nearest_in(scope: UserScope) -> None:
+    """Two same-amount transfer pairs an hour apart; each out must match the in seconds away, not the other one."""
+    first_out, first_in = AT, AT + timedelta(seconds=5)
+    second_out = AT + timedelta(hours=1)
+    second_in = second_out + timedelta(seconds=5)
+    pln = xf.build_report(account_number=PLN, product="My Trades", include_open=False,
+                          cash=[
+                              _own_transfer("out", -500.0, "9001", first_out, PLN, "My Trades"),
+                              _own_transfer("out", -500.0, "9003", second_out, PLN, "My Trades"),
+                          ])
+    ike = _ike([
+        _own_transfer("in", 500.0, "9002", first_in, IKE, "IKE"),
+        _own_transfer("in", 500.0, "9004", second_in, IKE, "IKE"),
+    ])
+
+    _import(scope, (xf.filename("PLN", PLN), pln), (xf.filename("IKE", IKE), ike))
+
+    def _get(op_id: str) -> Transaction:
+        return scope.db.scalar(select(Transaction).where(Transaction.external_id == op_id))
+
+    out1, in1, out2, in2 = _get("9001"), _get("9002"), _get("9003"), _get("9004")
+    assert (out1.transfer_pair_id, in1.transfer_pair_id) == (in1.id, out1.id)
+    assert (out2.transfer_pair_id, in2.transfer_pair_id) == (in2.id, out2.id)
 
 
 def test_failure_leaves_nothing_behind(scope: UserScope) -> None:

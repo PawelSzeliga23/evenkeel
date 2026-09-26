@@ -15,6 +15,7 @@ from app.xtb.report import CashOperation, XtbReport
 
 FX_PLACES = Decimal("0.00000001")
 TRANSFER_PAIR_WINDOW = timedelta(days=1)
+TRANSFER_PAIR_TIGHT_WINDOW = timedelta(minutes=10)
 INSERT_CHUNK = 1000
 
 NEW_ACCOUNT_NAMES = {"ike": "XTB IKE", "ikze": "XTB IKZE"}
@@ -309,9 +310,14 @@ def pair_transfers(scope: UserScope) -> int:
     """Links transfer_out/transfer_in between the user's own accounts so they aren't counted as new money.
 
     A pair: different accounts, equal absolute amount, within a day. The account number XTB puts in the
-    comment is preferred when it identifies the other side; otherwise a single candidate is paired only
-    when neither side's counterparty number names an account the user owns (so it can't be contradicting
-    an unimported third account).
+    comment is preferred when it identifies the other side. Real XTB exports, though, sometimes put the
+    transaction's OWN account number in that comment instead of the counterparty's — that carries no
+    pairing information, so it's treated as if there were no counterparty number at all (see `_effective`).
+
+    Without an exact match, a single remaining candidate is paired only when neither side's (effective)
+    counterparty number names an account the user owns (so it can't be contradicting an unimported third
+    account). When more than one candidate remains, they're narrowed to those within a tight time window
+    of the outgoing transfer, and paired only if that leaves exactly one.
     """
     db = scope.db
     unpaired = db.scalars(
@@ -321,9 +327,15 @@ def pair_transfers(scope: UserScope) -> int:
     ).all()
     numbers = {account.id: account.external_account_number for account in db.scalars(scope.accounts())}
     owned_numbers = {number for number in numbers.values() if number is not None}
+
+    def _effective(t: Transaction) -> str | None:
+        counterparty = t.counterparty_account
+        return None if counterparty == numbers.get(t.account_id) else counterparty
+
     incoming = [t for t in unpaired if t.type == "transfer_in"]
     paired = 0
     for out in sorted((t for t in unpaired if t.type == "transfer_out"), key=lambda t: t.occurred_at):
+        out_counterparty = _effective(out)
         candidates = [
             t for t in incoming
             if t.transfer_pair_id is None
@@ -333,15 +345,16 @@ def pair_transfers(scope: UserScope) -> int:
         ]
         exact = [
             t for t in candidates
-            if out.counterparty_account == numbers.get(t.account_id)
-            or t.counterparty_account == numbers.get(out.account_id)
+            if out_counterparty == numbers.get(t.account_id)
+            or _effective(t) == numbers.get(out.account_id)
         ]
-        unattributed = (
-            len(candidates) == 1
-            and out.counterparty_account not in owned_numbers
-            and candidates[0].counterparty_account not in owned_numbers
-        )
-        pool = exact or (candidates if unattributed else [])
+        pool = exact
+        if not pool and out_counterparty not in owned_numbers:
+            fallback = [t for t in candidates if _effective(t) not in owned_numbers]
+            if len(fallback) > 1:
+                fallback = [t for t in fallback if abs(t.occurred_at - out.occurred_at) <= TRANSFER_PAIR_TIGHT_WINDOW]
+            if len(fallback) == 1:
+                pool = fallback
         if not pool:
             continue
         match = min(pool, key=lambda t: abs(t.occurred_at - out.occurred_at))
