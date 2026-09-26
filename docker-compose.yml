@@ -37,7 +37,7 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://portfolio:portfolio@db:5432/portfolio
       TEST_DATABASE_URL: postgresql+psycopg://portfolio:portfolio@db-test:5432/portfolio_test
-      JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret-change-me-0123456789}
+      JWT_SECRET: ${JWT_SECRET:?Ustaw JWT_SECRET w pliku .env (skopiuj .env.example)}
       COOKIE_SECURE: "false"
       REGISTRATION_MODE: ${REGISTRATION_MODE:-open}
       INVITE_CODES: ${INVITE_CODES:-}

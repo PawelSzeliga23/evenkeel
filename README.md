@@ -14,6 +14,8 @@ cp .env.example .env        # i ustaw JWT_SECRET
 docker compose up --build   # API: http://localhost:8000, dokumentacja: http://localhost:8000/docs
 ```
 
+Bez pliku `.env` z ustawionym `JWT_SECRET` (min. 32 znaki) `docker compose` odmówi startu.
+
 ## Testy
 
 ```bash
