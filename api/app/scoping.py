@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.auth.deps import get_current_user
 from app.db import get_db
 from app.errors import ApiError
-from app.models import Account, User
+from app.models import Account, ImportRecord, Transaction, User
 
 # Path parameter type for any database id: keeps Postgres int4 range errors
 # (which would otherwise surface as an opaque 500) as a 422 validation_error.
@@ -42,6 +42,26 @@ class UserScope:
         account = Account(user_id=self.user.id, **fields)
         self.db.add(account)
         return account
+
+    def broker_account(self, broker: str, number: str) -> Account | None:
+        return self.db.scalar(
+            self.accounts().where(Account.broker == broker, Account.external_account_number == number)
+        )
+
+    def transactions(self) -> Select[tuple[Transaction]]:
+        return (
+            select(Transaction)
+            .join(Account, Transaction.account_id == Account.id)
+            .where(Account.user_id == self.user.id)
+            .order_by(Transaction.occurred_at.desc(), Transaction.id.desc())
+        )
+
+    def imports(self) -> Select[tuple[ImportRecord]]:
+        return (
+            select(ImportRecord)
+            .where(ImportRecord.user_id == self.user.id)
+            .order_by(ImportRecord.imported_at.desc(), ImportRecord.id.desc())
+        )
 
 
 def get_scope(db: Session = Depends(get_db), user: User = Depends(get_current_user)) -> UserScope:
