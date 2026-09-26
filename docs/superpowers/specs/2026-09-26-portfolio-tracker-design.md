@@ -28,11 +28,10 @@ z XTB (rachunek zwykły i IKE), obligacje skarbowe, konta oszczędnościowe i go
 
 ### Poza zakresem (na teraz)
 
-- Rozliczenia podatkowe / PIT-38.
-- Brokerzy inni niż XTB, połączenia API z brokerami.
-- Wdrożenie na serwer domowy (Debian + Docker + Cloudflare Tunnel) — architektura ma to umożliwiać,
-  ale etap 1 działa lokalnie.
-- Jasny motyw, aplikacja natywna, powiadomienia.
+Pełna lista rzeczy odłożonych na później oraz świadomie pominiętych — w **sekcji 12 (Backlog)**.
+Punkt odniesienia produktu: [myfund.pl](https://myfund.pl/index.php?raport=cennikN) — celem jest
+udoskonalona wersja w zakresie śledzenia własnego portfela (mniej ręcznej pracy, automatyczna wycena
+obligacji, dokładność względem brokera, nowoczesny interfejs mobile-first), a nie serwis rynkowy.
 
 ## 2. Etapy
 
@@ -40,16 +39,28 @@ z XTB (rachunek zwykły i IKE), obligacje skarbowe, konta oszczędnościowe i go
 - Konta użytkowników (rejestracja, logowanie).
 - Import XTB (XLSX, wiele plików, ZIP, folder) z podglądem przed zapisem.
 - Obligacje skarbowe (ręcznie), konta oszczędnościowe (ręcznie), ręczne operacje.
+- **Splity i konwersje walorów** (zdarzenia korporacyjne) — warunek poprawności historii.
 - Codzienne dane rynkowe: ceny, kursy NBP, inflacja GUS, stopy NBP.
 - Pulpit: łączna wartość, zmiana dzienna i łączna, **wykres wartości w czasie** (z wpłatami i wpłaconym kapitałem),
   alokacja, zysk/strata, dywidendy i odsetki.
 - Lista pozycji i ekran szczegółów pozycji (partie, dywidendy, efekt walutowy).
+- **Zamknięte inwestycje** — podsumowanie i szczegóły (zysk zrealizowany, czas trzymania).
+- **Ekspozycja walutowa** — bieżąca i w czasie.
+- **Limity IKE/IKZE** — wpłacono w bieżącym roku vs limit ustawowy, ile zostało.
 - Historia operacji.
 
 **Etap 2 — „analiza”**
 - Wykres ceny instrumentu z zaznaczonymi zakupami/sprzedażami.
-- Statystyki i ryzyko: zmienność, maksymalne obsunięcie (max drawdown), wskaźnik Sharpe'a,
+- Statystyki i ryzyko: zmienność, maksymalne obsunięcie (max drawdown) w czasie, wskaźnik Sharpe'a,
   najlepszy/najgorszy dzień, porównanie z benchmarkiem (S&P 500, WIG).
+- **Stopy zwrotu:** TWR oraz **MWR/XIRR** (osobisty zwrot uwzględniający terminy wpłat);
+  **stopa zwrotu w okresach** (tabela miesiące × lata).
+- **Mapa cieplna portfela** (zmiana dnia / tygodnia / miesiąca per walor).
+- **Dywidendy w czasie** i **prowizje/koszty w czasie**.
+- **Ranking i porównanie walorów portfela** (zwrot, zysk, udział, w wybranym okresie).
+- **Zysk per konto** i **zysk per typ inwestycji**.
+- **Tagi** użytkownika na walorach/pozycjach i **struktura per tag** (bieżąca i w czasie).
+- **Notatki** do pozycji i operacji.
 
 ## 3. Stack i architektura
 
@@ -135,6 +146,16 @@ savings_rates      id, savings_account_id, valid_from, annual_rate (historia sta
 
 imports            id, user_id, account_id, filename, file_hash, report_from, report_to,
                    imported_at, rows_added, rows_duplicate, rows_unknown, status
+
+corporate_actions  id, instrument_id, type (split|reverse_split|conversion),
+                   effective_date, ratio_from, ratio_to, target_instrument_id? (konwersja),
+                   source (manual|xtb|provider)                ← wspólne dla wszystkich
+
+tags               id, user_id, name, color
+instrument_tags    user_id, instrument_id, tag_id               (tag per walor, w obrębie użytkownika)
+
+notes              id, user_id, target_type (instrument|position_lot|transaction|bond_holding|
+                   savings_account), target_id, body, created_at, updated_at
 ```
 
 ### Dane rynkowe (wspólne)
@@ -148,6 +169,7 @@ bond_series        series, bond_type, issue_month, maturity_months, first_period
                    margin, early_redemption_fee (za 100 zł), interest_mode
                    (capitalized|paid_annually|paid_monthly|fixed_at_maturity), rate_basis
                    (fixed|cpi|nbp_ref)
+wrapper_limits     year, wrapper (ike|ikze|ikze_self_employed), limit_pln   (limity ustawowe, seed)
 ```
 
 ### Pamięć podręczna wyceny
@@ -240,6 +262,36 @@ z oznaczeniem „wycena przybliżona”.
 - Gotówka na rachunku = suma operacji gotówkowych rachunku.
 - Konto `ike`/`ikze`: bez naliczania podatku Belki.
 
+### Splity i konwersje (zdarzenia korporacyjne)
+- `corporate_actions` przelicza ilość i cenę zakupu partii od `effective_date`
+  (split 1:4 → ilość ×4, cena zakupu ÷4; koszt w PLN bez zmian). Konwersja przenosi partie
+  na `target_instrument_id` z zachowaniem kosztu i daty zakupu.
+- Ceny historyczne od dostawcy mogą być już skorygowane o splity. Silnik musi to znać per dostawca
+  i używać ilości „na ten sam stan” co ceny — **do weryfikacji** przy wyborze dostawcy cen, z testem
+  na znanym splicie (np. NVDA 10:1, czerwiec 2024).
+- Źródła: wpis ręczny (zawsze), rozpoznanie z XTB, jeśli eksport zawiera takie operacje (typ nieznany →
+  `unknown` + podpowiedź „czy to split?”), opcjonalnie dostawca danych.
+- Uzgodnienie z *Open Positions* wychwytuje przeoczony split (ilości się nie zgadzają).
+
+### Zamknięte inwestycje
+- Partie zamknięte (`position_lots.closed_at`) i instrumenty w pełni sprzedane: zysk zrealizowany (cena +
+  waluta + dywidendy − koszty), zwrot %, czas trzymania, daty wejścia i wyjścia. Podsumowanie per
+  instrument i ogółem.
+
+### Ekspozycja walutowa
+- Udział wartości portfela wg **waluty notowania** instrumentu (PLN, EUR, USD, GBP…), bieżąco i w czasie
+  (z `daily_valuations`). Obligacje skarbowe, konta oszczędnościowe i gotówka PLN → PLN.
+- Uproszczenie świadome: waluta notowania, nie waluta aktywów bazowych ETF-u (np. SXR8 notowany w EUR,
+  a aktywa w USD). Ekspozycja „przez aktywa bazowe” → backlog.
+
+### Limity IKE/IKZE
+- Suma **wpłat na rachunek IKE/IKZE w roku kalendarzowym** vs `wrapper_limits` dla tego roku.
+  Wpłata na IKE to zarówno `deposit`, jak i **`transfer_in` z własnego rachunku zwykłego**
+  (w danych właściciela przelewy PLN → IKE to właśnie wpłaty na IKE).
+- Wynik: wpłacono / limit / pozostało; ostrzeżenie przy przekroczeniu.
+- Limity ustawowe na każdy rok jako dane startowe (seed), weryfikowane z komunikatem MRPiPS / ustawą;
+  aktualizowane raz w roku.
+
 ### Obligacje skarbowe
 - Wejście: rodzaj, liczba sztuk (lub kwota ÷ 100), miesiąc zakupu, konto. Seria wyliczana z rodzaju i daty.
 - Oprocentowanie okresu: stałe (OTS, TOS, DOS, 1. okres pozostałych) / inflacja GUS r/r + marża
@@ -267,6 +319,21 @@ z oznaczeniem „wycena przybliżona”.
 - **Zwrot TWR** (time-weighted) liczony z dziennych wartości i przepływów — podstawa porównań z benchmarkiem.
 - Przeliczanie: po imporcie / edycji → od najwcześniejszej zmienionej daty; po nowych danych rynkowych → od najwcześniejszej nowej daty.
 
+### Analityka (etap 2) — moduł `analytics`, czyste funkcje na `daily_valuations`
+- **TWR** (porównania z benchmarkiem) i **MWR/XIRR** (osobisty zwrot uwzględniający kwoty i terminy wpłat).
+- **Stopa zwrotu w okresach:** tabela miesiące × lata (TWR) dla portfela, konta i waloru.
+- **Ryzyko:** zmienność (odchylenie standardowe dziennych zwrotów, annualizowane), drawdown w czasie
+  i maksymalny, Sharpe (stopa wolna od ryzyka = stopa referencyjna NBP, konfigurowalna),
+  najlepszy/najgorszy dzień.
+- **Benchmark:** indeks jako `instrument` typu `index` (S&P 500, WIG) z cenami; porównanie TWR w PLN
+  (indeks przeliczony po kursie NBP).
+- **Mapa cieplna:** zmiana % walorów za dzień / tydzień / miesiąc, wielkość pola = udział w portfelu.
+- **Dywidendy w czasie** (brutto, podatek, netto; miesięcznie / rocznie) i **prowizje/koszty w czasie**.
+- **Ranking i porównanie walorów:** zwrot, zysk zł, udział, wkład w wynik portfela w wybranym okresie.
+- **Zysk per konto / per typ inwestycji / per tag.**
+- **Struktura per tag** — bieżąca i w czasie; walor bez tagu → „bez tagu”; walor z wieloma tagami
+  liczony w każdym (widok udziałów per tag, nie sumujący się do 100% — oznaczone w UI).
+
 ### Dane rynkowe (worker)
 - Codziennie po zamknięciu sesji: ceny (dostawca domyślny: Stooq), kursy NBP (tabela A), inflacja GUS,
   stopa referencyjna NBP. Przy nowym instrumencie — pobranie pełnej historii.
@@ -275,6 +342,11 @@ z oznaczeniem „wycena przybliżona”.
 - Brak notowania w dniu D → ostatnia znana cena. Błąd źródła → ponowienie, log, UI pokazuje „ceny z dnia X”.
 
 ## 7. Ekrany (mobile-first)
+
+> **Wstępne — do doprecyzowania w rozmowie o designie (`frontend-design`).** Poniższa lista określa,
+> jakie informacje muszą być dostępne; podział na ekrany, nawigacja i układ mogą się zmienić.
+> Nowe widoki z etapów 1–2 (zamknięte inwestycje, ekspozycja walutowa, limity IKE/IKZE, analityka,
+> tagi, notatki) zostaną rozmieszczone w tej rozmowie.
 
 Nawigacja: dolny pasek (mobile), boczne menu (desktop).
 
@@ -320,7 +392,9 @@ Nawigacja: dolny pasek (mobile), boczne menu (desktop).
 - **Parser XTB:** zanonimizowane kopie prawdziwych eksportów (struktura prawdziwa, liczby podmienione)
   w `api/tests/fixtures/` + ręcznie przygotowane przypadki (sprzedaż, dywidenda, podatek, nieznany typ, transfer IKE).
 - **Silnik wyceny:** przykłady z oczekiwanym wynikiem — obligacje vs oficjalny kalkulator, rozbicie efektu
-  ceny/waluty, TWR na scenariuszu z wpłatą, konto oszczędnościowe z kapitalizacją.
+  ceny/waluty, TWR na scenariuszu z wpłatą, konto oszczędnościowe z kapitalizacją, split i konwersja
+  (historia wartości ciągła przed i po), limit IKE z transferem z rachunku zwykłego.
+- **Analityka:** TWR / XIRR / drawdown / zmienność / Sharpe na małych szeregach policzonych ręcznie.
 - **API:** pytest + Postgres w Dockerze; izolacja użytkowników; idempotencja importu.
 - **Frontend:** Vitest (logika, formatowanie kwot/dat); Playwright e2e: rejestracja → import → pulpit.
 
@@ -335,3 +409,65 @@ founder/
   docker-compose.yml    postgres + api + worker
   .env.example
 ```
+
+## 12. Backlog — na później i świadomie pominięte
+
+Źródło porównania: pełna lista funkcji [myfund.pl](https://myfund.pl/index.php?raport=cennikN)
+(stan: 2026-09-26). Pokrycie po etapach 1–2: ok. 80% funkcji dotyczących śledzenia własnego portfela;
+ok. 45% wszystkich funkcji myfund (reszta to funkcje serwisu rynkowego — patrz 12.2).
+
+### 12.1 Na później — rozszerzenia portfela (kandydaci do etapu 3+)
+
+| Funkcja | Uwagi / zależności |
+|---|---|
+| Podatki: podatek Belki, PIT-38, optymalizacja, dywidendy zagraniczne, odsetki od obligacji | duży moduł; dane już są (transakcje, podatek u źródła, kursy NBP) |
+| Cel inwestycyjny, FIRE / runway / horyzont oszczędzania | na bazie `daily_valuations` i wpłat |
+| Operacje cykliczne (np. comiesięczny zakup obligacji, stała wpłata) | harmonogram w workerze |
+| Alerty (cena, zmiana portfela, zbliżający się wykup obligacji, limit IKE) | wymaga kanału: Web Push (PWA na iOS ≥ 16.4) lub e-mail |
+| Podsumowania e-mail (dzienne / tygodniowe) | wymaga wysyłki e-mail |
+| Wiele portfeli, portfele grupowe, sub-portfele, portfel bliźniaczy, kopiowanie portfela | dziś zastępuje je filtr po koncie + tagi |
+| Portfel wzorcowy (docelowa alokacja) i podpowiedzi rebalansowania | na bazie tagów / typów aktywów |
+| PPK: konto PPK, narzędzia i wycena | nowy `accounts.kind`, dane z funduszy PPK |
+| Limit IKZE dla samozatrudnionych (osobny limit) | pole w ustawieniach konta |
+| Ekspozycja walutowa przez aktywa bazowe ETF-ów | wymaga danych o składzie ETF-ów |
+| Własne benchmarki (np. 60/40, stała stopa roczna) | rozszerzenie modułu benchmarku |
+| Analiza „stopa zwrotu vs ryzyko” (wykres rozrzutu walorów) | etap 2 daje dane wejściowe |
+| Struktura kupna walorów, analiza kupna w okresach | z transakcji |
+| Wartość jednostki / liczba jednostek portfela w czasie | alternatywna prezentacja TWR |
+| Rolling return w czasie | moduł `analytics` |
+| Lokaty terminowe jako osobny typ (termin, zerwanie) | dziś: konto oszczędnościowe |
+| Zobowiązania, pożyczki, majątek (nieruchomości, walory własne użytkownika), wartość majątku w czasie | „net worth” zamiast samego portfela |
+| Kryptowaluty | nowy dostawca cen; podatek od krypto osobno |
+| Inni brokerzy (mBank, Bossa, IBKR, Trading 212…) i import z e-maila | parser per broker za wspólnym interfejsem |
+| Połączenia API z brokerami | polscy brokerzy w większości nie udostępniają |
+| Kreator portfela AI (import z dowolnego pliku / zrzutu ekranu) | |
+| Eksport / import całego portfela (backup użytkownika) | |
+| Zmiana waluty bazowej przeliczania (EUR, USD) | `users.base_currency` już jest |
+| Własne nazwy, typy i poziom ryzyka walorów | |
+| Wykresy świecowe, analiza techniczna (np. widget TradingView) | |
+| Jasny motyw, aplikacja natywna (iOS/Android), widget / gadżet | |
+| Wdrożenie na serwer domowy: Debian + Docker Compose + Cloudflare Tunnel | architektura gotowa; osobna specyfikacja wdrożenia |
+| Weryfikacja e-mail i reset hasła | wymaga wysyłki e-mail; ważne przed udostępnieniem szerzej |
+
+### 12.2 Świadomie pominięte — inny produkt (serwis rynkowy, nie tracker portfela)
+
+Pominięte, bo rozmywają fokus i wymagają płatnych / licencjonowanych danych lub moderacji społeczności.
+Można wrócić, jeśli produkt ewoluuje w stronę serwisu inwestycyjnego.
+
+- Skaner spółek (100+ wskaźników), analiza fundamentalna, sektorowa i branżowa, analiza indeksowa.
+- Strategie (GEM, przecięcia SMA/EMA), sygnały analizy technicznej.
+- Komunikaty ESPI, rekomendacje, kalendarium spółek.
+- Forum spółek, portfele publiczne, subskrypcja portfeli innych użytkowników.
+- Notowania online (z opóźnieniem 15 min) — aplikacja opiera się na cenach dziennych.
+- Ranking funduszy inwestycyjnych, analiza obligacji Catalyst.
+- Wykresy walorów dla grup, mapa cieplna dla grup spółek (spoza portfela), ulubione / watchlista.
+- Bilans kontraktów (CFD/futures), exercise price (opcje).
+- Gadżet dla Windows.
+
+### 12.3 Przewagi względem myfund (do pilnowania przy kolejnych decyzjach)
+
+1. Minimum ręcznej pracy — import XTB z ZIP/folderu, obligacje jako (rodzaj, sztuki, data).
+2. Automatyczna wycena obligacji skarbowych z inflacją, w tym wartość przy wcześniejszym wykupie.
+3. Dokładność: faktyczny kurs XTB per transakcja, efekt walutowy per partia, uzgodnienie z brokerem.
+4. Nowoczesny, przejrzysty interfejs mobile-first (w recenzjach myfund: interfejs przytłaczający).
+5. Bez abonamentu (myfund: 36–153 zł/rok; kluczowe funkcje w najdroższym pakiecie).
