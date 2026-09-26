@@ -2,7 +2,7 @@ import re
 from dataclasses import dataclass
 from decimal import Decimal
 
-_NUMBER = r"(\d+(?:\.\d+)?)"
+_NUMBER = r"(\d+(?:\.\d+)?)(?![\d.,])"
 _OPEN = re.compile(rf"^OPEN\s+BUY\s+{_NUMBER}(?:/{_NUMBER})?\s+@\s+{_NUMBER}", re.IGNORECASE)
 _CLOSE = re.compile(rf"^CLOSE\s+BUY\s+{_NUMBER}(?:/{_NUMBER})?\s+@\s+{_NUMBER}", re.IGNORECASE)
 _TRANSFER = re.compile(r"Transfer\s+(in|out)\s+operation\s+on\s+account\s+with\s+id\s+(\d+)", re.IGNORECASE)
