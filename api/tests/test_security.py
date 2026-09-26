@@ -61,6 +61,16 @@ def test_garbage_token_is_rejected(settings: Settings) -> None:
     _assert_invalid("to.nie.jest-jwt", settings)
 
 
+@pytest.mark.parametrize("sub", ["abc", "99999999999", "0", "-1"])
+def test_token_with_invalid_sub_is_rejected(sub: str, settings: Settings) -> None:
+    token = jwt.encode(
+        {"sub": sub, "type": "access", "exp": datetime.now(UTC) + timedelta(minutes=5)},
+        settings.jwt_secret,
+        algorithm="HS256",
+    )
+    _assert_invalid(token, settings)
+
+
 def test_refresh_token_is_stored_only_as_hash() -> None:
     raw, token_hash = new_refresh_token()
 

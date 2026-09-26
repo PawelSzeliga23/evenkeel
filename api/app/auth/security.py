@@ -48,7 +48,13 @@ def decode_access_token(token: str, settings: Settings) -> int:
         raise invalid_token() from exc
     if payload.get("type") != "access":
         raise invalid_token()
-    return int(payload["sub"])
+    try:
+        user_id = int(payload["sub"])
+    except (TypeError, ValueError) as exc:
+        raise invalid_token() from exc
+    if not (1 <= user_id <= 2**31 - 1):
+        raise invalid_token()
+    return user_id
 
 
 def hash_refresh_token(raw: str) -> str:

@@ -49,16 +49,40 @@ def test_account_defaults(client: TestClient, login_as: LoginAs) -> None:
     [
         {"name": "Krypto", "kind": "crypto"},
         {"name": "", "kind": "cash"},
+        {"name": "   ", "kind": "cash"},
         {"name": "XTB", "kind": "broker", "broker": "xtb"},
         {"name": "Konto", "kind": "cash", "currency": "zloty"},
+        {"name": "Konto", "kind": "cash", "unexpected": "field"},
+        {"kind": "savings", "name": "Oszczędnościowe", "broker": "xtb", "external_account_number": "1"},
+        {"kind": "broker", "name": "X"},
     ],
-    ids=["unknown-kind", "empty-name", "broker-without-number", "bad-currency"],
+    ids=[
+        "unknown-kind",
+        "empty-name",
+        "whitespace-only-name",
+        "broker-without-number",
+        "bad-currency",
+        "unknown-field",
+        "broker-without-kind-broker",
+        "kind-broker-without-broker",
+    ],
 )
 def test_create_rejects_invalid_payload(client: TestClient, login_as: LoginAs, payload: dict[str, str]) -> None:
     response = client.post("/api/accounts", json=payload, headers=login_as("anna@portfolio.dev"))
 
     assert response.status_code == 422
     assert response.json()["code"] == "validation_error"
+
+
+def test_create_strips_name_whitespace(client: TestClient, login_as: LoginAs) -> None:
+    anna = login_as("anna@portfolio.dev")
+
+    response = client.post(
+        "/api/accounts", json={"name": "  Obligacje  ", "kind": "bonds"}, headers=anna
+    )
+
+    assert response.status_code == 201
+    assert response.json()["name"] == "Obligacje"
 
 
 def test_duplicate_broker_account_is_rejected(client: TestClient, login_as: LoginAs) -> None:
@@ -91,6 +115,50 @@ def test_update_rejects_explicit_null(client: TestClient, login_as: LoginAs) -> 
     account_id = _create(client, anna)
 
     response = client.patch(f"/api/accounts/{account_id}", json={"name": None}, headers=anna)
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "validation_error"
+
+
+def test_update_rejects_unknown_field(client: TestClient, login_as: LoginAs) -> None:
+    anna = login_as("anna@portfolio.dev")
+    account_id = _create(client, anna)
+
+    response = client.patch(f"/api/accounts/{account_id}", json={"currency": "USD"}, headers=anna)
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "validation_error"
+
+
+def test_update_rejects_whitespace_only_name(client: TestClient, login_as: LoginAs) -> None:
+    anna = login_as("anna@portfolio.dev")
+    account_id = _create(client, anna)
+
+    response = client.patch(f"/api/accounts/{account_id}", json={"name": "   "}, headers=anna)
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "validation_error"
+
+
+def test_update_strips_name_whitespace(client: TestClient, login_as: LoginAs) -> None:
+    anna = login_as("anna@portfolio.dev")
+    account_id = _create(client, anna)
+
+    response = client.patch(f"/api/accounts/{account_id}", json={"name": "  IKE w XTB  "}, headers=anna)
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "IKE w XTB"
+
+
+@pytest.mark.parametrize("account_id", [0, 2147483648, 99999999999999999999999])
+@pytest.mark.parametrize("method", ["GET", "PATCH", "DELETE"])
+def test_out_of_range_account_id_is_a_validation_error(
+    client: TestClient, login_as: LoginAs, method: str, account_id: int
+) -> None:
+    anna = login_as("anna@portfolio.dev")
+    kwargs = {"json": {"name": "Cokolwiek"}} if method == "PATCH" else {}
+
+    response = client.request(method, f"/api/accounts/{account_id}", headers=anna, **kwargs)
 
     assert response.status_code == 422
     assert response.json()["code"] == "validation_error"

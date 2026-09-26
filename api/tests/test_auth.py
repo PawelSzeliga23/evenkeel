@@ -54,6 +54,14 @@ def test_invite_mode_requires_valid_code(make_app: Callable[..., FastAPI]) -> No
     assert register(client, invite_code="znajomi2026").status_code == 201
 
 
+def test_invite_code_is_stripped_before_checking(make_app: Callable[..., FastAPI]) -> None:
+    client = TestClient(make_app(registration_mode="invite", invite_codes="znajomi2026"))
+
+    response = register(client, invite_code=" znajomi2026 ")
+
+    assert response.status_code == 201
+
+
 def test_login_returns_access_token_and_sets_refresh_cookie(client: TestClient) -> None:
     register(client)
     response = login(client, email=" ANNA@portfolio.dev")

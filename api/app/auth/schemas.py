@@ -10,7 +10,7 @@ def _strip(value: object) -> object:
 class RegisterIn(BaseModel):
     email: Annotated[EmailStr, BeforeValidator(_strip)]
     password: str = Field(min_length=10, max_length=128)
-    invite_code: str | None = None
+    invite_code: Annotated[str | None, BeforeValidator(_strip)] = None
 
 
 class LoginIn(BaseModel):
