@@ -94,7 +94,7 @@ def build_report(
     *, account_number: str = "56216965", open_positions_account_number: str | None = None,
     product: str = "IKE", cash: Iterable[Row] = (), open_rows: Iterable[Row] = (),
     closed: Iterable[Row] = (), include_open: bool = True, include_closed: bool = True,
-    include_cash: bool = True,
+    include_cash: bool = True, summary_currency: str = "PLN",
 ) -> bytes:
     cash = list(cash)
     workbook = Workbook()
@@ -115,8 +115,8 @@ def build_report(
         sheet.append(["Open Positions", ""])
         sheet.append(["Data as of report generated", GENERATED])
         sheet.append(["Product", "Metric", "Amount", "Currency"])
-        sheet.append([product, "Open position value", 1000.0, "PLN"])
-        sheet.append([product, "Open position profit", 25.0, "PLN"])
+        sheet.append([product, "Open position value", 1000.0, summary_currency])
+        sheet.append([product, "Open position profit", 25.0, summary_currency])
         sheet.append([])
         sheet.append(["Note", "Summary values and open positions are shown as of the report generation time"])
         _table(sheet, OPEN_HEADER, open_rows)

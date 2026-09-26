@@ -97,6 +97,17 @@ def test_renamed_file_falls_back_to_metadata_and_product_column() -> None:
     assert (report.account_number, report.wrapper) == ("56216965", "ike")
 
 
+def test_renamed_regular_account_currency_falls_back_to_account_summary() -> None:
+    content = xf.build_report(
+        account_number="56204082", product="My Trades", summary_currency="EUR",
+        open_rows=[xf.summary_row("SXR8.DE", "Core S&P 500", 2.0, 1020.0, 500.5, 19.0)],
+    )
+
+    report = parse_report("eksport.xlsx", content)
+
+    assert report.currency == "EUR"
+
+
 def test_report_without_cash_operations_is_rejected() -> None:
     with pytest.raises(XtbFormatError) as exc_info:
         parse_report(xf.filename(), xf.build_report(include_cash=False))
@@ -109,5 +120,15 @@ def test_operation_without_id_is_rejected() -> None:
 
     with pytest.raises(XtbFormatError) as exc_info:
         parse_report(xf.filename(), content)
+
+    assert exc_info.value.code == "missing_value"
+
+
+def test_closed_position_without_type_is_rejected() -> None:
+    row = xf.closed_row("VIE.FR", "555", 3.0, 28.5, datetime(2026, 1, 5, 10, 0), 30.1, datetime(2026, 2, 5, 10, 0))
+    closed = [{**row, "Type": ""}]
+
+    with pytest.raises(XtbFormatError) as exc_info:
+        parse_report(xf.filename(), _ike_report(closed=closed))
 
     assert exc_info.value.code == "missing_value"

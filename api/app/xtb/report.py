@@ -186,7 +186,6 @@ def parse_report(filename: str, content: bytes) -> XtbReport:
     prefix = match["prefix"].upper() if match else None
     products = {op.product.upper() for op in operations if op.product}
     wrapper = _WRAPPERS.get(prefix or "") or next((_WRAPPERS[p] for p in products if p in _WRAPPERS), "regular")
-    currency = prefix if prefix and prefix not in _WRAPPERS and len(prefix) == 3 else "PLN"
 
     summaries: list[InstrumentSummary] = []
     lots: list[OpenLot] = []
@@ -204,6 +203,12 @@ def parse_report(filename: str, content: bytes) -> XtbReport:
                 summaries.append(_summary(ticker, row))
             else:
                 lots.append(_open_lot(ticker, row))
+
+    currency = (
+        prefix
+        if prefix and prefix not in _WRAPPERS and len(prefix) == 3
+        else next((row.currency for row in account_summary if row.currency), None) or "PLN"
+    )
 
     closed: tuple[ClosedLot, ...] = ()
     if CLOSED_SHEET in sheets:
@@ -294,7 +299,7 @@ def _closed_lot(row: dict[str, Any]) -> ClosedLot:
         ticker=_required(to_text(row.get("Ticker")), "ticker"),
         name=to_text(row.get("Instrument")),
         category=to_text(row.get("Category")),
-        side=to_text(row.get("Type")) or "BUY",
+        side=_required(to_text(row.get("Type")), "kierunek pozycji"),
         quantity=_required(to_decimal(row.get("Volume"), "Volume"), "wolumen pozycji"),
         open_price=_required(to_decimal(row.get("Open Price"), "Open Price"), "cena otwarcia"),
         opened_at=_required(to_utc(row.get("Open Time (UTC)"), "Open Time (UTC)"), "czas otwarcia"),
