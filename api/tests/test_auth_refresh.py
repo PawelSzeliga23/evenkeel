@@ -41,6 +41,37 @@ def test_refresh_without_cookie_is_rejected(client: TestClient) -> None:
     assert response.json()["code"] == "invalid_refresh"
 
 
+def _assert_clears_refresh_cookie(response: object) -> None:
+    cookie = response.headers["set-cookie"].lower()  # type: ignore[attr-defined]
+    assert "refresh_token=" in cookie
+    assert "max-age=0" in cookie
+    assert "path=/api/auth" in cookie
+
+
+def test_refresh_without_cookie_clears_refresh_cookie(client: TestClient) -> None:
+    _assert_clears_refresh_cookie(client.post("/api/auth/refresh"))
+
+
+def test_expired_refresh_clears_refresh_cookie(client: TestClient, engine: Engine) -> None:
+    _register_and_login(client)
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE refresh_tokens SET expires_at = now() - interval '1 minute'"))
+
+    _assert_clears_refresh_cookie(client.post("/api/auth/refresh"))
+
+
+def test_reused_refresh_token_clears_refresh_cookie(make_app: Callable[..., FastAPI]) -> None:
+    app = make_app()
+    client = TestClient(app)
+    old_cookie = _register_and_login(client)
+    assert client.post("/api/auth/refresh").status_code == 200
+
+    other = TestClient(app)
+    response = other.post("/api/auth/refresh", headers={"Cookie": f"refresh_token={old_cookie}"})
+
+    _assert_clears_refresh_cookie(response)
+
+
 def test_reusing_rotated_refresh_token_revokes_all_sessions(make_app: Callable[..., FastAPI]) -> None:
     app = make_app()
     client = TestClient(app)

@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Request, Response
@@ -18,6 +19,8 @@ from app.config import Settings, get_settings
 from app.db import get_db
 from app.errors import ApiError
 from app.models import RefreshToken, User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -117,7 +120,16 @@ def me(user: User = Depends(get_current_user)) -> User:
 
 
 def _invalid_refresh() -> ApiError:
-    return ApiError(401, "invalid_refresh", "Sesja wygasła. Zaloguj się ponownie.")
+    # Every 401 from /refresh clears the refresh cookie client-side too, so a dead
+    # or stolen token isn't kept around for another (futile, or worse) retry.
+    clearing_response = Response()
+    clearing_response.delete_cookie(REFRESH_COOKIE, path=REFRESH_COOKIE_PATH)
+    return ApiError(
+        401,
+        "invalid_refresh",
+        "Sesja wygasła. Zaloguj się ponownie.",
+        headers={"set-cookie": clearing_response.headers["set-cookie"]},
+    )
 
 
 @router.post("/refresh", response_model=TokenOut)
@@ -161,6 +173,7 @@ def refresh(
         raise _invalid_refresh()
     if token.revoked_at is not None:
         # A rotated token came back: assume it was stolen and end every session of this user.
+        logger.warning("Refresh token reuse detected; revoked all sessions of user %s", token.user_id)
         db.execute(
             update(RefreshToken)
             .where(RefreshToken.user_id == token.user_id, RefreshToken.revoked_at.is_(None))

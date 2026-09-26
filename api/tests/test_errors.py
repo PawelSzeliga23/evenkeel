@@ -10,7 +10,7 @@ class Payload(BaseModel):
     count: int
 
 
-def _app_with_test_routes(settings: Settings) -> TestClient:
+def _app_with_test_routes(settings: Settings, *, raise_server_exceptions: bool = True) -> TestClient:
     app = create_app(settings)
 
     @app.get("/test/api-error")
@@ -21,7 +21,11 @@ def _app_with_test_routes(settings: Settings) -> TestClient:
     def validate(payload: Payload) -> dict[str, int]:
         return {"count": payload.count}
 
-    return TestClient(app)
+    @app.get("/test/boom")
+    def raise_unexpected() -> None:
+        raise RuntimeError("boom")
+
+    return TestClient(app, raise_server_exceptions=raise_server_exceptions)
 
 
 def test_api_error_is_rendered_in_standard_format(settings: Settings) -> None:
@@ -46,3 +50,21 @@ def test_unknown_route_is_rendered_in_standard_format(settings: Settings) -> Non
 
     assert response.status_code == 404
     assert response.json() == {"code": "not_found", "message": "Nie znaleziono.", "details": {}}
+
+
+def test_unhandled_exception_is_rendered_as_internal_error(settings: Settings) -> None:
+    response = _app_with_test_routes(settings, raise_server_exceptions=False).get("/test/boom")
+
+    assert response.status_code == 500
+    assert response.json() == {
+        "code": "internal_error",
+        "message": "Wystąpił nieoczekiwany błąd. Spróbuj ponownie.",
+        "details": {},
+    }
+
+
+def test_method_not_allowed_is_rendered_in_standard_format(settings: Settings) -> None:
+    response = TestClient(create_app(settings)).delete("/api/health")
+
+    assert response.status_code == 405
+    assert response.json() == {"code": "method_not_allowed", "message": "Niedozwolona metoda.", "details": {}}

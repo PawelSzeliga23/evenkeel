@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -5,18 +6,26 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+logger = logging.getLogger(__name__)
+
 
 class ApiError(Exception):
     """Error returned to the client as {code, message, details}; message is user-facing Polish."""
 
     def __init__(
-        self, status_code: int, code: str, message: str, details: dict[str, Any] | None = None
+        self,
+        status_code: int,
+        code: str,
+        message: str,
+        details: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         super().__init__(message)
         self.status_code = status_code
         self.code = code
         self.message = message
         self.details = details or {}
+        self.headers = headers
 
 
 _HTTP_CODES: dict[int, tuple[str, str]] = {
@@ -32,7 +41,11 @@ def _body(code: str, message: str, details: dict[str, Any] | None = None) -> dic
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(ApiError)
     async def _api_error(_: Request, exc: ApiError) -> JSONResponse:
-        return JSONResponse(status_code=exc.status_code, content=_body(exc.code, exc.message, exc.details))
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=_body(exc.code, exc.message, exc.details),
+            headers=exc.headers,
+        )
 
     @app.exception_handler(RequestValidationError)
     async def _validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
@@ -49,4 +62,12 @@ def register_error_handlers(app: FastAPI) -> None:
             status_code=exc.status_code,
             content=_body(code, message),
             headers=getattr(exc, "headers", None),
+        )
+
+    @app.exception_handler(Exception)
+    async def _unhandled_error(_: Request, exc: Exception) -> JSONResponse:
+        logger.exception("Unhandled exception while processing request", exc_info=exc)
+        return JSONResponse(
+            status_code=500,
+            content=_body("internal_error", "Wystąpił nieoczekiwany błąd. Spróbuj ponownie.", {}),
         )
