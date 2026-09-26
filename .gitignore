@@ -1,0 +1,17 @@
+# Private broker exports - never commit
+samples/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+
+# Env
+.env
+.env.*
+!.env.example
