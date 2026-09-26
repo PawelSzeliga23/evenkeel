@@ -66,3 +66,33 @@ def test_broken_zip_is_rejected() -> None:
         expand_uploads([UploadedFile("a.zip", b"to nie zip")])
 
     assert exc_info.value.code == "not_zip"
+
+
+def test_zip_entries_with_backslashes_are_normalized() -> None:
+    # Simulate Windows-style paths in zip (with backslashes)
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("eksport\\IKE_1.xlsx", b"ike")
+        archive.writestr("__MACOSX\\eksport\\._IKE_1.xlsx", b"junk")
+
+    files, skipped = expand_uploads([UploadedFile("xtb.zip", buffer.getvalue())])
+
+    assert [f.filename for f in files] == ["IKE_1.xlsx"]
+    assert skipped == ["._IKE_1.xlsx"]
+
+
+def test_directory_entries_are_counted_toward_limit() -> None:
+    # Create a zip with 2 xlsx files + 3 directories, total 5 entries
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        archive.writestr("dir1/", "")  # directory entry
+        archive.writestr("dir2/", "")  # directory entry
+        archive.writestr("dir3/", "")  # directory entry
+        archive.writestr("dir1/a.xlsx", b"x")
+        archive.writestr("dir2/b.xlsx", b"y")
+
+    # With max_entries=4, this should fail (5 entries total)
+    with pytest.raises(XtbFormatError) as exc_info:
+        expand_uploads([UploadedFile("a.zip", buffer.getvalue())], max_entries=4)
+
+    assert exc_info.value.code == "archive_too_many_files"

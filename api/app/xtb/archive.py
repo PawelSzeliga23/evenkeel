@@ -55,16 +55,19 @@ def _expand_zip(
     except zipfile.BadZipFile as exc:
         raise XtbFormatError("not_zip", f"Plik {zip_name} nie jest poprawnym archiwum ZIP.") from exc
     with archive:
-        entries = [info for info in archive.infolist() if not info.is_dir()]
-        if len(entries) > max_entries:
+        all_entries = archive.infolist()
+        if len(all_entries) > max_entries:
             raise XtbFormatError(
                 "archive_too_many_files", f"Archiwum {zip_name} ma za dużo plików (maks. {max_entries})."
             )
         files: list[UploadedFile] = []
         total = 0
-        for info in entries:
-            name = PurePosixPath(info.filename).name
-            if not name.lower().endswith(".xlsx") or name.startswith("._") or info.filename.startswith("__MACOSX/"):
+        for info in all_entries:
+            if info.is_dir():
+                continue
+            path = info.filename.replace("\\", "/")
+            name = PurePosixPath(path).name
+            if not name.lower().endswith(".xlsx") or name.startswith("._") or path.startswith("__MACOSX/"):
                 skipped.append(name)
                 continue
             with archive.open(info) as entry:
