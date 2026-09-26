@@ -6,6 +6,8 @@ from app.auth.router import router as auth_router
 from app.config import Settings, get_settings
 from app.errors import register_error_handlers
 from app.health import router as health_router
+from app.imports.router import router as imports_router
+from app.transactions.router import router as transactions_router
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -17,6 +19,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health_router)
     app.include_router(auth_router)
     app.include_router(accounts_router)
+    app.include_router(imports_router)
+    app.include_router(transactions_router)
     return app
 
 

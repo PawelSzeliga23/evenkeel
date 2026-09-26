@@ -40,6 +40,10 @@ docker compose exec db psql -U portfolio      # konsola SQL bazy deweloperskiej
 | GET | `/api/auth/me` | zalogowany użytkownik |
 | GET/POST | `/api/accounts` | lista / utworzenie konta |
 | GET/PATCH/DELETE | `/api/accounts/{id}` | konto |
+| POST | `/api/imports/preview` | podgląd importu XTB (multipart `files`: XLSX / ZIP / wiele plików) — nic nie zapisuje |
+| POST | `/api/imports` | zapis importu XTB (te same pliki); całość albo nic |
+| GET | `/api/imports` | historia importów |
+| GET | `/api/transactions` | operacje (`account_id`, `type`, `limit`, `offset`) |
 
 Chronione endpointy wymagają nagłówka `Authorization: Bearer <access_token>`.
 Błędy mają format `{"code": "...", "message": "...", "details": {...}}`.
