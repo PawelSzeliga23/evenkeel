@@ -84,3 +84,16 @@ def make_app(engine: Engine, clean_db: None) -> Callable[..., FastAPI]:
 @pytest.fixture
 def client(make_app: Callable[..., FastAPI]) -> TestClient:
     return TestClient(make_app())
+
+
+@pytest.fixture
+def login_as(client: TestClient) -> Callable[[str], dict[str, str]]:
+    """Registers (if needed) and logs in a user; returns Authorization headers."""
+
+    def _login(email: str) -> dict[str, str]:
+        password = "bardzo-tajne-haslo"
+        client.post("/api/auth/register", json={"email": email, "password": password})
+        response = client.post("/api/auth/login", json={"email": email, "password": password})
+        return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+    return _login

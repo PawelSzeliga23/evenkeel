@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from app.accounts.router import router as accounts_router
 from app.auth.rate_limit import RateLimiter
 from app.auth.router import router as auth_router
 from app.config import Settings, get_settings
@@ -15,6 +16,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_error_handlers(app)
     app.include_router(health_router)
     app.include_router(auth_router)
+    app.include_router(accounts_router)
     return app
 
 
