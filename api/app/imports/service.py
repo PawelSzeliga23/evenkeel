@@ -245,6 +245,14 @@ def _upsert(db: Session, rows: list[dict[str, Any]]) -> None:
         )
 
 
+def _dedupe_by_position(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keeps the last row for each xtb_position_id: a single upsert statement cannot touch the same row twice."""
+    deduped: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        deduped[row["xtb_position_id"]] = row
+    return list(deduped.values())
+
+
 def _upsert_lots(db: Session, account: Account, report: XtbReport, instruments: dict[str, int]) -> None:
     open_rows = [
         {
@@ -268,9 +276,9 @@ def _upsert_lots(db: Session, account: Account, report: XtbReport, instruments: 
         for lot in report.closed_lots
     ]
     if open_rows:
-        _upsert(db, open_rows)
+        _upsert(db, _dedupe_by_position(open_rows))
     if closed_rows:
-        _upsert(db, closed_rows)
+        _upsert(db, _dedupe_by_position(closed_rows))
 
 
 def _insert_snapshots(
@@ -301,8 +309,9 @@ def pair_transfers(scope: UserScope) -> int:
     """Links transfer_out/transfer_in between the user's own accounts so they aren't counted as new money.
 
     A pair: different accounts, equal absolute amount, within a day. The account number XTB puts in the
-    comment is preferred when it identifies the other side; otherwise only an unambiguous single
-    candidate is paired.
+    comment is preferred when it identifies the other side; otherwise a single candidate is paired only
+    when neither side's counterparty number names an account the user owns (so it can't be contradicting
+    an unimported third account).
     """
     db = scope.db
     unpaired = db.scalars(
@@ -311,6 +320,7 @@ def pair_transfers(scope: UserScope) -> int:
         )
     ).all()
     numbers = {account.id: account.external_account_number for account in db.scalars(scope.accounts())}
+    owned_numbers = {number for number in numbers.values() if number is not None}
     incoming = [t for t in unpaired if t.type == "transfer_in"]
     paired = 0
     for out in sorted((t for t in unpaired if t.type == "transfer_out"), key=lambda t: t.occurred_at):
@@ -326,7 +336,12 @@ def pair_transfers(scope: UserScope) -> int:
             if out.counterparty_account == numbers.get(t.account_id)
             or t.counterparty_account == numbers.get(out.account_id)
         ]
-        pool = exact or (candidates if len(candidates) == 1 else [])
+        unattributed = (
+            len(candidates) == 1
+            and out.counterparty_account not in owned_numbers
+            and candidates[0].counterparty_account not in owned_numbers
+        )
+        pool = exact or (candidates if unattributed else [])
         if not pool:
             continue
         match = min(pool, key=lambda t: abs(t.occurred_at - out.occurred_at))

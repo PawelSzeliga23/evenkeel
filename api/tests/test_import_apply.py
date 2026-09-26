@@ -87,6 +87,16 @@ def test_closing_a_lot_in_a_later_import_updates_it(scope: UserScope) -> None:
     assert _count(scope, PositionLot) == 1
 
 
+def test_duplicate_closed_position_ids_in_one_report_do_not_break_the_import(scope: UserScope) -> None:
+    first = xf.closed_row("SXR8.DE", "777", 2.0, 500.5, AT, 520.0, datetime(2026, 4, 1, 9, 0), name="Core S&P 500")
+    second = xf.closed_row("SXR8.DE", "777", 2.0, 500.5, AT, 530.0, datetime(2026, 4, 1, 10, 0), name="Core S&P 500")
+
+    _import(scope, (xf.filename("IKE", IKE), _ike([], [], [first, second])))
+
+    lot = scope.db.scalar(select(PositionLot))
+    assert (lot.close_price, _count(scope, PositionLot)) == (Decimal("530.0"), 1)
+
+
 def _transfer(direction: str, amount: float, op_id: str, counterparty: str, product: str) -> dict:
     return xf.cash_row("IKE deposit", amount, op_id, AT, product=product,
                        comment=f"Transfer {direction} operation on account with id {counterparty}")
@@ -113,6 +123,43 @@ def test_transfer_pairs_when_the_other_side_arrives_later(scope: UserScope) -> N
     _import(scope, (xf.filename("IKE", IKE), _ike([_transfer("in", 500.0, "9002", PLN, "IKE")])))
 
     assert scope.db.scalar(select(func.count()).where(Transaction.transfer_pair_id.is_not(None))) == 2
+
+
+def test_transfers_with_contradicting_counterparty_numbers_are_not_paired(scope: UserScope) -> None:
+    """A owns PLN, IKE and a third account. A PLN->third transfer must not be paired with an
+    unrelated IKE->third transfer just because they share amount/time: both name the same third
+    account as counterparty, so they can't be two sides of the same transfer."""
+    third = "56299999"
+    scope.add_account(name="XTB Other", kind="broker", wrapper="regular", broker="xtb",
+                      external_account_number=third, currency="PLN")
+    scope.db.commit()
+    pln = xf.build_report(account_number=PLN, product="My Trades", include_open=False,
+                          cash=[_transfer("out", -500.0, "9001", third, "My Trades")])
+    ike = _ike([_transfer("in", 500.0, "9002", third, "IKE")])
+
+    _import(scope, (xf.filename("PLN", PLN), pln), (xf.filename("IKE", IKE), ike))
+
+    out, in_ = (scope.db.scalar(select(Transaction).where(Transaction.external_id == i)) for i in ("9001", "9002"))
+    assert (out.transfer_pair_id, in_.transfer_pair_id) == (None, None)
+
+
+def test_transfers_are_not_paired_when_ambiguous_between_two_accounts(scope: UserScope) -> None:
+    other = "56299998"
+    scope.add_account(name="XTB Other", kind="broker", wrapper="regular", broker="xtb",
+                      external_account_number=other, currency="PLN")
+    scope.db.commit()
+    stranger = "00000000"
+    pln = xf.build_report(account_number=PLN, product="My Trades", include_open=False,
+                          cash=[_transfer("out", -500.0, "9001", stranger, "My Trades")])
+    ike = _ike([_transfer("in", 500.0, "9002", stranger, "IKE")])
+    other_report = xf.build_report(account_number=other, product="Other", include_open=False,
+                                   cash=[_transfer("in", 500.0, "9003", stranger, "Other")])
+
+    _import(scope, (xf.filename("PLN", PLN), pln), (xf.filename("IKE", IKE), ike),
+            (xf.filename("OTHER", other), other_report))
+
+    out = scope.db.scalar(select(Transaction).where(Transaction.external_id == "9001"))
+    assert out.transfer_pair_id is None
 
 
 def test_failure_leaves_nothing_behind(scope: UserScope) -> None:
