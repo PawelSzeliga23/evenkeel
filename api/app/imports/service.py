@@ -1,13 +1,21 @@
 from collections import defaultdict
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.orm import Session
 
-from app.models import Account, Instrument, Transaction
+from app.models import Account, ImportRecord, Instrument, PositionLot, Transaction, XtbSnapshot
 from app.scoping import UserScope
 from app.xtb.report import CashOperation, XtbReport
+
+FX_PLACES = Decimal("0.00000001")
+TRANSFER_PAIR_WINDOW = timedelta(days=1)
+INSERT_CHUNK = 1000
 
 NEW_ACCOUNT_NAMES = {"ike": "XTB IKE", "ikze": "XTB IKZE"}
 
@@ -117,3 +125,212 @@ def _reconciliation_warnings(
                 "details": {"ticker": ticker, "calculated": _fmt(calculated), "xtb": _fmt(xtb)},
             })
     return warnings
+
+
+def apply_import(scope: UserScope, plans: list[FilePlan]) -> list[ImportRecord]:
+    """Writes the planned imports in a single database transaction (all or nothing)."""
+    db = scope.db
+    records: list[ImportRecord] = []
+    try:
+        for plan in plans:
+            account = plan.account or scope.add_account(**plan.new_account)
+            db.flush()
+            plan.account = account
+            report = plan.report
+            record = ImportRecord(
+                user_id=scope.user.id, account_id=account.id, filename=report.filename,
+                file_hash=report.file_hash, report_from=report.report_from, report_to=report.report_to,
+                rows_added=0, rows_duplicate=plan.duplicate_count, rows_unknown=plan.unknown_count,
+                warnings=plan.warnings,
+            )
+            db.add(record)
+            db.flush()
+            instruments = _ensure_instruments(db, report)
+            record.rows_added = _insert_transactions(db, account, record, plan.new_operations, instruments)
+            _upsert_lots(db, account, report, instruments)
+            _insert_snapshots(db, account, record, report, instruments)
+            records.append(record)
+        pair_transfers(scope)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return records
+
+
+def _chunks(rows: list[dict[str, Any]]) -> Iterator[list[dict[str, Any]]]:
+    for start in range(0, len(rows), INSERT_CHUNK):
+        yield rows[start:start + INSERT_CHUNK]
+
+
+def _category(value: str | None) -> str | None:
+    return value.lower() if value else None
+
+
+def _suffix(ticker: str) -> str | None:
+    return ticker.rsplit(".", 1)[1].upper() if "." in ticker else None
+
+
+def _ensure_instruments(db: Session, report: XtbReport) -> dict[str, int]:
+    """Creates missing instruments (shared by all users) and returns ticker → id."""
+    known: dict[str, tuple[str | None, str | None]] = {}
+    for summary in report.instrument_summaries:
+        known[summary.ticker] = (summary.name, summary.category)
+    for operation in report.cash_operations:
+        if operation.ticker:
+            known.setdefault(operation.ticker, (operation.instrument_name, operation.category))
+    for lot in report.closed_lots:
+        known.setdefault(lot.ticker, (lot.name, lot.category))
+    for lot in report.open_lots:
+        known.setdefault(lot.ticker, (None, None))
+    if not known:
+        return {}
+    rows = [
+        {"xtb_ticker": ticker, "name": name or ticker, "category": _category(category), "exchange_suffix": _suffix(ticker)}
+        for ticker, (name, category) in known.items()
+    ]
+    db.execute(insert(Instrument).values(rows).on_conflict_do_nothing(index_elements=["xtb_ticker"]))
+    return dict(db.execute(select(Instrument.xtb_ticker, Instrument.id).where(Instrument.xtb_ticker.in_(known))).all())
+
+
+def _implied_fx(operation: CashOperation) -> Decimal | None:
+    quantity, price = operation.classified.quantity, operation.classified.price
+    if not quantity or not price:
+        return None
+    return (abs(operation.amount) / (quantity * price)).quantize(FX_PLACES)
+
+
+def _insert_transactions(
+    db: Session, account: Account, record: ImportRecord, operations: list[CashOperation], instruments: dict[str, int]
+) -> int:
+    rows = [
+        {
+            "account_id": account.id,
+            "instrument_id": instruments.get(op.ticker) if op.ticker else None,
+            "type": op.classified.type,
+            "xtb_type": op.xtb_type,
+            "occurred_at": op.occurred_at,
+            "amount": op.amount,
+            "currency": account.currency,
+            "quantity": op.classified.quantity,
+            "price": op.classified.price,
+            "implied_fx_rate": _implied_fx(op),
+            "xtb_position_id": op.xtb_position_id,
+            "external_id": op.external_id,
+            "comment": op.comment,
+            "counterparty_account": op.classified.counterparty_account,
+            "raw": op.raw,
+            "import_id": record.id,
+        }
+        for op in operations
+    ]
+    added = 0
+    for chunk in _chunks(rows):
+        statement = (
+            insert(Transaction)
+            .values(chunk)
+            .on_conflict_do_nothing(constraint="uq_transactions_account_id_external_id")
+            .returning(Transaction.id)
+        )
+        added += len(db.execute(statement).all())
+    return added
+
+
+def _upsert(db: Session, rows: list[dict[str, Any]]) -> None:
+    for chunk in _chunks(rows):
+        statement = insert(PositionLot).values(chunk)
+        updated = {c: statement.excluded[c] for c in chunk[0] if c not in ("account_id", "xtb_position_id")}
+        db.execute(
+            statement.on_conflict_do_update(constraint="uq_position_lots_account_id_xtb_position_id", set_=updated)
+        )
+
+
+def _upsert_lots(db: Session, account: Account, report: XtbReport, instruments: dict[str, int]) -> None:
+    open_rows = [
+        {
+            "account_id": account.id, "instrument_id": instruments[lot.ticker], "xtb_position_id": lot.xtb_position_id,
+            "side": lot.side, "quantity": lot.quantity, "open_price": lot.open_price, "opened_at": lot.opened_at,
+            "open_commission": lot.open_commission, "swap": lot.swap, "rollover": lot.rollover, "margin": lot.margin,
+            "stop_loss": lot.stop_loss, "take_profit": lot.take_profit, "raw": lot.raw,
+        }
+        for lot in report.open_lots
+    ]
+    closed_rows = [
+        {
+            "account_id": account.id, "instrument_id": instruments[lot.ticker], "xtb_position_id": lot.xtb_position_id,
+            "side": lot.side, "quantity": lot.quantity, "open_price": lot.open_price, "opened_at": lot.opened_at,
+            "open_commission": lot.commission, "swap": lot.swap, "rollover": lot.rollover, "margin": lot.margin,
+            "stop_loss": lot.stop_loss, "take_profit": lot.take_profit, "closed_at": lot.closed_at,
+            "close_price": lot.close_price, "close_origin": lot.close_origin,
+            "open_conversion_rate": lot.open_conversion_rate, "close_conversion_rate": lot.close_conversion_rate,
+            "raw": lot.raw,
+        }
+        for lot in report.closed_lots
+    ]
+    if open_rows:
+        _upsert(db, open_rows)
+    if closed_rows:
+        _upsert(db, closed_rows)
+
+
+def _insert_snapshots(
+    db: Session, account: Account, record: ImportRecord, report: XtbReport, instruments: dict[str, int]
+) -> None:
+    taken_at = report.generated_at or datetime.now(UTC)
+    base = {"import_id": record.id, "account_id": account.id, "taken_at": taken_at}
+    rows: list[dict[str, Any]] = []
+    for s in report.instrument_summaries:
+        rows.append({**base, "instrument_id": instruments.get(s.ticker), "xtb_position_id": None,
+                     "row_kind": "instrument_summary", "volume": s.volume, "value": s.value,
+                     "current_price": None, "net_profit": s.net_profit, "net_profit_pct": s.net_profit_pct,
+                     "gross_profit": s.gross_profit, "raw": s.raw})
+    for lot in report.open_lots:
+        rows.append({**base, "instrument_id": instruments.get(lot.ticker), "xtb_position_id": lot.xtb_position_id,
+                     "row_kind": "lot", "volume": lot.quantity, "value": lot.value,
+                     "current_price": lot.current_price, "net_profit": lot.net_profit,
+                     "net_profit_pct": lot.net_profit_pct, "gross_profit": lot.gross_profit, "raw": lot.raw})
+    for row in report.account_summary:
+        rows.append({**base, "instrument_id": None, "xtb_position_id": None, "row_kind": "account_summary",
+                     "volume": None, "value": row.amount, "current_price": None, "net_profit": None,
+                     "net_profit_pct": None, "gross_profit": None, "raw": row.raw})
+    for chunk in _chunks(rows):
+        db.execute(insert(XtbSnapshot).values(chunk))
+
+
+def pair_transfers(scope: UserScope) -> int:
+    """Links transfer_out/transfer_in between the user's own accounts so they aren't counted as new money.
+
+    A pair: different accounts, equal absolute amount, within a day. The account number XTB puts in the
+    comment is preferred when it identifies the other side; otherwise only an unambiguous single
+    candidate is paired.
+    """
+    db = scope.db
+    unpaired = db.scalars(
+        scope.transactions().where(
+            Transaction.type.in_(("transfer_in", "transfer_out")), Transaction.transfer_pair_id.is_(None)
+        )
+    ).all()
+    numbers = {account.id: account.external_account_number for account in db.scalars(scope.accounts())}
+    incoming = [t for t in unpaired if t.type == "transfer_in"]
+    paired = 0
+    for out in sorted((t for t in unpaired if t.type == "transfer_out"), key=lambda t: t.occurred_at):
+        candidates = [
+            t for t in incoming
+            if t.transfer_pair_id is None
+            and t.account_id != out.account_id
+            and abs(t.amount) == abs(out.amount)
+            and abs(t.occurred_at - out.occurred_at) <= TRANSFER_PAIR_WINDOW
+        ]
+        exact = [
+            t for t in candidates
+            if out.counterparty_account == numbers.get(t.account_id)
+            or t.counterparty_account == numbers.get(out.account_id)
+        ]
+        pool = exact or (candidates if len(candidates) == 1 else [])
+        if not pool:
+            continue
+        match = min(pool, key=lambda t: abs(t.occurred_at - out.occurred_at))
+        out.transfer_pair_id, match.transfer_pair_id = match.id, out.id
+        paired += 1
+    db.flush()
+    return paired

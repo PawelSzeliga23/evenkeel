@@ -1,0 +1,126 @@
+import dataclasses
+from collections.abc import Iterator
+from datetime import datetime
+from decimal import Decimal
+
+import pytest
+from sqlalchemy import Engine, func, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from app.imports.service import apply_import, plan_import
+from app.models import Account, ImportRecord, Instrument, PositionLot, Transaction, User, XtbSnapshot
+from app.scoping import UserScope
+from app.xtb.classify import Classified
+from app.xtb.report import parse_report
+from tests import xtb_factory as xf
+
+AT = datetime(2026, 3, 2, 9, 30)
+IKE, PLN = "56216965", "56204082"
+
+
+@pytest.fixture
+def scope(engine: Engine, clean_db: None) -> Iterator[UserScope]:
+    with Session(engine, expire_on_commit=False) as session:
+        user = User(email="anna@portfolio.dev", password_hash="x")
+        session.add(user)
+        session.commit()
+        yield UserScope(session, user)
+
+
+def _ike(cash: list[dict], open_rows: list[dict] | None = None, closed: list[dict] | None = None) -> bytes:
+    return xf.build_report(account_number=IKE, cash=cash, open_rows=open_rows or [], closed=closed or [])
+
+
+def _import(scope: UserScope, *files: tuple[str, bytes]) -> list[ImportRecord]:
+    return apply_import(scope, plan_import(scope, [parse_report(name, content) for name, content in files]))
+
+
+def _count(scope: UserScope, model: type) -> int:
+    return scope.db.scalar(select(func.count()).select_from(model))
+
+
+BUY = xf.buy_row("SXR8.DE", "2", "500.5", -4304.3, "1002", AT, "777")
+SUMMARY = xf.summary_row("SXR8.DE", "Core S&P 500", 2.0, 1020.0, 500.5, 19.0)
+LOT = xf.lot_row("SXR8.DE", "777", 2.0, 500.5, AT, 510.0, 1020.0, 19.0)
+
+
+def test_import_creates_account_transactions_lots_and_snapshots(scope: UserScope) -> None:
+    (record,) = _import(scope, (xf.filename("IKE", IKE), _ike([BUY], [SUMMARY, LOT])))
+
+    account = scope.db.scalar(select(Account))
+    assert (account.name, account.wrapper, account.external_account_number) == ("XTB IKE", "ike", IKE)
+    assert (record.account_id, record.rows_added, record.rows_duplicate, record.rows_unknown) == (account.id, 1, 0, 0)
+    transaction = scope.db.scalar(select(Transaction))
+    assert (transaction.type, transaction.ticker, transaction.quantity, transaction.price) == (
+        "buy", "SXR8.DE", Decimal("2"), Decimal("500.5"))
+    assert transaction.amount == Decimal("-4304.3")
+    assert transaction.implied_fx_rate == Decimal("4.3")
+    assert transaction.import_id == record.id
+    instrument = scope.db.scalar(select(Instrument))
+    assert (instrument.name, instrument.category, instrument.exchange_suffix) == ("Core S&P 500", "etf", "DE")
+    lot = scope.db.scalar(select(PositionLot))
+    assert (lot.xtb_position_id, lot.quantity, lot.closed_at) == ("777", Decimal("2"), None)
+    kinds = sorted(scope.db.scalars(select(XtbSnapshot.row_kind)))
+    assert kinds == ["account_summary", "account_summary", "instrument_summary", "lot"]
+
+
+def test_reimporting_the_same_file_adds_nothing(scope: UserScope) -> None:
+    file = (xf.filename("IKE", IKE), _ike([BUY], [SUMMARY, LOT]))
+    _import(scope, file)
+
+    (record,) = _import(scope, file)
+
+    assert (record.rows_added, record.rows_duplicate) == (0, 1)
+    assert (_count(scope, Transaction), _count(scope, PositionLot), _count(scope, Account)) == (1, 1, 1)
+
+
+def test_closing_a_lot_in_a_later_import_updates_it(scope: UserScope) -> None:
+    _import(scope, (xf.filename("IKE", IKE), _ike([BUY], [SUMMARY, LOT])))
+    closed = xf.closed_row("SXR8.DE", "777", 2.0, 500.5, AT, 530.0, datetime(2026, 4, 1, 10, 0), name="Core S&P 500")
+
+    _import(scope, (xf.filename("IKE", IKE), _ike([BUY], [], [closed])))
+
+    lot = scope.db.scalar(select(PositionLot))
+    assert (lot.close_price, lot.close_origin) == (Decimal("530.0"), "Client")
+    assert lot.closed_at is not None
+    assert _count(scope, PositionLot) == 1
+
+
+def _transfer(direction: str, amount: float, op_id: str, counterparty: str, product: str) -> dict:
+    return xf.cash_row("IKE deposit", amount, op_id, AT, product=product,
+                       comment=f"Transfer {direction} operation on account with id {counterparty}")
+
+
+def test_transfers_between_own_accounts_are_paired(scope: UserScope) -> None:
+    pln = xf.build_report(account_number=PLN, product="My Trades", include_open=False,
+                          cash=[_transfer("out", -500.0, "9001", IKE, "My Trades")])
+    ike = _ike([_transfer("in", 500.0, "9002", PLN, "IKE")])
+
+    _import(scope, (xf.filename("PLN", PLN), pln), (xf.filename("IKE", IKE), ike))
+
+    out, in_ = (scope.db.scalar(select(Transaction).where(Transaction.external_id == i)) for i in ("9001", "9002"))
+    assert (out.type, in_.type) == ("transfer_out", "transfer_in")
+    assert (out.transfer_pair_id, in_.transfer_pair_id) == (in_.id, out.id)
+
+
+def test_transfer_pairs_when_the_other_side_arrives_later(scope: UserScope) -> None:
+    pln = xf.build_report(account_number=PLN, product="My Trades", include_open=False,
+                          cash=[_transfer("out", -500.0, "9001", IKE, "My Trades")])
+    _import(scope, (xf.filename("PLN", PLN), pln))
+    assert scope.db.scalar(select(Transaction.transfer_pair_id)) is None
+
+    _import(scope, (xf.filename("IKE", IKE), _ike([_transfer("in", 500.0, "9002", PLN, "IKE")])))
+
+    assert scope.db.scalar(select(func.count()).where(Transaction.transfer_pair_id.is_not(None))) == 2
+
+
+def test_failure_leaves_nothing_behind(scope: UserScope) -> None:
+    plans = plan_import(scope, [parse_report(xf.filename("IKE", IKE), _ike([BUY]))])
+    broken = dataclasses.replace(plans[0].new_operations[0], classified=Classified("bogus"))
+    plans[0].new_operations = [broken]
+
+    with pytest.raises(IntegrityError):
+        apply_import(scope, plans)
+
+    assert (_count(scope, Account), _count(scope, Transaction), _count(scope, ImportRecord)) == (0, 0, 0)
