@@ -142,6 +142,22 @@ def test_broken_file_blocks_the_whole_commit(client: TestClient, login_as: Login
     assert client.get("/api/accounts", headers=anna).json() == []
 
 
+def test_corrupted_xlsx_is_reported_and_blocks_the_commit(client: TestClient, login_as: LoginAs) -> None:
+    anna = login_as("anna@portfolio.dev")
+    corrupted = xf.corrupt_worksheet_xml(_ike())
+
+    preview = client.post("/api/imports/preview", files=_files((IKE_NAME, corrupted)), headers=anna)
+    commit = client.post("/api/imports", files=_files((IKE_NAME, corrupted)), headers=anna)
+
+    assert preview.status_code == 200
+    assert preview.json()["errors"] == [
+        {"filename": IKE_NAME, "code": "not_xlsx", "message": "Plik nie jest poprawnym plikiem XLSX."}
+    ]
+    assert commit.status_code == 422
+    assert commit.json()["code"] == "import_invalid_files"
+    assert client.get("/api/accounts", headers=anna).json() == []
+
+
 def test_commit_without_xlsx_files_is_rejected(client: TestClient, login_as: LoginAs) -> None:
     response = client.post("/api/imports", files=_files(("notatki.txt", b"x")), headers=login_as("anna@portfolio.dev"))
 

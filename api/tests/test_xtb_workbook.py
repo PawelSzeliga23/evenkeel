@@ -70,6 +70,15 @@ def test_garbage_bytes_are_not_xlsx() -> None:
     assert exc_info.value.code == "not_xlsx"
 
 
+def test_corrupted_worksheet_xml_is_not_xlsx() -> None:
+    content = xf.corrupt_worksheet_xml(xf.build_report(cash=_cash_rows()))
+
+    with pytest.raises(XtbFormatError) as exc_info:
+        open_workbook(content)
+
+    assert exc_info.value.code == "not_xlsx"
+
+
 def test_far_out_of_range_cell_does_not_cause_a_huge_scan() -> None:
     """A tiny workbook with one cell at XFD200000 must not force a scan of ~3.3 billion cells."""
     workbook = Workbook()

@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from typing import Any
 
 from openpyxl import load_workbook
-from openpyxl.utils.exceptions import InvalidFileException
 
 SUMMARY_LABELS = frozenset({"Total", "Profit/loss"})
 HEADER_SEARCH_ROWS = 40
@@ -65,15 +64,22 @@ def _read_rows(sheet: Any) -> list[tuple[Any, ...]]:
 
 
 def open_workbook(content: bytes) -> dict[str, list[tuple[Any, ...]]]:
+    """Raises XtbFormatError("not_xlsx") for anything that isn't a readable XLSX workbook,
+    including a well-formed ZIP whose internal XML (worksheet, styles, ...) is corrupted:
+    openpyxl's read_only parser can raise all sorts of exceptions (ParseError, KeyError,
+    ValueError, ...) partway through, so any failure here is treated the same way."""
     _check_unzipped_size(content)
+    workbook = None
     try:
         workbook = load_workbook(io.BytesIO(content), data_only=True, read_only=True)
-    except (InvalidFileException, zipfile.BadZipFile, KeyError, ValueError, OSError) as exc:
-        raise XtbFormatError("not_xlsx", "Plik nie jest poprawnym plikiem XLSX.") from exc
-    try:
         return {sheet.title: _read_rows(sheet) for sheet in workbook.worksheets}
+    except Exception as exc:
+        if isinstance(exc, XtbFormatError):
+            raise
+        raise XtbFormatError("not_xlsx", "Plik nie jest poprawnym plikiem XLSX.") from exc
     finally:
-        workbook.close()
+        if workbook is not None:
+            workbook.close()
 
 
 def read_sheet(title: str, rows: list[tuple[Any, ...]], required_columns: frozenset[str]) -> Sheet:

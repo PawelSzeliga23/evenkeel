@@ -4,6 +4,7 @@ The layout (sheet names, metadata rows above each table, summary rows, the two k
 rows in Open Positions) was verified against real exports; values here are made up.
 """
 import io
+import zipfile
 from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
@@ -123,6 +124,20 @@ def build_report(
         _table(sheet, OPEN_HEADER, open_rows)
     buffer = io.BytesIO()
     workbook.save(buffer)
+    return buffer.getvalue()
+
+
+def corrupt_worksheet_xml(content: bytes) -> bytes:
+    """Mangles the first worksheet's XML in an otherwise-valid XLSX zip, as if it got
+    truncated or corrupted in transit: a valid ZIP that openpyxl can't parse."""
+    source = zipfile.ZipFile(io.BytesIO(content))
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for info in source.infolist():
+            data = source.read(info.filename)
+            if info.filename.endswith("sheet1.xml"):
+                data = b"<not valid xml <<<"
+            archive.writestr(info.filename, data)
     return buffer.getvalue()
 
 
