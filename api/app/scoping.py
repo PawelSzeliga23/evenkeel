@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.auth.deps import get_current_user
 from app.db import get_db
 from app.errors import ApiError
-from app.models import Account, ImportRecord, Instrument, PositionLot, Transaction, User
+from app.models import Account, ImportRecord, Instrument, PositionLot, Transaction, User, XtbSnapshot
 
 # Path parameter type for any database id: keeps Postgres int4 range errors
 # (which would otherwise surface as an opaque 500) as a 422 validation_error.
@@ -54,6 +54,13 @@ class UserScope:
             .join(Account, Transaction.account_id == Account.id)
             .where(Account.user_id == self.user.id)
             .order_by(Transaction.occurred_at.desc(), Transaction.id.desc())
+        )
+
+    def snapshots(self) -> Select[tuple[XtbSnapshot]]:
+        return (
+            select(XtbSnapshot)
+            .join(Account, XtbSnapshot.account_id == Account.id)
+            .where(Account.user_id == self.user.id)
         )
 
     def imports(self) -> Select[tuple[ImportRecord]]:
