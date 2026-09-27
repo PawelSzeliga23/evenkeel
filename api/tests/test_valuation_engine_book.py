@@ -1,7 +1,7 @@
 import datetime as dt
 from decimal import Decimal as D
 
-from app.valuation.engine import Book, Entry, Split
+from app.valuation.engine import Book, Entry, Split, daily_rows, money
 from app.valuation.market_data import MarketData, Series
 
 MAR_01, MAR_02, MAR_05, JUN_01 = dt.date(2026, 3, 1), dt.date(2026, 3, 2), dt.date(2026, 3, 5), dt.date(2026, 6, 1)
@@ -85,6 +85,20 @@ def test_sale_larger_than_the_holding_closes_everything_without_error() -> None:
     assert _lots(book) == {}
     (sale,) = book.sales
     assert (sale.cost_pln, sale.realized_pln, sale.matched) == (D("4304.30"), D("1695.70"), False)
+
+
+def test_pro_rata_sales_of_everything_leave_no_dust_lot() -> None:
+    entries = (
+        _buy(1, MAR_02, "0.61", "-61.00"), _buy(2, MAR_02, "140", "-14000.00"), _buy(3, MAR_02, "0.95", "-95.00"),
+        _sell(4, MAR_05, "113.25", "11325.00"), _sell(5, MAR_05, "5.66", "566.00"), _sell(6, JUN_01, "22.65", "2265.00"),
+    )
+    book = _book(*entries)
+
+    assert _lots(book) == {}
+    assert book.position(ACCOUNT, SXR8, JUN_01) is None
+    assert money(sum(sale.cost_pln for sale in book.sales)) == D("14156.00")
+    rows = daily_rows(list(entries), [], _market(), JUN_01)
+    assert [row.instrument_id for row in rows if row.day == JUN_01] == [None]
 
 
 def test_quantities_are_kept_in_current_units_across_a_split() -> None:

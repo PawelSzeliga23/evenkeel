@@ -22,6 +22,7 @@ FLAG_FX_MISSING = "fx_missing"
 SOURCE_PROVIDER = "provider"
 SOURCE_XTB = "xtb"
 PRICE_PLACES = Decimal("0.0001")
+QUANTITY_EPSILON = Decimal("1e-8")  # quantities are stored with 8 decimal places
 
 Key = tuple[int, int]  # (account_id, instrument_id)
 
@@ -220,10 +221,13 @@ class Book:
 
     @staticmethod
     def _take(lots: dict[str, Lot], lot: Lot, quantity: Decimal) -> Decimal:
+        """Removes `quantity` from the lot and returns its cost; a remainder below the stored quantity precision
+        is Decimal dust of pro-rata division, so the lot is closed and its remaining cost taken too."""
         cost = lot.cost_pln * quantity / lot.quantity
         lot.quantity -= quantity
         lot.cost_pln -= cost
-        if lot.quantity <= 0:
+        if lot.quantity < QUANTITY_EPSILON:
+            cost += lot.cost_pln
             del lots[lot.key]
         return cost
 
@@ -232,7 +236,9 @@ class Book:
         held = sum((lot.quantity for lot in lots.values()), ZERO)
         if held <= 0:
             return ZERO
-        share = min(quantity, held) / held
+        if quantity >= held:  # everything: whole lots, no inexact share
+            return sum((self._take(lots, lot, lot.quantity) for lot in list(lots.values())), ZERO)
+        share = quantity / held
         return sum((self._take(lots, lot, lot.quantity * share) for lot in list(lots.values())), ZERO)
 
     def quote(self, account_id: int, instrument_id: int, day: dt.date) -> Quote | None:
