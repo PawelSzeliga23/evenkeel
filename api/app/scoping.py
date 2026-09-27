@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.auth.deps import get_current_user
 from app.db import get_db
 from app.errors import ApiError
-from app.models import Account, ImportRecord, Instrument, PositionLot, Transaction, User, XtbSnapshot
+from app.models import Account, DailyValuation, ImportRecord, Instrument, PositionLot, Transaction, User, XtbSnapshot
 
 # Path parameter type for any database id: keeps Postgres int4 range errors
 # (which would otherwise surface as an opaque 500) as a 422 validation_error.
@@ -88,6 +88,9 @@ class UserScope:
         if instrument is None:
             raise not_found()
         return instrument
+
+    def daily_valuations(self) -> Select[tuple[DailyValuation]]:
+        return select(DailyValuation).where(DailyValuation.user_id == self.user.id)
 
 
 def get_scope(db: Session = Depends(get_db), user: User = Depends(get_current_user)) -> UserScope:
