@@ -93,6 +93,9 @@ def latest_prices(db: Session, instrument_ids: Sequence[int]) -> dict[int, Price
         select(Price)
         .where(Price.instrument_id.in_(instrument_ids))
         .order_by(Price.instrument_id, Price.date.desc())
-        .distinct(Price.instrument_id)
-    )
-    return {row.instrument_id: row for row in rows}
+    ).all()
+    result = {}
+    for row in rows:
+        if row.instrument_id not in result:
+            result[row.instrument_id] = row
+    return result
