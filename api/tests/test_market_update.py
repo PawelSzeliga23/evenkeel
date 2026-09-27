@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
-from app.market.store import fx_on, last_price_date, price_on, upsert_fx_rates, upsert_prices
+from app.market.store import delete_prices, fx_on, last_price_date, price_on, upsert_fx_rates, upsert_prices
 from app.market.types import FxPoint, PriceBar, ProviderError
 from app.market.update import (
     FX_MARGIN_DAYS,
@@ -139,6 +139,55 @@ def test_one_failing_instrument_does_not_stop_the_others(db: Session) -> None:
     assert (working.price_error, last_price_date(db, working.id)) == (None, TODAY)
 
 
+def test_stale_instrument_is_refreshed_before_the_update(db: Session, engine: Engine) -> None:
+    """A PATCH committed after the worker's instrument list was loaded must still be seen per instrument:
+    the list is a plain Python list kept for the whole run, and the session identity map would otherwise
+    keep serving the pre-PATCH copy (old symbol, old override flag) for it.
+    """
+    instrument = _instrument(db, "SXR8.DE", price_symbol="SXR8.DE", price_checked_at=NOW - dt.timedelta(days=1))
+    upsert_prices(db, instrument.id, [PriceBar(dt.date(2026, 9, 20), Decimal("700"))], "yahoo")
+    db.commit()
+
+    with Session(engine, expire_on_commit=False) as other:
+        other_instrument = other.get(Instrument, instrument.id)
+        other_instrument.price_symbol = "SXR8.F"
+        other_instrument.price_symbol_overridden = True
+        other_instrument.price_checked_at = None
+        delete_prices(other, instrument.id)
+        other.commit()
+
+    prices = FakePrices({"SXR8.F": SXR8})
+    rows, failed = update_all_prices(db, prices, NOW)
+
+    assert (rows, failed, prices.calls) == (2, [], [("SXR8.F", None)])
+    db.refresh(instrument)
+    assert (instrument.price_symbol, instrument.price_symbol_overridden, instrument.price_error) == ("SXR8.F", True, None)
+    assert last_price_date(db, instrument.id) == TODAY
+
+
+def test_unexpected_error_for_one_instrument_does_not_stop_the_run(db: Session) -> None:
+    """Not just ProviderError: a malformed-but-valid provider response (or a DB error) must not stop the
+    worker mid-run or make it skip FX/CPI/ref-rates for the rest of the day.
+    """
+    first = _instrument(db, "SXR8.DE")
+    middle = _instrument(db, "VIE.FR")
+    last = _instrument(db, "AAPL.US")
+    prices = FakePrices(
+        {"SXR8.DE": SXR8, "AAPL": SXR8},
+        errors={"VIE.PA": ValueError("malformed json from the provider")},
+    )
+
+    rows, failed = update_all_prices(db, prices, NOW)
+
+    assert (rows, failed) == (4, ["VIE.FR"])
+    for instrument in (first, middle, last):
+        db.refresh(instrument)
+    assert (middle.price_error, middle.price_checked_at) == (MSG_FAILED.format(symbol="VIE.FR"), NOW)
+    assert (first.price_error, last.price_error) == (None, None)
+    assert last_price_date(db, first.id) == TODAY
+    assert last_price_date(db, last.id) == TODAY
+
+
 def test_success_clears_previous_error(db: Session) -> None:
     instrument = _instrument(db, "SXR8.DE", price_error="stary błąd")
 
@@ -262,6 +311,28 @@ def test_fx_failure_is_reported_and_other_currencies_continue(db: Session) -> No
 def test_run_market_update_fills_everything_and_isolates_source_errors(db: Session) -> None:
     _instrument(db, "SXR8.DE")
     providers = fake_providers(inflation=FakeInflation(error=ProviderError("GUS down")))
+
+    summary = run_market_update(db, providers, NOW, TODAY)
+
+    assert (summary.price_rows, summary.failed_instruments) == (2, [])
+    assert summary.fx_rows == 2  # currency EUR came from the price provider in the same run
+    assert (summary.cpi_rows, summary.ref_rate_rows, summary.failed_sources) == (0, 1, ["cpi"])
+    assert db.scalar(select(func.count()).select_from(Cpi)) == 0
+    assert db.scalar(select(NbpRefRate.rate)) == Decimal("3.75")
+
+
+def test_fx_unexpected_error_is_isolated_like_a_provider_error(db: Session) -> None:
+    _instrument(db, "SXR8.DE", currency="EUR")
+
+    rows, failed = update_fx(db, FakeFx(error=ValueError("boom")), TODAY)
+
+    assert (rows, failed) == (0, ["EUR"])
+    assert db.scalar(select(func.count()).select_from(FxRate)) == 0
+
+
+def test_run_market_update_isolates_unexpected_source_errors(db: Session) -> None:
+    _instrument(db, "SXR8.DE")
+    providers = fake_providers(inflation=FakeInflation(error=ValueError("GUS returned garbage")))
 
     summary = run_market_update(db, providers, NOW, TODAY)
 

@@ -24,7 +24,7 @@ class FakePrices:
     name = "fake"
     split_adjusted = True
 
-    def __init__(self, histories: dict[str, PriceHistory] | None = None, errors: dict[str, ProviderError] | None = None) -> None:
+    def __init__(self, histories: dict[str, PriceHistory] | None = None, errors: dict[str, Exception] | None = None) -> None:
         self.histories = histories or {}
         self.errors = errors or {}
         self.calls: list[tuple[str, dt.date | None]] = []
@@ -42,7 +42,7 @@ class FakePrices:
 
 
 class FakeFx:
-    def __init__(self, error: ProviderError | None = None) -> None:
+    def __init__(self, error: Exception | None = None) -> None:
         self.error = error
         self.calls: list[tuple[str, dt.date, dt.date]] = []
 
@@ -54,7 +54,7 @@ class FakeFx:
 
 
 class FakeInflation:
-    def __init__(self, error: ProviderError | None = None) -> None:
+    def __init__(self, error: Exception | None = None) -> None:
         self.error = error
 
     def cpi(self) -> list[CpiPoint]:
@@ -64,7 +64,7 @@ class FakeInflation:
 
 
 class FakeRefRates:
-    def __init__(self, error: ProviderError | None = None) -> None:
+    def __init__(self, error: Exception | None = None) -> None:
         self.error = error
 
     def ref_rates(self) -> list[RefRatePoint]:
