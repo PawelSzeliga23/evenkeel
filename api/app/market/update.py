@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.market.store import (
     BASE_CURRENCY,
+    delete_prices,
     fx_date_bounds,
     last_price_date,
     replace_provider_splits,
@@ -20,6 +21,7 @@ from app.market.store import (
 from app.market.types import (
     FxProvider,
     InflationProvider,
+    PriceHistory,
     PriceProvider,
     ProviderError,
     RefRateProvider,
@@ -92,7 +94,9 @@ def update_instrument_prices(
     current symbol/override/checked-at and holds the row lock until the caller's per-instrument commit.
 
     An instrument whose history predates split events (`splits_synced` False) is fetched in full once.
-    Provider splits inside the fetched window replace the stored ones. `changed[instrument.id]` gets the
+    Provider splits inside the fetched window replace the stored ones; when a windowed fetch reveals a new
+    split or quote currency, the full history is fetched again and replaces the stored prices and splits
+    (older bars are on the old basis). `changed[instrument.id]` gets the
     earliest day whose valuation may differ: the first bar written, or the whole history (`date.min`) when
     a split or the quote currency changed.
 
@@ -108,15 +112,8 @@ def update_instrument_prices(
     last = last_price_date(db, instrument.id)
     full = last is None or not instrument.splits_synced
     start = None if full else last - dt.timedelta(days=PRICE_OVERLAP_DAYS)
-    try:
-        history = provider.history(symbol, start)
-    except SymbolNotFound:
-        instrument.price_error = MSG_NOT_FOUND.format(symbol=symbol)[:ERROR_MAX_LENGTH]
-        logger.warning("Price provider does not know %s (instrument %s)", symbol, instrument.xtb_ticker)
-        return 0
-    except ProviderError as exc:
-        instrument.price_error = MSG_FAILED.format(symbol=symbol)[:ERROR_MAX_LENGTH]
-        logger.warning("Price update failed for %s (%s): %s", instrument.xtb_ticker, symbol, exc)
+    history = _fetch(provider, instrument, symbol, start)
+    if history is None:
         return 0
     currency_changed = instrument.currency is not None and instrument.currency != history.currency
     instrument.currency = history.currency
@@ -125,9 +122,32 @@ def update_instrument_prices(
     splits_changed = replace_provider_splits(db, instrument.id, history.splits, start)
     if splits_changed or currency_changed:
         _note(changed, instrument.id, dt.date.min)
+        if start is not None:
+            # Closes come split-adjusted (and in the quote currency) as of the fetch, so every stored bar
+            # outside the window is on the old basis: the whole history is fetched again and replaces it.
+            history = _fetch(provider, instrument, symbol, None)
+            if history is None:
+                instrument.splits_synced = False  # the next run fetches the full history again
+                return 0
+            instrument.currency = history.currency
+            replace_provider_splits(db, instrument.id, history.splits, None)
+            delete_prices(db, instrument.id)
     elif history.bars:
         _note(changed, instrument.id, history.bars[0].date)
     return upsert_prices(db, instrument.id, history.bars, provider.name)
+
+
+def _fetch(provider: PriceProvider, instrument: Instrument, symbol: str, start: dt.date | None) -> PriceHistory | None:
+    """The provider's history from `start` (all when None); on a provider error None and `price_error` set."""
+    try:
+        return provider.history(symbol, start)
+    except SymbolNotFound:
+        instrument.price_error = MSG_NOT_FOUND.format(symbol=symbol)[:ERROR_MAX_LENGTH]
+        logger.warning("Price provider does not know %s (instrument %s)", symbol, instrument.xtb_ticker)
+    except ProviderError as exc:
+        instrument.price_error = MSG_FAILED.format(symbol=symbol)[:ERROR_MAX_LENGTH]
+        logger.warning("Price update failed for %s (%s): %s", instrument.xtb_ticker, symbol, exc)
+    return None
 
 
 def _update_prices(

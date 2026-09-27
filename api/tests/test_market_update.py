@@ -7,7 +7,7 @@ from sqlalchemy import Engine, func, select
 from sqlalchemy.orm import Session
 
 from app.market.store import delete_prices, fx_on, last_price_date, price_on, upsert_fx_rates, upsert_prices
-from app.market.types import FxPoint, PriceBar, ProviderError
+from app.market.types import FxPoint, PriceBar, PriceHistory, ProviderError
 from app.market.update import (
     FX_MARGIN_DAYS,
     MSG_FAILED,
@@ -20,7 +20,18 @@ from app.market.update import (
     update_all_prices,
     update_fx,
 )
-from app.models import Account, CorporateAction, Cpi, FxRate, Instrument, NbpRefRate, PositionLot, Transaction, User
+from app.models import (
+    Account,
+    CorporateAction,
+    Cpi,
+    FxRate,
+    Instrument,
+    NbpRefRate,
+    PositionLot,
+    Price,
+    Transaction,
+    User,
+)
 from tests.market_fakes import NVDA, SXR8, FakeFx, FakeInflation, FakePrices, fake_providers
 
 NOW = dt.datetime(2026, 9, 25, 21, 0, tzinfo=dt.UTC)
@@ -392,6 +403,69 @@ def test_changed_currency_marks_the_whole_history(db: Session) -> None:
     update_all_prices(db, FakePrices({"SXR8.DE": SXR8}), NOW, changed)
 
     assert changed == {instrument.id: dt.date.min}
+
+
+NVDA_FULL = PriceHistory(
+    "NVDA", "USD",
+    (PriceBar(dt.date(2024, 6, 3), Decimal("120.00")),) + NVDA.bars,
+    splits=NVDA.splits,
+)
+
+
+def _nvda_on_the_old_basis(db: Session) -> Instrument:
+    """NVDA stored before its 10:1 split was known: closes unadjusted, the last one on 2024-06-07."""
+    instrument = _instrument(db, "NVDA.US", price_symbol="NVDA", currency="USD")
+    upsert_prices(db, instrument.id, [
+        PriceBar(dt.date(2024, 5, 31), Decimal("1100.00")),
+        PriceBar(dt.date(2024, 6, 3), Decimal("1200.00")),
+        PriceBar(dt.date(2024, 6, 7), Decimal("1208.90")),
+    ], "yahoo")
+    db.commit()
+    return instrument
+
+
+def _stored_closes(db: Session, instrument_id: int) -> dict[dt.date, Decimal]:
+    return dict(db.execute(select(Price.date, Price.close).where(Price.instrument_id == instrument_id)).all())
+
+
+def test_split_found_by_a_windowed_fetch_replaces_the_whole_stored_history(db: Session) -> None:
+    instrument = _nvda_on_the_old_basis(db)
+    provider = FakePrices({"NVDA": NVDA_FULL}, windowed={"NVDA": NVDA})
+    changed: dict[int, dt.date] = {}
+
+    update_all_prices(db, provider, NOW, changed)
+
+    assert provider.calls == [("NVDA", dt.date(2024, 6, 2)), ("NVDA", None)]
+    assert _stored_closes(db, instrument.id) == {bar.date: bar.close for bar in NVDA_FULL.bars}
+    assert changed == {instrument.id: dt.date.min}
+    assert db.scalar(select(func.count()).select_from(CorporateAction)
+                     .where(CorporateAction.instrument_id == instrument.id)) == 1
+
+
+def test_changed_currency_found_by_a_windowed_fetch_replaces_the_whole_stored_history(db: Session) -> None:
+    instrument = _nvda_on_the_old_basis(db)
+    in_eur = PriceHistory("NVDA", "EUR", (PriceBar(dt.date(2024, 6, 3), Decimal("110.00")),))
+    provider = FakePrices({"NVDA": in_eur}, windowed={"NVDA": PriceHistory("NVDA", "EUR", ())})
+
+    update_all_prices(db, provider, NOW)
+
+    db.refresh(instrument)
+    assert (instrument.currency, _stored_closes(db, instrument.id)) == ("EUR", {dt.date(2024, 6, 3): Decimal("110.00")})
+
+
+def test_failed_full_refetch_is_reported_and_retried_in_full_next_time(db: Session) -> None:
+    instrument = _nvda_on_the_old_basis(db)
+    failing = FakePrices({"NVDA": NVDA_FULL}, windowed={"NVDA": NVDA}, full_errors={"NVDA": ProviderError("down")})
+
+    rows, failed = update_all_prices(db, failing, NOW)
+
+    db.refresh(instrument)
+    assert (rows, failed, instrument.price_error) == (0, ["NVDA.US"], MSG_FAILED.format(symbol="NVDA"))
+    assert instrument.splits_synced is False
+    provider = FakePrices({"NVDA": NVDA_FULL})
+    update_all_prices(db, provider, NOW)
+    assert provider.calls == [("NVDA", None)]
+    assert _stored_closes(db, instrument.id)[dt.date(2024, 6, 3)] == Decimal("120.00")
 
 
 def test_run_market_update_reports_changed_instruments(db: Session) -> None:

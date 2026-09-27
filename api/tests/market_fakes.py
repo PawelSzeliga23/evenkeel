@@ -31,9 +31,16 @@ class FakePrices:
     name = "fake"
     split_adjusted = True
 
-    def __init__(self, histories: dict[str, PriceHistory] | None = None, errors: dict[str, Exception] | None = None) -> None:
+    def __init__(
+        self, histories: dict[str, PriceHistory] | None = None, errors: dict[str, Exception] | None = None,
+        windowed: dict[str, PriceHistory] | None = None, full_errors: dict[str, Exception] | None = None,
+    ) -> None:
+        """`histories` answer every fetch; `windowed` (fetches with a start day) and `full_errors` (fetches of
+        the whole history) override them, like a provider whose answer depends on the requested range."""
         self.histories = histories or {}
         self.errors = errors or {}
+        self.windowed = windowed or {}
+        self.full_errors = full_errors or {}
         self.calls: list[tuple[str, dt.date | None]] = []
 
     def symbol_for(self, xtb_ticker: str) -> str | None:
@@ -43,6 +50,10 @@ class FakePrices:
         self.calls.append((symbol, start))
         if symbol in self.errors:
             raise self.errors[symbol]
+        if start is None and symbol in self.full_errors:
+            raise self.full_errors[symbol]
+        if start is not None and symbol in self.windowed:
+            return self.windowed[symbol]
         if symbol not in self.histories:
             raise SymbolNotFound(symbol)
         return self.histories[symbol]
