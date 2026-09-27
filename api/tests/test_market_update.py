@@ -19,8 +19,8 @@ from app.market.update import (
     update_all_prices,
     update_fx,
 )
-from app.models import Account, Cpi, FxRate, Instrument, NbpRefRate, PositionLot, Transaction, User
-from tests.market_fakes import SXR8, FakeFx, FakeInflation, FakePrices, fake_providers
+from app.models import Account, CorporateAction, Cpi, FxRate, Instrument, NbpRefRate, PositionLot, Transaction, User
+from tests.market_fakes import NVDA, SXR8, FakeFx, FakeInflation, FakePrices, fake_providers
 
 NOW = dt.datetime(2026, 9, 25, 21, 0, tzinfo=dt.UTC)
 TODAY = dt.date(2026, 9, 25)
@@ -341,3 +341,59 @@ def test_run_market_update_isolates_unexpected_source_errors(db: Session) -> Non
     assert (summary.cpi_rows, summary.ref_rate_rows, summary.failed_sources) == (0, 1, ["cpi"])
     assert db.scalar(select(func.count()).select_from(Cpi)) == 0
     assert db.scalar(select(NbpRefRate.rate)) == Decimal("3.75")
+
+
+def test_price_update_reports_the_earliest_written_day(db: Session) -> None:
+    instrument = _instrument(db, "SXR8.DE")
+    changed: dict[int, dt.date] = {}
+
+    update_all_prices(db, FakePrices({"SXR8.DE": SXR8}), NOW, changed)
+
+    assert changed == {instrument.id: dt.date(2026, 9, 24)}
+
+
+def test_new_provider_split_is_stored_and_marks_the_whole_history(db: Session) -> None:
+    instrument = _instrument(db, "NVDA.US")
+    provider = FakePrices({"NVDA": NVDA})
+    first: dict[int, dt.date] = {}
+    second: dict[int, dt.date] = {}
+
+    update_all_prices(db, provider, NOW, first)
+    update_all_prices(db, provider, NOW, second)
+
+    action = db.scalar(select(CorporateAction).where(CorporateAction.instrument_id == instrument.id))
+    assert (action.type, action.effective_date, action.ratio_from, action.ratio_to, action.source) == (
+        "split", dt.date(2024, 6, 10), Decimal(1), Decimal(10), "provider")
+    assert first == {instrument.id: dt.date.min}
+    assert second == {instrument.id: dt.date(2024, 6, 7)}
+
+
+def test_instrument_fetched_before_splits_existed_refetches_full_history_once(db: Session) -> None:
+    instrument = _instrument(db, "SXR8.DE", splits_synced=False)
+    upsert_prices(db, instrument.id, [PriceBar(dt.date(2026, 9, 1), Decimal("700"))], "yahoo")
+    db.commit()
+    provider = FakePrices({"SXR8.DE": SXR8})
+
+    update_all_prices(db, provider, NOW)
+    update_all_prices(db, provider, NOW)
+
+    db.refresh(instrument)
+    assert instrument.splits_synced is True
+    assert provider.calls == [("SXR8.DE", None), ("SXR8.DE", dt.date(2026, 9, 20))]
+
+
+def test_changed_currency_marks_the_whole_history(db: Session) -> None:
+    instrument = _instrument(db, "SXR8.DE", currency="USD")
+    upsert_prices(db, instrument.id, [PriceBar(dt.date(2026, 9, 23), Decimal("700"))], "yahoo")
+    db.commit()
+    changed: dict[int, dt.date] = {}
+
+    update_all_prices(db, FakePrices({"SXR8.DE": SXR8}), NOW, changed)
+
+    assert changed == {instrument.id: dt.date.min}
+
+
+def test_run_market_update_reports_changed_instruments(db: Session) -> None:
+    instrument = _instrument(db, "SXR8.DE")
+    summary = run_market_update(db, fake_providers(), NOW, TODAY)
+    assert summary.prices_changed_from == {instrument.id: dt.date(2026, 9, 24)}

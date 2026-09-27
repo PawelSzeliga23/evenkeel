@@ -2,6 +2,7 @@ import datetime as dt
 import logging
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from typing import Any
 
 from sqlalchemy import exists, func, or_, select
 from sqlalchemy.orm import Session
@@ -10,6 +11,7 @@ from app.market.store import (
     BASE_CURRENCY,
     fx_date_bounds,
     last_price_date,
+    replace_provider_splits,
     upsert_cpi,
     upsert_fx_rates,
     upsert_prices,
@@ -53,6 +55,8 @@ class UpdateSummary:
     cpi_rows: int = 0
     ref_rate_rows: int = 0
     failed_sources: list[str] = field(default_factory=list)
+    prices_changed_from: dict[int, dt.date] = field(default_factory=dict)
+    fx_changed_from: dict[str, dt.date] = field(default_factory=dict)
 
 
 def _referenced() -> object:
@@ -63,6 +67,12 @@ def _referenced() -> object:
     )
 
 
+def _note(changed: dict[Any, dt.date] | None, key: Any, day: dt.date) -> None:
+    """Remembers the earliest day from which valuations depending on `key` may have changed."""
+    if changed is not None:
+        changed[key] = min(day, changed.get(key, day))
+
+
 def resolve_symbol(provider: PriceProvider, instrument: Instrument) -> str | None:
     """A manual symbol is kept as-is; otherwise the automatic mapping is (re)applied."""
     if not instrument.price_symbol_overridden:
@@ -70,13 +80,21 @@ def resolve_symbol(provider: PriceProvider, instrument: Instrument) -> str | Non
     return instrument.price_symbol
 
 
-def update_instrument_prices(db: Session, provider: PriceProvider, instrument: Instrument, now: dt.datetime) -> int:
+def update_instrument_prices(
+    db: Session, provider: PriceProvider, instrument: Instrument, now: dt.datetime,
+    changed: dict[int, dt.date] | None = None,
+) -> int:
     """Fetches missing prices of one instrument: full history on first sight, then from the last stored day.
 
     The instrument list is loaded once per run and kept as a plain Python list for its whole duration, so a
     PATCH committed by another session after the list was loaded would otherwise go unseen (the session's
     identity map keeps serving the pre-PATCH copy). `db.refresh(..., with_for_update=True)` reloads the
     current symbol/override/checked-at and holds the row lock until the caller's per-instrument commit.
+
+    An instrument whose history predates split events (`splits_synced` False) is fetched in full once.
+    Provider splits inside the fetched window replace the stored ones. `changed[instrument.id]` gets the
+    earliest day whose valuation may differ: the first bar written, or the whole history (`date.min`) when
+    a split or the quote currency changed.
 
     Provider problems end up in `instrument.price_error` (Polish, shown in the UI) and are never raised.
     Does not commit.
@@ -88,7 +106,8 @@ def update_instrument_prices(db: Session, provider: PriceProvider, instrument: I
         instrument.price_error = MSG_UNMAPPED
         return 0
     last = last_price_date(db, instrument.id)
-    start = None if last is None else last - dt.timedelta(days=PRICE_OVERLAP_DAYS)
+    full = last is None or not instrument.splits_synced
+    start = None if full else last - dt.timedelta(days=PRICE_OVERLAP_DAYS)
     try:
         history = provider.history(symbol, start)
     except SymbolNotFound:
@@ -99,19 +118,27 @@ def update_instrument_prices(db: Session, provider: PriceProvider, instrument: I
         instrument.price_error = MSG_FAILED.format(symbol=symbol)[:ERROR_MAX_LENGTH]
         logger.warning("Price update failed for %s (%s): %s", instrument.xtb_ticker, symbol, exc)
         return 0
+    currency_changed = instrument.currency is not None and instrument.currency != history.currency
     instrument.currency = history.currency
     instrument.price_error = None
+    instrument.splits_synced = True
+    splits_changed = replace_provider_splits(db, instrument.id, history.splits, start)
+    if splits_changed or currency_changed:
+        _note(changed, instrument.id, dt.date.min)
+    elif history.bars:
+        _note(changed, instrument.id, history.bars[0].date)
     return upsert_prices(db, instrument.id, history.bars, provider.name)
 
 
 def _update_prices(
-    db: Session, provider: PriceProvider, instruments: Sequence[Instrument], now: dt.datetime
+    db: Session, provider: PriceProvider, instruments: Sequence[Instrument], now: dt.datetime,
+    changed: dict[int, dt.date] | None = None,
 ) -> tuple[int, list[str]]:
     rows, failed = 0, []
     for instrument in instruments:
         ticker, instrument_id = instrument.xtb_ticker, instrument.id
         try:
-            rows += update_instrument_prices(db, provider, instrument, now)
+            rows += update_instrument_prices(db, provider, instrument, now, changed)
         except Exception:
             # Not just ProviderError: a malformed-but-valid response (bad JSON shape, a bad decimal) or a
             # DB error must not crash the whole run — roll back, mark the instrument, and move on.
@@ -130,19 +157,23 @@ def _update_prices(
     return rows, failed
 
 
-def update_all_prices(db: Session, provider: PriceProvider, now: dt.datetime) -> tuple[int, list[str]]:
+def update_all_prices(
+    db: Session, provider: PriceProvider, now: dt.datetime, changed: dict[int, dt.date] | None = None
+) -> tuple[int, list[str]]:
     instruments = db.scalars(select(Instrument).where(_referenced()).order_by(Instrument.id)).all()
-    return _update_prices(db, provider, instruments, now)
+    return _update_prices(db, provider, instruments, now, changed)
 
 
-def backfill_new_instruments(db: Session, provider: PriceProvider, now: dt.datetime) -> tuple[int, list[str]]:
+def backfill_new_instruments(
+    db: Session, provider: PriceProvider, now: dt.datetime, changed: dict[int, dt.date] | None = None
+) -> tuple[int, list[str]]:
     """Full history for instruments never tried yet (new from an import, or reset by a symbol override)."""
     instruments = db.scalars(
         select(Instrument)
         .where(Instrument.price_checked_at.is_(None), _referenced())
         .order_by(Instrument.id)
     ).all()
-    return _update_prices(db, provider, instruments, now)
+    return _update_prices(db, provider, instruments, now, changed)
 
 
 def fx_ranges_to_fetch(
@@ -215,7 +246,9 @@ def _source(db: Session, name: str, job: Callable[[], int], summary: UpdateSumma
 
 def run_market_update(db: Session, providers: MarketProviders, now: dt.datetime, today: dt.date) -> UpdateSummary:
     summary = UpdateSummary()
-    summary.price_rows, summary.failed_instruments = update_all_prices(db, providers.prices, now)
+    summary.price_rows, summary.failed_instruments = update_all_prices(
+        db, providers.prices, now, summary.prices_changed_from
+    )
     summary.fx_rows, summary.failed_currencies = update_fx(db, providers.fx, today)
     summary.cpi_rows = _source(db, "cpi", lambda: upsert_cpi(db, providers.inflation.cpi()), summary)
     summary.ref_rate_rows = _source(

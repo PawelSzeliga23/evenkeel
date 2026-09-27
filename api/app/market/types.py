@@ -22,10 +22,20 @@ class PriceBar:
 
 
 @dataclass(frozen=True)
+class SplitEvent:
+    """`ratio_from` old shares became `ratio_to` new ones on `date` (first session on the new basis)."""
+
+    date: dt.date
+    ratio_from: Decimal
+    ratio_to: Decimal
+
+
+@dataclass(frozen=True)
 class PriceHistory:
     symbol: str
     currency: str
     bars: tuple[PriceBar, ...]
+    splits: tuple[SplitEvent, ...] = ()
 
 
 @dataclass(frozen=True)

@@ -8,7 +8,7 @@ import pytest
 
 from app.market.http import make_client
 from app.market.providers.yahoo import YahooPriceProvider, yahoo_symbol
-from app.market.types import ProviderError, SymbolNotFound
+from app.market.types import ProviderError, SplitEvent, SymbolNotFound
 
 AUG_31_2300 = 1788217200  # 2026-08-31 23:00 UTC = 2026-09-01 01:00 in Frankfurt (gmtoffset 7200)
 SEP_01_0700 = 1788246000  # 2026-09-01 07:00 UTC
@@ -150,3 +150,38 @@ def test_provider_pauses_after_each_request() -> None:
     _provider(_serving(_chart([], [])), sleep=sleeps.append).history("SXR8.DE", None)
 
     assert sleeps == [0.5]
+
+
+NVDA_JUN_10 = 1718026200  # 2024-06-10 13:30 UTC = 09:30 in New York: first session on the 10:1 basis
+
+
+def _with_split(payload: dict[str, Any], timestamp: int, numerator: Any, denominator: Any) -> dict[str, Any]:
+    event = {"date": timestamp, "numerator": numerator, "denominator": denominator, "splitRatio": f"{numerator}:{denominator}"}
+    payload["chart"]["result"][0]["events"] = {"splits": {str(timestamp): event}}
+    return payload
+
+
+def test_split_events_are_requested_and_parsed_on_the_exchange_day() -> None:
+    payload = _with_split(_chart([NVDA_JUN_10], [121.79], currency="USD", gmtoffset=-14400), NVDA_JUN_10, 10, 1)
+    seen: list[httpx.Request] = []
+
+    history = _provider(_serving(payload, seen=seen)).history("NVDA", None)
+
+    assert seen[0].url.params["events"] == "split"
+    assert history.splits == (SplitEvent(dt.date(2024, 6, 10), Decimal(1), Decimal(10)),)
+
+
+def test_response_without_events_has_no_splits() -> None:
+    history = _provider(_serving(_chart([SEP_01_0700], [711.72]))).history("SXR8.DE", None)
+    assert history.splits == ()
+
+
+def test_one_to_one_split_is_ignored() -> None:
+    payload = _with_split(_chart([NVDA_JUN_10], [121.79], currency="USD", gmtoffset=-14400), NVDA_JUN_10, 1, 1)
+    assert _provider(_serving(payload)).history("NVDA", None).splits == ()
+
+
+def test_malformed_split_event_is_a_provider_error() -> None:
+    payload = _with_split(_chart([NVDA_JUN_10], [121.79], currency="USD", gmtoffset=-14400), NVDA_JUN_10, "abc", 1)
+    with pytest.raises(ProviderError):
+        _provider(_serving(payload)).history("NVDA", None)

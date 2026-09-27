@@ -7,7 +7,7 @@ from typing import Any
 import httpx
 
 from app.market.http import Sleep, ensure_ok, get_with_retry
-from app.market.types import PriceBar, PriceHistory, ProviderError, SymbolNotFound
+from app.market.types import PriceBar, PriceHistory, ProviderError, SplitEvent, SymbolNotFound
 
 CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 # XTB ticker suffix -> Yahoo suffix, verified in the 2026-09-26 spike. Other exchanges: manual override.
@@ -30,6 +30,21 @@ def yahoo_symbol(xtb_ticker: str) -> str | None:
 
 def _price(value: Any, divisor: int) -> Decimal:
     return Decimal(value).quantize(PRICE_PLACES) / divisor
+
+
+def _splits(symbol: str, result: dict[str, Any], offset: int) -> tuple[SplitEvent, ...]:
+    events = ((result.get("events") or {}).get("splits") or {}).values()
+    splits = []
+    for event in events:
+        try:
+            numerator = Decimal(str(event["numerator"]))
+            denominator = Decimal(str(event["denominator"]))
+            day = dt.datetime.fromtimestamp(int(event["date"]) + offset, dt.UTC).date()
+        except (KeyError, TypeError, ValueError, ArithmeticError) as exc:
+            raise ProviderError(f"Yahoo {symbol}: malformed split event") from exc
+        if numerator > 0 and denominator > 0 and numerator != denominator:
+            splits.append(SplitEvent(day, ratio_from=denominator, ratio_to=numerator))
+    return tuple(sorted(splits, key=lambda split: split.date))
 
 
 def parse_chart(symbol: str, content: bytes) -> PriceHistory:
@@ -61,14 +76,17 @@ def parse_chart(symbol: str, content: bytes) -> PriceHistory:
         adj = adjusted[index] if index < len(adjusted) else None
         day = dt.datetime.fromtimestamp(int(timestamp) + offset, dt.UTC).date()
         bars[day] = PriceBar(day, _price(close, divisor), None if adj is None else _price(adj, divisor))
-    return PriceHistory(symbol=symbol, currency=currency, bars=tuple(bars[day] for day in sorted(bars)))
+    return PriceHistory(
+        symbol=symbol, currency=currency, bars=tuple(bars[day] for day in sorted(bars)),
+        splits=_splits(symbol, result, offset),
+    )
 
 
 class YahooPriceProvider:
     """Daily closes from Yahoo's unofficial chart API.
 
     `close` is split-adjusted (verified on NVDA 10:1, June 2024) but not dividend-adjusted;
-    `adj_close` is adjusted for both.
+    `adj_close` is adjusted for both. Split events come from the same request (events=split).
     """
 
     name = "yahoo"
@@ -84,7 +102,9 @@ class YahooPriceProvider:
 
     def history(self, symbol: str, start: dt.date | None) -> PriceHistory:
         period1 = 0 if start is None else int(dt.datetime.combine(start, dt.time(), dt.UTC).timestamp())
-        params = {"period1": period1, "period2": int(time.time()) + ONE_DAY_SECONDS, "interval": "1d"}
+        params = {
+            "period1": period1, "period2": int(time.time()) + ONE_DAY_SECONDS, "interval": "1d", "events": "split",
+        }
         response = get_with_retry(self.client, CHART_URL.format(symbol=symbol), params=params, sleep=self.sleep)
         self.sleep(self.pause)
         if response.status_code == 404:

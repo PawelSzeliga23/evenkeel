@@ -10,6 +10,7 @@ from app.market.types import (
     PriceHistory,
     ProviderError,
     RefRatePoint,
+    SplitEvent,
     SymbolNotFound,
 )
 from app.market.update import MarketProviders
@@ -17,6 +18,12 @@ from app.market.update import MarketProviders
 SXR8 = PriceHistory(
     "SXR8.DE", "EUR",
     (PriceBar(dt.date(2026, 9, 24), Decimal("711.72")), PriceBar(dt.date(2026, 9, 25), Decimal("713.80"))),
+)
+
+NVDA = PriceHistory(
+    "NVDA", "USD",
+    (PriceBar(dt.date(2024, 6, 7), Decimal("120.89")), PriceBar(dt.date(2024, 6, 10), Decimal("121.79"))),
+    splits=(SplitEvent(dt.date(2024, 6, 10), Decimal(1), Decimal(10)),),
 )
 
 

@@ -7,8 +7,8 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.dialects.postgresql import insert, distinct_on
 from sqlalchemy.orm import Session
 
-from app.market.types import CpiPoint, FxPoint, PriceBar, RefRatePoint
-from app.models import Cpi, FxRate, NbpRefRate, Price
+from app.market.types import CpiPoint, FxPoint, PriceBar, RefRatePoint, SplitEvent
+from app.models import CorporateAction, Cpi, FxRate, NbpRefRate, Price
 from app.models.base import Base
 
 BASE_CURRENCY = "PLN"
@@ -84,6 +84,40 @@ def fx_on(db: Session, currency: str, day: dt.date) -> Decimal | None:
         .order_by(FxRate.date.desc())
         .limit(1)
     )
+
+
+def _split_type(split: SplitEvent) -> str:
+    return "split" if split.ratio_to > split.ratio_from else "reverse_split"
+
+
+def replace_provider_splits(
+    db: Session, instrument_id: int, splits: Iterable[SplitEvent], since: dt.date | None
+) -> bool:
+    """Makes the provider's splits of the instrument dated `since` or later (all when None) equal `splits`.
+
+    The provider only reports events inside the fetched window, so older ones are kept. Manual and XTB
+    entries are never touched. Returns True when anything was added, removed or changed. Does not commit.
+    """
+    query = select(CorporateAction).where(
+        CorporateAction.instrument_id == instrument_id,
+        CorporateAction.source == "provider",
+        CorporateAction.type.in_(("split", "reverse_split")),
+    )
+    if since is not None:
+        query = query.where(CorporateAction.effective_date >= since)
+    stored = db.scalars(query).all()
+    wanted = {(s.date, s.ratio_from, s.ratio_to) for s in splits if since is None or s.date >= since}
+    if {(a.effective_date, a.ratio_from, a.ratio_to) for a in stored} == wanted:
+        return False
+    for action in stored:
+        db.delete(action)
+    db.flush()
+    for day, ratio_from, ratio_to in sorted(wanted):
+        split = SplitEvent(day, ratio_from, ratio_to)
+        db.add(CorporateAction(instrument_id=instrument_id, type=_split_type(split), effective_date=day,
+                               ratio_from=ratio_from, ratio_to=ratio_to, source="provider"))
+    db.flush()
+    return True
 
 
 def latest_prices(db: Session, instrument_ids: Sequence[int]) -> dict[int, Price]:

@@ -13,13 +13,14 @@ from app.market.store import (
     last_price_date,
     latest_prices,
     price_on,
+    replace_provider_splits,
     upsert_cpi,
     upsert_fx_rates,
     upsert_prices,
     upsert_ref_rates,
 )
-from app.market.types import CpiPoint, FxPoint, PriceBar, RefRatePoint
-from app.models import Cpi, FxRate, Instrument, NbpRefRate, Price
+from app.market.types import CpiPoint, FxPoint, PriceBar, RefRatePoint, SplitEvent
+from app.models import CorporateAction, Cpi, FxRate, Instrument, NbpRefRate, Price
 
 FRI = dt.date(2026, 9, 4)
 SUN = dt.date(2026, 9, 6)
@@ -141,3 +142,39 @@ def test_cpi_and_ref_rate_upserts_are_idempotent(db: Session) -> None:
 
     assert (_count(db, Cpi), _count(db, NbpRefRate), _count(db, FxRate)) == (2, 1, 0)
     assert db.scalar(select(Cpi.yoy).where(Cpi.year_month == dt.date(2026, 8, 1))) == Decimal("3.5")
+
+
+def _actions(db: Session, instrument_id: int) -> list[tuple]:
+    rows = db.scalars(select(CorporateAction).where(CorporateAction.instrument_id == instrument_id)
+                      .order_by(CorporateAction.effective_date, CorporateAction.source))
+    return [(a.type, a.effective_date, a.ratio_from, a.ratio_to, a.source) for a in rows]
+
+
+def test_provider_splits_are_replaced_only_inside_the_fetched_window(db: Session) -> None:
+    instrument = _instrument(db, "NVDA.US")
+    old = SplitEvent(dt.date(2021, 7, 20), Decimal(1), Decimal(4))
+    new = SplitEvent(dt.date(2024, 6, 10), Decimal(1), Decimal(10))
+    db.add(CorporateAction(instrument_id=instrument.id, type="split", effective_date=dt.date(2024, 6, 10),
+                           ratio_from=Decimal(1), ratio_to=Decimal(10), source="manual"))
+
+    assert replace_provider_splits(db, instrument.id, [old, new], None) is True
+    assert replace_provider_splits(db, instrument.id, [new], dt.date(2024, 1, 1)) is False
+    assert replace_provider_splits(db, instrument.id, [], dt.date(2025, 1, 1)) is False
+    db.commit()
+
+    assert _actions(db, instrument.id) == [
+        ("split", dt.date(2021, 7, 20), Decimal(1), Decimal(4), "provider"),
+        ("split", dt.date(2024, 6, 10), Decimal(1), Decimal(10), "manual"),
+        ("split", dt.date(2024, 6, 10), Decimal(1), Decimal(10), "provider"),
+    ]
+
+
+def test_reverse_split_and_changed_ratio_are_detected(db: Session) -> None:
+    instrument = _instrument(db, "XYZ.US")
+    replace_provider_splits(db, instrument.id, [SplitEvent(dt.date(2025, 3, 3), Decimal(10), Decimal(1))], None)
+
+    changed = replace_provider_splits(db, instrument.id, [SplitEvent(dt.date(2025, 3, 3), Decimal(20), Decimal(1))], None)
+    db.commit()
+
+    assert changed is True
+    assert _actions(db, instrument.id) == [("reverse_split", dt.date(2025, 3, 3), Decimal(20), Decimal(1), "provider")]
