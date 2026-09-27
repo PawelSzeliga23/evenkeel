@@ -3,7 +3,7 @@ from decimal import Decimal
 
 import pytest
 
-from app.xtb.report import parse_report
+from app.xtb.report import parse_report, to_decimal
 from app.xtb.workbook import XtbFormatError
 from tests import xtb_factory as xf
 
@@ -142,6 +142,13 @@ def test_overlong_filename_is_truncated_for_display_only() -> None:
 
     assert len(report.filename) == 255
     assert report.filename == long_name[:255]
+
+
+def test_to_decimal_rejects_nan_and_infinity() -> None:
+    for bad in (float("nan"), float("inf"), float("-inf")):
+        with pytest.raises(XtbFormatError) as exc_info:
+            to_decimal(bad, "Amount")
+        assert exc_info.value.code == "bad_number"
 
 
 def test_overlong_ticker_is_rejected() -> None:

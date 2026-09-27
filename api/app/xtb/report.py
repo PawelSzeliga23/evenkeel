@@ -153,9 +153,12 @@ def to_decimal(value: Any, field: str) -> Decimal | None:
         raise XtbFormatError("bad_number", f"Nieprawidłowa liczba w kolumnie „{field}”: {value}.")
     try:
         # str() of a float gives its shortest round-trip form, so 0.1 becomes Decimal("0.1").
-        return Decimal(str(value).replace(",", ".").replace(" ", ""))
+        decimal_value = Decimal(str(value).replace(",", ".").replace(" ", ""))
     except InvalidOperation as exc:
         raise XtbFormatError("bad_number", f"Nieprawidłowa liczba w kolumnie „{field}”: {value}.") from exc
+    if not decimal_value.is_finite():
+        raise XtbFormatError("bad_number", f"Nieprawidłowa liczba w kolumnie „{field}”: {value}.")
+    return decimal_value
 
 
 def to_utc(value: Any, field: str) -> datetime | None:
