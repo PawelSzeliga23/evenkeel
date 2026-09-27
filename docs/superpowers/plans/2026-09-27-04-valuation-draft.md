@@ -2,7 +2,7 @@
 
 > Szkic zbiera zakres, ustalenia przeniesione z planów 2–3 i pytania projektowe. Pełny plan z kodem
 > (`2026-09-2X-04-valuation.md`) powstaje w osobnej sesji na podstawie tego pliku.
-> Stan: **pytania zamknięte (2026-09-27)** — decyzje w sekcji „Decyzje”; następny krok na końcu pliku.
+> Stan: **pytania zamknięte (2026-09-27)**; **plan 4a napisany** (`2026-09-27-04a-valuation-core.md`, doprecyzowania w jego sekcji „Decyzje”). Plan 4b — po realizacji 4a.
 
 **Spec:** `docs/superpowers/specs/2026-09-26-portfolio-tracker-design.md` — §6 (Akcje/ETF, Splity i konwersje,
 Zamknięte inwestycje, Ekspozycja walutowa, Limity IKE/IKZE, Historia wartości i zwrot), §4 (`corporate_actions`,
