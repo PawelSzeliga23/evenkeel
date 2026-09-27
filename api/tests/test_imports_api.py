@@ -86,6 +86,46 @@ def test_commit_two_periods_of_a_new_account_creates_only_one_account_and_reconc
     assert "reconciliation_mismatch" not in all_warning_codes
 
 
+def test_commit_newer_file_uploaded_first_still_reconciles(client: TestClient, login_as: LoginAs) -> None:
+    """Same two-period scenario as above, but the newer (more complete) file is uploaded first:
+    upload order must not affect whether the batch reconciles correctly."""
+    anna = login_as("anna@portfolio.dev")
+    older = xf.build_report(
+        cash=[
+            xf.cash_row("IKE deposit", 5000.0, "1001", datetime(2026, 3, 1, 8, 0),
+                        comment="Transfer in operation on account with id 56204082"),
+            xf.buy_row("SXR8.DE", "2", "500.5", -4304.3, "1002", AT, "777"),
+        ],
+        open_rows=[
+            xf.summary_row("SXR8.DE", "Core S&P 500", 2.0, 1020.0, 500.5, 19.0),
+            xf.lot_row("SXR8.DE", "777", 2.0, 500.5, AT, 510.0, 1020.0, 19.0),
+        ],
+        period_to=datetime(2026, 3, 5),
+    )
+    newer = xf.build_report(
+        cash=[
+            xf.cash_row("IKE deposit", 5000.0, "1001", datetime(2026, 3, 1, 8, 0),
+                        comment="Transfer in operation on account with id 56204082"),
+            xf.buy_row("SXR8.DE", "2", "500.5", -4304.3, "1002", AT, "777"),
+            xf.buy_row("SXR8.DE", "1", "505.0", -505.0, "1003", datetime(2026, 4, 1, 9, 0), "778"),
+        ],
+        open_rows=[
+            xf.summary_row("SXR8.DE", "Core S&P 500", 3.0, 1530.0, 500.5, 19.0),
+            xf.lot_row("SXR8.DE", "777", 2.0, 500.5, AT, 510.0, 1020.0, 19.0),
+            xf.lot_row("SXR8.DE", "778", 1.0, 505.0, datetime(2026, 4, 1, 9, 0), 510.0, 510.0, 5.0),
+        ],
+        period_to=datetime(2026, 9, 26),
+    )
+
+    response = client.post("/api/imports", files=_files((IKE_NAME, newer), (IKE_NAME, older)), headers=anna)
+
+    assert response.status_code == 201
+    assert len(client.get("/api/accounts", headers=anna).json()) == 1
+    first, second = response.json()["files"]
+    all_warning_codes = {w["code"] for f in (first, second) for w in f["warnings"]}
+    assert "reconciliation_mismatch" not in all_warning_codes
+
+
 def test_commit_writes_and_second_commit_only_finds_duplicates(client: TestClient, login_as: LoginAs) -> None:
     anna = login_as("anna@portfolio.dev")
 

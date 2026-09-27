@@ -4,6 +4,7 @@ The layout (sheet names, metadata rows above each table, summary rows, the two k
 rows in Open Positions) was verified against real exports; values here are made up.
 """
 import io
+import re
 import zipfile
 from collections.abc import Iterable
 from datetime import datetime
@@ -124,6 +125,20 @@ def build_report(
         _table(sheet, OPEN_HEADER, open_rows)
     buffer = io.BytesIO()
     workbook.save(buffer)
+    return buffer.getvalue()
+
+
+def stale_worksheet_dimensions(content: bytes, ref: str = "A1:B3") -> bytes:
+    """Rewrites every worksheet's <dimension ref="..."/> to a too-small range, as some real
+    exporters get wrong: the declared used-range understates the sheet's actual rows."""
+    source = zipfile.ZipFile(io.BytesIO(content))
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for info in source.infolist():
+            data = source.read(info.filename)
+            if re.match(r"xl/worksheets/sheet\d+\.xml$", info.filename):
+                data = re.sub(rb'<dimension ref="[^"]*"', f'<dimension ref="{ref}"'.encode(), data)
+            archive.writestr(info.filename, data)
     return buffer.getvalue()
 
 

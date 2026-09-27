@@ -40,13 +40,20 @@ def _check_unzipped_size(content: bytes) -> None:
     try:
         with zipfile.ZipFile(io.BytesIO(content)) as archive:
             total = sum(info.file_size for info in archive.infolist())
-    except zipfile.BadZipFile as exc:
+    except Exception as exc:
+        # zipfile can raise more than BadZipFile on crafted/corrupted input (e.g. OSError,
+        # ValueError, NotImplementedError for an unsupported declared zip version) — anything
+        # here means it's not a readable XLSX.
         raise XtbFormatError("not_xlsx", "Plik nie jest poprawnym plikiem XLSX.") from exc
     if total > MAX_UNZIPPED_BYTES:
         raise XtbFormatError("file_too_large", "Plik po rozpakowaniu jest za duży.")
 
 
 def _read_rows(sheet: Any) -> list[tuple[Any, ...]]:
+    # Some real exporters write a <dimension ref="..."/> that undershoots the sheet's actual
+    # rows; read_only iter_rows trusts it as an upper bound and silently truncates there unless
+    # told to forget it. Our own row/empty-streak caps below still bound the work done.
+    sheet.reset_dimensions()
     rows: list[tuple[Any, ...]] = []
     empty_streak = 0
     for row in sheet.iter_rows(max_col=MAX_COLS, values_only=True):

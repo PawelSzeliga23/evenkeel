@@ -136,7 +136,7 @@ def _add_reconciliation_warnings(
     for index, report in enumerate(reports):
         by_account[report.account_number].append(index)
     for account_number, indices in by_account.items():
-        indices.sort(key=lambda i: reports[i].report_from or epoch)
+        indices.sort(key=lambda i: (reports[i].report_to or epoch, reports[i].report_from or epoch))
         account = accounts_by_number[account_number]
         held: dict[str, Decimal] = defaultdict(Decimal)
         if account is not None:

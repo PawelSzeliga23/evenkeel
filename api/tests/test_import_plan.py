@@ -145,3 +145,43 @@ def test_older_and_newer_files_of_the_same_account_reconcile_together(session: S
 
     assert older_plan.warnings == []
     assert newer_plan.warnings == []
+
+
+def test_newer_file_uploaded_first_still_reconciles_correctly(session: Session) -> None:
+    """XTB full-history exports typically share report_from, so ordering must fall back to
+    report_to (when holdings as of each file's cutoff are known) rather than upload order."""
+    older = _report(
+        [_buy("1", "2", "777")],
+        [xf.summary_row("SXR8.DE", "Core S&P 500", 2.0, 1020.0, 500.5, 19.0)],
+        period_from=datetime(2020, 1, 1), period_to=datetime(2026, 3, 5),
+    )
+    newer = _report(
+        [_buy("1", "2", "777"), _buy("2", "1", "778")],
+        [xf.summary_row("SXR8.DE", "Core S&P 500", 3.0, 1530.0, 500.5, 19.0)],
+        period_from=datetime(2020, 1, 1), period_to=datetime(2026, 9, 26),
+    )
+
+    newer_plan, older_plan = plan_import(_scope(session), [newer, older])
+
+    assert newer_plan.warnings == []
+    assert older_plan.warnings == []
+
+
+def test_partial_file_with_later_report_from_than_a_full_history_file_still_reconciles(session: Session) -> None:
+    """A full-history file's report_from can predate a later, narrower-range file's report_from
+    even though the narrow file's own coverage ends earlier: ordering must follow report_to."""
+    full_history = _report(
+        [_buy("1", "2", "777"), _buy("2", "1", "778")],
+        [xf.summary_row("SXR8.DE", "Core S&P 500", 3.0, 1530.0, 500.5, 19.0)],
+        period_from=datetime(2020, 1, 1), period_to=datetime(2026, 9, 26),
+    )
+    partial = _report(
+        [_buy("1", "2", "777")],
+        [xf.summary_row("SXR8.DE", "Core S&P 500", 2.0, 1020.0, 500.5, 19.0)],
+        period_from=datetime(2026, 2, 1), period_to=datetime(2026, 3, 5),
+    )
+
+    full_plan, partial_plan = plan_import(_scope(session), [full_history, partial])
+
+    assert full_plan.warnings == []
+    assert partial_plan.warnings == []

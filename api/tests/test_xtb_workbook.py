@@ -1,5 +1,6 @@
 import io
 import time
+import zipfile
 from datetime import datetime
 
 import pytest
@@ -70,6 +71,22 @@ def test_garbage_bytes_are_not_xlsx() -> None:
     assert exc_info.value.code == "not_xlsx"
 
 
+def test_zip_with_unsupported_declared_version_is_not_xlsx() -> None:
+    """zipfile.ZipFile raises NotImplementedError (not BadZipFile) for a central directory entry
+    declaring a "version needed to extract" above what the stdlib supports; this must not 500."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.writestr("a.txt", b"hello")
+    data = bytearray(buffer.getvalue())
+    idx = data.index(b"PK\x01\x02")
+    data[idx + 6] = 200  # "version needed to extract" byte, way above zipfile.MAX_EXTRACT_VERSION
+
+    with pytest.raises(XtbFormatError) as exc_info:
+        open_workbook(bytes(data))
+
+    assert exc_info.value.code == "not_xlsx"
+
+
 def test_corrupted_worksheet_xml_is_not_xlsx() -> None:
     content = xf.corrupt_worksheet_xml(xf.build_report(cash=_cash_rows()))
 
@@ -77,6 +94,20 @@ def test_corrupted_worksheet_xml_is_not_xlsx() -> None:
         open_workbook(content)
 
     assert exc_info.value.code == "not_xlsx"
+
+
+def test_stale_worksheet_dimension_does_not_drop_rows() -> None:
+    """Some real XTB exports declare a <dimension ref> that undershoots the sheet's actual rows;
+    openpyxl's read-only iter_rows trusts it and stops there unless dimensions are reset."""
+    rows = [xf.cash_row("Deposit", 1.0, str(i), datetime(2026, 3, 1, 8, 0)) for i in range(35)]
+    content = xf.stale_worksheet_dimensions(
+        xf.build_report(cash=rows, include_open=False, include_closed=False)
+    )
+
+    sheets = open_workbook(content)
+    sheet = read_sheet("Cash Operations", sheets["Cash Operations"], CASH_REQUIRED)
+
+    assert len(sheet.rows) == 35
 
 
 def test_far_out_of_range_cell_does_not_cause_a_huge_scan() -> None:
