@@ -3,9 +3,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
-from app.portfolio.schemas import HistoryOut, SummaryOut
-from app.portfolio.service import portfolio_history, portfolio_summary
-from app.scoping import UserScope, get_scope
+from app.portfolio.schemas import HistoryOut, PositionDetailOut, PositionOut, SummaryOut
+from app.portfolio.service import list_positions, portfolio_history, portfolio_summary, position_detail
+from app.scoping import DbId, UserScope, get_scope
+from app.valuation.service import local_today
 
 router = APIRouter(prefix="/api", tags=["portfolio"])
 
@@ -32,3 +33,21 @@ def get_history(
     end: Annotated[dt.date | None, Query(alias="to")] = None,
 ) -> HistoryOut:
     return portfolio_history(scope, _account(scope, account_id), start, end)
+
+
+DayQuery = Annotated[dt.date | None, Query(alias="date")]
+
+
+@router.get("/positions", response_model=list[PositionOut])
+def get_positions(
+    scope: UserScope = Depends(get_scope), account_id: AccountFilter = None, day: DayQuery = None
+) -> list[PositionOut]:
+    return list_positions(scope, _account(scope, account_id), day or local_today())
+
+
+@router.get("/positions/{account_id}/{instrument_id}", response_model=PositionDetailOut)
+def get_position(
+    account_id: DbId, instrument_id: DbId, scope: UserScope = Depends(get_scope), day: DayQuery = None
+) -> PositionDetailOut:
+    account, instrument = scope.get_account(account_id), scope.get_instrument(instrument_id)
+    return position_detail(scope, account, instrument, day or local_today())
