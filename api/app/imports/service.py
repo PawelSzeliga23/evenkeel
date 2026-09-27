@@ -1,7 +1,7 @@
 from collections import defaultdict
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Account, ImportRecord, Instrument, PositionLot, Transaction, XtbSnapshot
 from app.scoping import UserScope
+from app.valuation.service import local_day, mark_stale
 from app.xtb.report import CashOperation, XtbReport
 
 FX_PLACES = Decimal("0.00000001")
@@ -174,11 +175,24 @@ def _add_reconciliation_warnings(
                     })
 
 
+def _valuations_changed_from(plans: list[FilePlan]) -> date | None:
+    """The earliest day an import changes: a new operation, or the day of an XTB snapshot (fallback prices)."""
+    days = [local_day(operation.occurred_at) for plan in plans for operation in plan.new_operations]
+    days += [
+        local_day(plan.report.generated_at)
+        for plan in plans
+        if plan.report.generated_at is not None and plan.report.instrument_summaries
+    ]
+    return min(days, default=None)
+
+
 def apply_import(scope: UserScope, plans: list[FilePlan]) -> list[ImportRecord]:
     """Writes the planned imports in a single database transaction (all or nothing).
 
     Several plans in the batch can share the same not-yet-existing account (by account number):
     `account_cache` makes sure it's created once, and every plan for that number reuses it.
+
+    The user is marked for a valuation recompute from the earliest changed day, in the same transaction.
     """
     db = scope.db
     records: list[ImportRecord] = []
@@ -207,6 +221,9 @@ def apply_import(scope: UserScope, plans: list[FilePlan]) -> list[ImportRecord]:
             _insert_snapshots(db, account, record, report, instruments)
             records.append(record)
         pair_transfers(scope)
+        changed_from = _valuations_changed_from(plans)
+        if changed_from is not None:
+            mark_stale(db, [scope.user.id], changed_from)
         db.commit()
     except Exception:
         db.rollback()

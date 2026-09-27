@@ -1,4 +1,4 @@
-"""Background worker: daily market data update, backfill of new instruments, housekeeping.
+"""Background worker: daily market data update, backfill of new instruments, valuation recompute, housekeeping.
 
 A plain loop instead of APScheduler: two jobs in one process, idempotent work, and the daily job
 must also run once at start-up to catch up after downtime. ~40 lines cover it without a dependency.
@@ -30,6 +30,7 @@ from app.market.providers.gus import GusInflationProvider
 from app.market.providers.nbp import NbpFxProvider, NbpRefRateProvider
 from app.market.providers.yahoo import YahooPriceProvider
 from app.market.update import MarketProviders, backfill_new_instruments, run_market_update
+from app.valuation.service import mark_market_changes, mark_stale, recompute_stale, users_with_transactions
 
 logger = logging.getLogger("app.worker")
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
@@ -59,18 +60,32 @@ class WorkerState:
 def tick(
     db: Session, providers: MarketProviders, schedule: DailySchedule, state: WorkerState, now: dt.datetime
 ) -> Literal["daily", "backfill"]:
+    today = now.astimezone(schedule.zone).date()
+    result: Literal["daily", "backfill"]
     if schedule.is_due(now, state.last_completed):
-        today = now.astimezone(schedule.zone).date()
         summary = run_market_update(db, providers, now, today)
+        mark_market_changes(db, summary.prices_changed_from, summary.fx_changed_from)
+        # Advisory locks of one transaction must be taken in a single ascending-id pass, so the
+        # market-change locks are committed before mark_stale takes its own ascending-id pass below.
+        db.commit()
+        mark_stale(db, users_with_transactions(db), today)  # every portfolio's history gets the new day
         pruned = prune_refresh_tokens(db, now)
         db.commit()
         state.last_completed = schedule.completed_through(now)
         logger.info("Daily market update done: %s; pruned %d refresh tokens", summary, pruned)
-        return "daily"
-    rows, failed = backfill_new_instruments(db, providers.prices, now)
-    if rows or failed:
-        logger.info("Backfilled new instruments: %d price rows, failed: %s", rows, failed)
-    return "backfill"
+        result = "daily"
+    else:
+        changed: dict[int, dt.date] = {}
+        rows, failed = backfill_new_instruments(db, providers.prices, now, changed)
+        mark_market_changes(db, changed, {})
+        db.commit()
+        if rows or failed:
+            logger.info("Backfilled new instruments: %d price rows, failed: %s", rows, failed)
+        result = "backfill"
+    recomputed = recompute_stale(db, today)  # also retries recomputes whose background run failed
+    if recomputed:
+        logger.info("Recomputed valuations of %d users", recomputed)
+    return result
 
 
 def run_forever(

@@ -1,12 +1,15 @@
 from collections.abc import Sequence
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, UploadFile
+from sqlalchemy.orm import Session, sessionmaker
 
+from app.db import get_session_factory
 from app.errors import ApiError
 from app.imports.schemas import ImportFileOut, ImportOut, ImportResultOut
 from app.imports.service import FilePlan, apply_import, plan_import
 from app.models import ImportRecord
 from app.scoping import UserScope, get_scope
+from app.valuation.service import recompute_in_background
 from app.xtb.archive import UploadedFile, expand_uploads
 from app.xtb.report import XtbReport, parse_report
 from app.xtb.workbook import XtbFormatError
@@ -71,7 +74,12 @@ def preview_import(files: list[UploadFile] = File(...), scope: UserScope = Depen
 
 
 @router.post("", status_code=201, response_model=ImportResultOut)
-def commit_import(files: list[UploadFile] = File(...), scope: UserScope = Depends(get_scope)) -> ImportResultOut:
+def commit_import(
+    background: BackgroundTasks,
+    files: list[UploadFile] = File(...),
+    scope: UserScope = Depends(get_scope),
+    sessions: sessionmaker[Session] = Depends(get_session_factory),
+) -> ImportResultOut:
     reports, errors, skipped = _parse(files)
     if errors:
         raise ApiError(
@@ -81,6 +89,7 @@ def commit_import(files: list[UploadFile] = File(...), scope: UserScope = Depend
         raise ApiError(422, "import_empty", "Brak plików XLSX z XTB do zaimportowania.")
     plans = plan_import(scope, reports)
     records = apply_import(scope, plans)
+    background.add_task(recompute_in_background, sessions, scope.user.id)
     return ImportResultOut(
         files=[_file_out(plan, record) for plan, record in zip(plans, records, strict=True)],
         errors=[],

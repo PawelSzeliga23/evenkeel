@@ -11,7 +11,7 @@ from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import Settings, get_settings
-from app.db import get_db
+from app.db import get_db, get_session_factory
 from app.main import create_app
 
 TEST_DATABASE_URL = os.environ.get(
@@ -75,6 +75,7 @@ def make_app(engine: Engine, clean_db: None) -> Callable[..., FastAPI]:
                 yield session
 
         app.dependency_overrides[get_db] = _get_db
+        app.dependency_overrides[get_session_factory] = lambda: test_sessionmaker
         app.dependency_overrides[get_settings] = lambda: app_settings
         return app
 

@@ -20,3 +20,8 @@ def get_sessionmaker() -> sessionmaker[Session]:
 def get_db() -> Iterator[Session]:
     with get_sessionmaker()() as session:
         yield session
+
+
+def get_session_factory() -> sessionmaker[Session]:
+    """Sessions for work that outlives the request (background tasks); tests override it like get_db."""
+    return get_sessionmaker()
