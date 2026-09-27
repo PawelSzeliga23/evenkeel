@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
-from app.models import Price, Transaction, User
+from app.models import Account, CorporateAction, ImportRecord, Price, Transaction, User, XtbSnapshot
 from tests.valuation_seed import seed_holdings, seed_market, seed_snapshot
 
 LoginAs = Callable[[str], dict[str, str]]
@@ -101,6 +101,38 @@ def test_reconciliation_reports_mismatch_and_missing_snapshot(
         with Session(engine) as db:
             seed_snapshot(db, world["account_id"], world["instrument_id"], volume)
     assert _detail(client, world)["reconciliation"]["status"] == status
+
+
+def test_reconciliation_uses_the_newest_import_with_open_positions(
+    client: TestClient, world: dict, engine: Engine
+) -> None:
+    with Session(engine) as db:
+        seed_snapshot(db, world["account_id"], world["instrument_id"], "2")
+        account = db.get(Account, world["account_id"])
+        record = ImportRecord(user_id=account.user_id, account_id=account.id, filename="IKE.xlsx", file_hash="1" * 64,
+                              rows_added=0, rows_duplicate=0, rows_unknown=0)
+        db.add(record)
+        db.flush()
+        db.add(XtbSnapshot(import_id=record.id, account_id=account.id, row_kind="account_summary",
+                           value=Decimal("5729.70"), taken_at=dt.datetime(2026, 9, 27, 12, 0, tzinfo=dt.UTC), raw={}))
+        db.commit()
+
+    reconciliation = _detail(client, world)["reconciliation"]
+
+    assert (reconciliation["status"], reconciliation["taken_at"][:10]) == ("ok", "2026-09-26")
+
+
+def test_reconciliation_compares_quantities_at_the_stored_precision(
+    client: TestClient, world: dict, engine: Engine
+) -> None:
+    with Session(engine) as db:  # 1:3 reverse split: 2 units become 0.666666666… (XTB reports 0.66666667)
+        db.add(CorporateAction(instrument_id=world["instrument_id"], type="reverse_split",
+                               effective_date=dt.date(2026, 6, 1), ratio_from=Decimal(3), ratio_to=Decimal(1),
+                               source="manual"))
+        db.commit()
+        seed_snapshot(db, world["account_id"], world["instrument_id"], "0.66666667")
+
+    assert _detail(client, world)["reconciliation"]["status"] == "ok"
 
 
 def test_sold_out_position_leaves_the_list_but_keeps_its_realized_gain(

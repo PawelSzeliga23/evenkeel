@@ -19,6 +19,7 @@ from app.valuation.service import Inputs, load_inputs, local_day
 
 HUNDRED = Decimal(100)
 PERCENT_PLACES = Decimal("0.01")
+QUANTITY_PLACES = Decimal("1e-8")  # quantities are stored with 8 decimal places
 DIVIDEND_TYPES = ("dividend", "withholding_tax")
 INTEREST_TYPES = ("interest", "interest_tax")
 EVENT_TYPES = ("deposit", "withdrawal", "transfer_in", "transfer_out", "buy", "sell", "dividend")
@@ -230,9 +231,11 @@ def list_positions(scope: UserScope, account_id: int | None, day: dt.date) -> li
 
 
 def _reconciliation(db: Session, book: Book, inputs: Inputs, account: Account, instrument: Instrument) -> ReconciliationOut:
-    """Our quantity on the day of the account's newest XTB import vs XTB's Open Positions summary row."""
+    """Our quantity on the day of the account's newest XTB import with Open Positions vs XTB's summary row,
+    compared at the stored precision (8 decimal places)."""
     # `account` already passed scope.get_account, so its snapshots are the user's own.
-    taken_at = db.scalar(select(func.max(XtbSnapshot.taken_at)).where(XtbSnapshot.account_id == account.id))
+    taken_at = db.scalar(select(func.max(XtbSnapshot.taken_at)).where(
+        XtbSnapshot.account_id == account.id, XtbSnapshot.row_kind == "instrument_summary"))
     if taken_at is None:
         return ReconciliationOut(status="no_snapshot", taken_at=None, xtb_quantity=None, calculated_quantity=None)
     xtb = db.scalar(select(func.coalesce(func.sum(XtbSnapshot.volume), 0)).where(
@@ -250,7 +253,9 @@ def _reconciliation(db: Session, book: Book, inputs: Inputs, account: Account, i
         ),
         ZERO,
     )
-    return ReconciliationOut(status="ok" if calculated == xtb else "mismatch", taken_at=taken_at,
+    matches = (calculated.quantize(QUANTITY_PLACES, rounding=ROUND_HALF_UP)
+               == Decimal(xtb).quantize(QUANTITY_PLACES, rounding=ROUND_HALF_UP))
+    return ReconciliationOut(status="ok" if matches else "mismatch", taken_at=taken_at,
                              xtb_quantity=xtb, calculated_quantity=calculated)
 
 
