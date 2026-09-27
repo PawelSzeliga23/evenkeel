@@ -7,6 +7,7 @@ from app.config import Settings, get_settings
 from app.errors import register_error_handlers
 from app.health import router as health_router
 from app.imports.router import router as imports_router
+from app.instruments.router import router as instruments_router
 from app.transactions.router import router as transactions_router
 
 
@@ -21,6 +22,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(accounts_router)
     app.include_router(imports_router)
     app.include_router(transactions_router)
+    app.include_router(instruments_router)
     return app
 
 

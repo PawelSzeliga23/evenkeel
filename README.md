@@ -56,6 +56,8 @@ instrumentu. Testy nie łączą się z siecią.
 | POST | `/api/imports` | zapis importu XTB (te same pliki); całość albo nic |
 | GET | `/api/imports` | historia importów |
 | GET | `/api/transactions` | operacje (`account_id`, `type`, `limit`, `offset`) |
+| GET | `/api/instruments` | instrumenty użytkownika: waluta, symbol u dostawcy cen, ostatnia cena i jej data, błąd cen |
+| PATCH | `/api/instruments/{id}` | ręczny symbol u dostawcy cen `{price_symbol}` (`null` = automatyczny); historia pobierze się ponownie |
 
 Chronione endpointy wymagają nagłówka `Authorization: Bearer <access_token>`.
 Błędy mają format `{"code": "...", "message": "...", "details": {...}}`.
