@@ -96,6 +96,16 @@ def test_daily_rows_cover_every_day_with_cash_and_open_positions() -> None:
     assert (rows[0].quantity, rows[0].cost_pln) == (D("10000"), D("10000.00"))
 
 
+def test_daily_rows_from_a_start_day_match_the_full_run() -> None:
+    sell = Entry(5, 1, SXR8, "sell", MAR_03, D("2200"), "PLN", D("1"), D("510"), "777")
+    everything = daily_rows([DEPOSIT, BUY, sell], [], _market(), FRI)
+
+    rows = daily_rows([DEPOSIT, BUY, sell], [], _market(), FRI, start=SEP_10)
+
+    assert rows == [row for row in everything if row.day >= SEP_10]
+    assert rows[0].day == SEP_10
+
+
 def test_sold_out_position_has_no_rows_after_the_sale() -> None:
     sell = Entry(5, 1, SXR8, "sell", MAR_03, D("4400"), "PLN", D("2"), D("510"), "777")
     rows = daily_rows([DEPOSIT, BUY, sell], [], _market(), MAR_03)

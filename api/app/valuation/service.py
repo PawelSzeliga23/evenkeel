@@ -9,9 +9,11 @@ import logging
 from collections import defaultdict
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import delete, func, insert, select, text, update
+from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.orm import Session
 
 from app.models import Account, CorporateAction, DailyValuation, FxRate, Instrument, Price, Transaction, User, XtbSnapshot
@@ -46,24 +48,36 @@ def _series(points: dict[object, list[tuple[dt.date, object]]]) -> dict:
     return {key: Series(values) for key, values in points.items()}
 
 
+def _series_from(db: Session, key: Any, day: Any, value: Any, keys: Iterable[object], first_day: dt.date) -> dict:
+    """Points of `keys` from `first_day` on, plus the last one before it per key, so a "last known on or before"
+    lookup still answers on the first day without loading decades of history."""
+    points: dict[object, list] = defaultdict(list)
+    before = (
+        select(key, day, value).where(key.in_(keys), day < first_day).ext(distinct_on(key)).order_by(key, day.desc())
+    )
+    since = select(key, day, value).where(key.in_(keys), day >= first_day)
+    for query in (before, since):
+        for found_key, found_day, found_value in db.execute(query):
+            points[found_key].append((found_day, found_value))
+    return _series(points)
+
+
 def load_inputs(scope: UserScope) -> Inputs:
-    """The user's transactions and every piece of market data the engine may look up for them."""
+    """The user's transactions and the market data the engine may look up for them (from the first transaction)."""
     db = scope.db
     entries = [
         Entry(t.id, t.account_id, t.instrument_id, t.type, local_day(t.occurred_at), t.amount, t.currency,
               t.quantity, t.price, t.xtb_position_id)
         for t in db.scalars(scope.transactions()).unique()
     ]
+    if not entries:
+        return Inputs(entries, [], MarketData())
+    first_day = min(entry.day for entry in entries)
     instrument_ids = sorted({entry.instrument_id for entry in entries if entry.instrument_id is not None})
     market = MarketData()
     splits: list[Split] = []
     if instrument_ids:
-        prices: dict[object, list] = defaultdict(list)
-        for instrument_id, day, close in db.execute(
-            select(Price.instrument_id, Price.date, Price.close).where(Price.instrument_id.in_(instrument_ids))
-        ):
-            prices[instrument_id].append((day, close))
-        market.prices = _series(prices)
+        market.prices = _series_from(db, Price.instrument_id, Price.date, Price.close, instrument_ids, first_day)
         market.currencies = dict(
             db.execute(select(Instrument.id, Instrument.currency).where(Instrument.id.in_(instrument_ids))).all()
         )
@@ -91,12 +105,7 @@ def load_inputs(scope: UserScope) -> Inputs:
         market.snapshots = _series(snapshots)
     currencies = ({c for c in market.currencies.values() if c} | {entry.currency for entry in entries}) - {BASE_CURRENCY}
     if currencies:
-        rates: dict[object, list] = defaultdict(list)
-        for currency, day, rate in db.execute(
-            select(FxRate.currency, FxRate.date, FxRate.rate_pln).where(FxRate.currency.in_(currencies))
-        ):
-            rates[currency].append((day, rate))
-        market.fx = _series(rates)
+        market.fx = _series_from(db, FxRate.currency, FxRate.date, FxRate.rate_pln, sorted(currencies), first_day)
     return Inputs(entries, splits, market)
 
 
@@ -168,7 +177,7 @@ def mark_market_changes(db: Session, prices_from: dict[int, dt.date], fx_from: d
 def recompute_user(db: Session, user_id: int, today: dt.date) -> int:
     """Rebuilds the user's rows from `valuations_stale_from` to `today` and commits; returns the rows written.
 
-    The whole history is replayed in memory (days × positions: cheap); rows before the stale day are kept.
+    Every transaction is replayed in memory, but rows are built only from the stale day; earlier rows are kept.
     """
     try:
         lock_user(db, user_id)
@@ -178,7 +187,7 @@ def recompute_user(db: Session, user_id: int, today: dt.date) -> int:
             db.commit()
             return 0
         inputs = load_inputs(UserScope(db, user))
-        rows = [row for row in daily_rows(inputs.entries, inputs.splits, inputs.market, today) if row.day >= stale_from]
+        rows = daily_rows(inputs.entries, inputs.splits, inputs.market, today, start=stale_from)
         db.execute(delete(DailyValuation).where(DailyValuation.user_id == user_id, DailyValuation.date >= stale_from))
         values = [
             {

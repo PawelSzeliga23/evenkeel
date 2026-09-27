@@ -338,8 +338,11 @@ def replay(entries: Iterable[Entry], splits: Iterable[Split], market: MarketData
     return book
 
 
-def daily_rows(entries: Sequence[Entry], splits: Iterable[Split], market: MarketData, end: dt.date) -> list[Row]:
-    """Every day from the first transaction to `end`: a cash row per account and a row per open position."""
+def daily_rows(
+    entries: Sequence[Entry], splits: Iterable[Split], market: MarketData, end: dt.date, start: dt.date | None = None
+) -> list[Row]:
+    """Every day from the first transaction (or from `start`, if later) to `end`: a cash row per account and a
+    row per open position. Transactions before `start` are still replayed; only their days get no rows."""
     ordered = _ordered(entries)
     if not ordered:
         return []
@@ -350,7 +353,8 @@ def daily_rows(entries: Sequence[Entry], splits: Iterable[Split], market: Market
         while index < len(ordered) and ordered[index].day <= day:
             book.apply(ordered[index])
             index += 1
-        rows.extend(book.rows(day))
+        if start is None or day >= start:
+            rows.extend(book.rows(day))
         day += ONE_DAY
     return rows
 

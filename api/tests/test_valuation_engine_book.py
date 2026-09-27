@@ -90,7 +90,8 @@ def test_sale_larger_than_the_holding_closes_everything_without_error() -> None:
 def test_pro_rata_sales_of_everything_leave_no_dust_lot() -> None:
     entries = (
         _buy(1, MAR_02, "0.61", "-61.00"), _buy(2, MAR_02, "140", "-14000.00"), _buy(3, MAR_02, "0.95", "-95.00"),
-        _sell(4, MAR_05, "113.25", "11325.00"), _sell(5, MAR_05, "5.66", "566.00"), _sell(6, JUN_01, "22.65", "2265.00"),
+        _sell(4, MAR_05, "113.25", "11325.00"), _sell(5, MAR_05, "5.66", "566.00"),
+        _sell(6, JUN_01, "22.65", "2265.00"),
     )
     book = _book(*entries)
 

@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import Engine, func, select, update
 from sqlalchemy.orm import Session
 
-from app.models import DailyValuation, Instrument, Price, Transaction, User
+from app.models import DailyValuation, FxRate, Instrument, Price, Transaction, User
 from app.scoping import UserScope
 from app.valuation import service
 from app.valuation.engine import FLAG_XTB_PRICE
@@ -65,6 +65,35 @@ def test_load_inputs_reads_only_the_users_own_data(db: Session) -> None:
     assert inputs.market.price(instrument_id, SAT) == (FRI, Decimal("600.00000000"))
     assert inputs.market.rate("EUR", SAT) == Decimal("4.25000000")
     assert inputs.market.snapshots[(anna_account, instrument_id)].on(SAT) == (SAT, Decimal("2550"))
+
+
+def test_load_inputs_reads_market_data_from_the_last_point_before_the_first_transaction(db: Session) -> None:
+    instrument_id = seed_market(db)  # EUR 4.30 from 02-20, first transaction 03-01, first close 03-02
+    db.add_all([
+        Price(instrument_id=instrument_id, date=dt.date(2026, 1, 15), close=Decimal("480"), source="yahoo"),
+        Price(instrument_id=instrument_id, date=dt.date(2026, 2, 27), close=Decimal("490"), source="yahoo"),
+        FxRate(currency="EUR", date=dt.date(2026, 1, 10), rate_pln=Decimal("4.10")),
+    ])
+    user_id = seed_user(db)
+    seed_holdings(db, user_id, instrument_id)
+
+    market = load_inputs(UserScope(db, db.get(User, user_id))).market
+
+    assert market.price(instrument_id, MAR_01) == (dt.date(2026, 2, 27), Decimal("490.00000000"))
+    assert market.prices[instrument_id].days == [dt.date(2026, 2, 27), dt.date(2026, 3, 2), FRI]
+    assert market.rate("EUR", MAR_01) == Decimal("4.30000000")
+    assert market.fx["EUR"].days == [dt.date(2026, 2, 20), FRI]
+
+
+def test_load_inputs_keeps_the_first_rate_after_the_first_transaction_when_none_is_before(db: Session) -> None:
+    instrument_id = seed_market(db)
+    db.query(FxRate).filter(FxRate.date < MAR_01).delete()
+    user_id = seed_user(db)
+    seed_holdings(db, user_id, instrument_id)
+
+    market = load_inputs(UserScope(db, db.get(User, user_id))).market
+
+    assert market.rate("EUR", MAR_01) == Decimal("4.25000000")
 
 
 def test_recompute_writes_every_day_and_clears_the_marker(db: Session) -> None:
