@@ -4,7 +4,7 @@ from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import delete, func, select
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.dialects.postgresql import insert, distinct_on
 from sqlalchemy.orm import Session
 
 from app.market.types import CpiPoint, FxPoint, PriceBar, RefRatePoint
@@ -93,9 +93,6 @@ def latest_prices(db: Session, instrument_ids: Sequence[int]) -> dict[int, Price
         select(Price)
         .where(Price.instrument_id.in_(instrument_ids))
         .order_by(Price.instrument_id, Price.date.desc())
-    ).all()
-    result = {}
-    for row in rows:
-        if row.instrument_id not in result:
-            result[row.instrument_id] = row
-    return result
+        .ext(distinct_on(Price.instrument_id))
+    )
+    return {row.instrument_id: row for row in rows}
