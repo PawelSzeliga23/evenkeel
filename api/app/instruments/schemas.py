@@ -8,7 +8,14 @@ SYMBOL_PATTERN = r"^[A-Z0-9.\-^=]{1,40}$"
 
 
 def _normalize(value: object) -> object:
-    return value.strip().upper() if isinstance(value, str) else value
+    if not isinstance(value, str):
+        return value
+    symbol = value.strip().upper()
+    # pydantic-core's regex engine has no look-around, so "only punctuation" (e.g. ".", "..", which would
+    # produce dot-segment URL paths once used as a price symbol) is rejected here instead of in the pattern.
+    if symbol and not any(char.isalnum() for char in symbol):
+        raise ValueError("Symbol musi zawierać przynajmniej jedną literę lub cyfrę.")
+    return symbol
 
 
 class InstrumentUpdate(BaseModel):

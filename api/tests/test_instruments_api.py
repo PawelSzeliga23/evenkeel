@@ -134,8 +134,8 @@ def test_foreign_or_missing_instrument_is_not_found(
 @pytest.mark.parametrize(
     "payload",
     [{"price_symbol": ""}, {"price_symbol": "SXR8 DE"}, {"price_symbol": "A" * 41}, {"price_symbol": "SXR8/DE"},
-     {}, {"price_symbol": "X.DE", "extra": 1}],
-    ids=["empty", "space", "too-long", "slash", "missing-field", "unknown-field"],
+     {"price_symbol": "."}, {"price_symbol": ".."}, {}, {"price_symbol": "X.DE", "extra": 1}],
+    ids=["empty", "space", "too-long", "slash", "dot", "dots", "missing-field", "unknown-field"],
 )
 def test_invalid_symbol_is_rejected(client: TestClient, world: dict, payload: dict) -> None:
     response = client.patch(f"/api/instruments/{world['ids']['SXR8.DE']}", json=payload, headers=world["anna"])
