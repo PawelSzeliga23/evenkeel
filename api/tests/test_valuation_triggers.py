@@ -9,7 +9,7 @@ from sqlalchemy import Engine, select, update
 from sqlalchemy.orm import Session
 
 from app.imports.service import apply_import, plan_import
-from app.models import DailyValuation, Instrument, User
+from app.models import DailyValuation, Instrument, Price, User
 from app.scoping import UserScope
 from app.valuation.engine import FLAG_XTB_PRICE
 from app.worker import WorkerState, tick
@@ -119,6 +119,22 @@ def test_daily_tick_revalues_holders_with_the_new_prices(db: Session) -> None:
     position = db.scalar(select(DailyValuation).where(
         DailyValuation.user_id == user_id, DailyValuation.date == FRI, DailyValuation.instrument_id.is_not(None)))
     assert position.value_pln == Decimal("6067.30")  # 2 × 713.80 EUR (fake provider) × 4.25
+
+
+def test_backfill_tick_revalues_holders_of_a_new_instrument_with_provider_prices(db: Session) -> None:
+    instrument_id = seed_market(db)
+    db.query(Price).delete()
+    db.execute(update(Instrument).values(price_checked_at=None))
+    db.commit()
+    user_id = seed_user(db)
+    seed_holdings(db, user_id, instrument_id)
+
+    assert tick(db, fake_providers(), SCHEDULE, WorkerState(last_completed=FRI), _at(10, 5)) == "backfill"
+
+    assert _stale(db, user_id) is None
+    position = db.scalar(select(DailyValuation).where(
+        DailyValuation.user_id == user_id, DailyValuation.date == FRI, DailyValuation.instrument_id == instrument_id))
+    assert (position.value_pln, position.flags) == (Decimal("6067.30"), [])  # 2 × 713.80 EUR × 4.25
 
 
 def test_backfill_tick_finishes_pending_recomputes(db: Session) -> None:
