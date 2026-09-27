@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, String, false, func
+from sqlalchemy import DateTime, String, false, func, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -23,3 +23,5 @@ class Instrument(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     price_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     price_error: Mapped[str | None] = mapped_column(String(200))
+    # False = the stored price history predates split events; the next update refetches it in full once.
+    splits_synced: Mapped[bool] = mapped_column(server_default=true())
