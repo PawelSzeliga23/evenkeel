@@ -1,0 +1,272 @@
+import datetime as dt
+from collections.abc import Iterator
+from decimal import Decimal
+
+import pytest
+from sqlalchemy import Engine, func, select
+from sqlalchemy.orm import Session
+
+from app.market.store import fx_on, last_price_date, price_on, upsert_fx_rates, upsert_prices
+from app.market.types import FxPoint, PriceBar, ProviderError
+from app.market.update import (
+    FX_MARGIN_DAYS,
+    MSG_FAILED,
+    MSG_NOT_FOUND,
+    MSG_UNMAPPED,
+    backfill_new_instruments,
+    fx_ranges_to_fetch,
+    run_market_update,
+    update_all_prices,
+    update_fx,
+)
+from app.models import Account, Cpi, FxRate, Instrument, NbpRefRate, PositionLot, Transaction, User
+from tests.market_fakes import SXR8, FakeFx, FakeInflation, FakePrices, fake_providers
+
+NOW = dt.datetime(2026, 9, 25, 21, 0, tzinfo=dt.UTC)
+TODAY = dt.date(2026, 9, 25)
+
+
+@pytest.fixture
+def db(engine: Engine, clean_db: None) -> Iterator[Session]:
+    with Session(engine, expire_on_commit=False) as session:
+        yield session
+
+
+def _reference(db: Session, instrument: Instrument) -> None:
+    """Instruments are shared across users; the worker only touches ones actually held or traded.
+
+    A `PositionLot` is used here (rather than a `Transaction`) because it does not carry an
+    `occurred_at`, so it cannot distort the `fx_needed_from` (earliest transaction) tests below.
+    """
+    user = User(email=f"ref-{instrument.id}@portfolio.dev", password_hash="x")
+    db.add(user)
+    db.flush()
+    account = Account(
+        user_id=user.id, name="Ref", kind="broker", wrapper="ike", broker="xtb",
+        external_account_number=str(instrument.id), currency="PLN",
+    )
+    db.add(account)
+    db.flush()
+    db.add(PositionLot(
+        account_id=account.id, instrument_id=instrument.id, xtb_position_id=str(instrument.id),
+        side="buy", quantity=Decimal("1"), open_price=Decimal("1"),
+        opened_at=dt.datetime(2020, 1, 1, tzinfo=dt.UTC), raw={},
+    ))
+    db.commit()
+
+
+def _instrument(db: Session, ticker: str, **fields: object) -> Instrument:
+    instrument = Instrument(xtb_ticker=ticker, name=ticker, **fields)
+    db.add(instrument)
+    db.commit()
+    _reference(db, instrument)
+    return instrument
+
+
+def _first_transaction_at(db: Session, occurred_at: dt.datetime) -> None:
+    user = User(email="anna@portfolio.dev", password_hash="x")
+    db.add(user)
+    db.flush()
+    account = Account(user_id=user.id, name="XTB IKE", kind="broker", wrapper="ike", broker="xtb",
+                      external_account_number="56216965", currency="PLN")
+    db.add(account)
+    db.flush()
+    db.add(Transaction(account_id=account.id, type="deposit", xtb_type="Deposit", occurred_at=occurred_at,
+                       amount=Decimal("100"), currency="PLN", external_id="1", comment="", raw={}))
+    db.commit()
+
+
+def test_first_sight_fetches_full_history_and_fills_symbol_and_currency(db: Session) -> None:
+    instrument = _instrument(db, "SXR8.DE")
+    prices = FakePrices({"SXR8.DE": SXR8})
+
+    rows, failed = update_all_prices(db, prices, NOW)
+
+    assert (rows, failed, prices.calls) == (2, [], [("SXR8.DE", None)])
+    db.refresh(instrument)
+    assert (instrument.price_symbol, instrument.currency, instrument.price_error) == ("SXR8.DE", "EUR", None)
+    assert instrument.price_checked_at == NOW
+    assert price_on(db, instrument.id, TODAY).close == Decimal("713.80")
+
+
+def test_known_instrument_is_updated_from_last_stored_day_with_overlap(db: Session) -> None:
+    instrument = _instrument(db, "SXR8.DE", price_symbol="SXR8.DE", currency="EUR")
+    upsert_prices(db, instrument.id, [PriceBar(dt.date(2026, 9, 10), Decimal("700"))], "fake")
+    db.commit()
+    prices = FakePrices({"SXR8.DE": SXR8})
+
+    update_all_prices(db, prices, NOW)
+
+    assert prices.calls == [("SXR8.DE", dt.date(2026, 9, 5))]
+    assert last_price_date(db, instrument.id) == TODAY
+
+
+def test_manual_symbol_is_used_and_never_overwritten(db: Session) -> None:
+    instrument = _instrument(db, "SXR8.DE", price_symbol="SXR8.F", price_symbol_overridden=True)
+    prices = FakePrices({"SXR8.F": SXR8})
+
+    update_all_prices(db, prices, NOW)
+
+    assert prices.calls == [("SXR8.F", None)]
+    db.refresh(instrument)
+    assert (instrument.price_symbol, instrument.price_symbol_overridden) == ("SXR8.F", True)
+
+
+def test_unmapped_exchange_is_marked_without_calling_provider(db: Session) -> None:
+    instrument = _instrument(db, "ASML.NL")
+    prices = FakePrices()
+
+    rows, failed = update_all_prices(db, prices, NOW)
+
+    assert (rows, failed, prices.calls) == (0, ["ASML.NL"], [])
+    db.refresh(instrument)
+    assert (instrument.price_symbol, instrument.price_error) == (None, MSG_UNMAPPED)
+
+
+def test_one_failing_instrument_does_not_stop_the_others(db: Session) -> None:
+    failing = _instrument(db, "VIE.FR")
+    working = _instrument(db, "SXR8.DE")
+    missing = _instrument(db, "PKN.PL")
+    prices = FakePrices({"SXR8.DE": SXR8}, errors={"VIE.PA": ProviderError("HTTP 503")})
+
+    rows, failed = update_all_prices(db, prices, NOW)
+
+    assert (rows, failed) == (2, ["VIE.FR", "PKN.PL"])
+    for instrument in (failing, working, missing):
+        db.refresh(instrument)
+    assert failing.price_error == MSG_FAILED.format(symbol="VIE.PA")
+    assert missing.price_error == MSG_NOT_FOUND.format(symbol="PKN.WA")
+    assert (working.price_error, last_price_date(db, working.id)) == (None, TODAY)
+
+
+def test_success_clears_previous_error(db: Session) -> None:
+    instrument = _instrument(db, "SXR8.DE", price_error="stary błąd")
+
+    update_all_prices(db, FakePrices({"SXR8.DE": SXR8}), NOW)
+
+    db.refresh(instrument)
+    assert instrument.price_error is None
+
+
+def test_backfill_only_touches_instruments_never_checked(db: Session) -> None:
+    _instrument(db, "SXR8.DE")
+    _instrument(db, "VIE.FR", price_checked_at=NOW - dt.timedelta(hours=1))
+    prices = FakePrices({"SXR8.DE": SXR8})
+
+    rows, failed = backfill_new_instruments(db, prices, NOW)
+
+    assert (rows, failed, prices.calls) == (2, [], [("SXR8.DE", None)])
+    assert backfill_new_instruments(db, prices, NOW) == (0, [])
+
+
+def test_unreferenced_instrument_is_not_fetched(db: Session) -> None:
+    """Instruments are shared; an import can create one that no user actually holds or traded yet."""
+    unreferenced = Instrument(xtb_ticker="ORLEN.PL", name="ORLEN.PL")
+    db.add(unreferenced)
+    db.commit()
+    prices = FakePrices()
+
+    rows, failed = update_all_prices(db, prices, NOW)
+
+    assert (rows, failed, prices.calls) == (0, [], [])
+    db.refresh(unreferenced)
+    assert unreferenced.price_checked_at is None
+
+
+def test_unreferenced_instrument_is_not_backfilled(db: Session) -> None:
+    unreferenced = Instrument(xtb_ticker="ORLEN.PL", name="ORLEN.PL")
+    db.add(unreferenced)
+    db.commit()
+    prices = FakePrices()
+
+    rows, failed = backfill_new_instruments(db, prices, NOW)
+
+    assert (rows, failed, prices.calls) == (0, [], [])
+    db.refresh(unreferenced)
+    assert unreferenced.price_checked_at is None
+
+
+def test_unreferenced_instrument_currency_is_excluded_from_fx(db: Session) -> None:
+    _instrument(db, "SXR8.DE", currency="EUR")
+    unreferenced = Instrument(xtb_ticker="ORLEN.PL", name="ORLEN.PL", currency="USD")
+    db.add(unreferenced)
+    db.commit()
+    fx = FakeFx()
+
+    update_fx(db, fx, TODAY)
+
+    assert [currency for currency, _, _ in fx.calls] == ["EUR"]
+
+
+@pytest.mark.parametrize(
+    ("stored", "needed_from", "expected"),
+    [
+        ((None, None), dt.date(2026, 2, 20), [(dt.date(2026, 2, 20), TODAY)]),
+        ((dt.date(2026, 3, 1), dt.date(2026, 9, 20)), dt.date(2026, 3, 5), [(dt.date(2026, 9, 21), TODAY)]),
+        ((dt.date(2026, 3, 1), TODAY), dt.date(2025, 1, 1), [(dt.date(2025, 1, 1), dt.date(2026, 2, 28))]),
+        ((dt.date(2026, 3, 1), dt.date(2026, 9, 20)), dt.date(2025, 1, 1),
+         [(dt.date(2025, 1, 1), dt.date(2026, 2, 28)), (dt.date(2026, 9, 21), TODAY)]),
+        ((dt.date(2026, 3, 1), TODAY), dt.date(2026, 3, 1), []),
+    ],
+    ids=["nothing-stored", "tail-only", "older-history-imported-later", "gap-and-tail", "up-to-date"],
+)
+def test_fx_ranges_to_fetch(
+    stored: tuple[dt.date | None, dt.date | None], needed_from: dt.date, expected: list[tuple[dt.date, dt.date]]
+) -> None:
+    assert fx_ranges_to_fetch(stored[0], stored[1], needed_from, TODAY) == expected
+
+
+def test_fx_is_fetched_for_foreign_quote_currencies_from_first_transaction(db: Session) -> None:
+    _first_transaction_at(db, dt.datetime(2026, 3, 2, 9, 30, tzinfo=dt.UTC))
+    for ticker, currency in (("SXR8.DE", "EUR"), ("VIE.FR", "EUR"), ("AAPL.US", "USD"), ("PKN.PL", "PLN"), ("X.NL", None)):
+        _instrument(db, ticker, currency=currency)
+    fx = FakeFx()
+
+    rows, failed = update_fx(db, fx, TODAY)
+
+    start = dt.date(2026, 3, 2) - dt.timedelta(days=FX_MARGIN_DAYS)
+    assert fx.calls == [("EUR", start, TODAY), ("USD", start, TODAY)]
+    assert (rows, failed) == (4, [])
+    assert fx_on(db, "USD", TODAY) == Decimal("4.3000")
+
+
+def test_fx_without_transactions_starts_shortly_before_today(db: Session) -> None:
+    _instrument(db, "SXR8.DE", currency="EUR")
+    fx = FakeFx()
+
+    update_fx(db, fx, TODAY)
+
+    assert fx.calls == [("EUR", TODAY - dt.timedelta(days=FX_MARGIN_DAYS), TODAY)]
+
+
+def test_fx_gap_before_stored_history_is_filled(db: Session) -> None:
+    _instrument(db, "SXR8.DE", currency="EUR")
+    upsert_fx_rates(db, "EUR", [FxPoint(dt.date(2026, 3, 1), Decimal("4.2")), FxPoint(TODAY, Decimal("4.3"))])
+    _first_transaction_at(db, dt.datetime(2025, 1, 15, tzinfo=dt.UTC))
+    fx = FakeFx()
+
+    update_fx(db, fx, TODAY)
+
+    assert fx.calls == [("EUR", dt.date(2025, 1, 5), dt.date(2026, 2, 28))]
+
+
+def test_fx_failure_is_reported_and_other_currencies_continue(db: Session) -> None:
+    _instrument(db, "SXR8.DE", currency="EUR")
+
+    rows, failed = update_fx(db, FakeFx(error=ProviderError("HTTP 503")), TODAY)
+
+    assert (rows, failed) == (0, ["EUR"])
+    assert db.scalar(select(func.count()).select_from(FxRate)) == 0
+
+
+def test_run_market_update_fills_everything_and_isolates_source_errors(db: Session) -> None:
+    _instrument(db, "SXR8.DE")
+    providers = fake_providers(inflation=FakeInflation(error=ProviderError("GUS down")))
+
+    summary = run_market_update(db, providers, NOW, TODAY)
+
+    assert (summary.price_rows, summary.failed_instruments) == (2, [])
+    assert summary.fx_rows == 2  # currency EUR came from the price provider in the same run
+    assert (summary.cpi_rows, summary.ref_rate_rows, summary.failed_sources) == (0, 1, ["cpi"])
+    assert db.scalar(select(func.count()).select_from(Cpi)) == 0
+    assert db.scalar(select(NbpRefRate.rate)) == Decimal("3.75")
