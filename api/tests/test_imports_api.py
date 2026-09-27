@@ -44,6 +44,48 @@ def test_preview_describes_import_without_writing(client: TestClient, login_as: 
     assert client.get("/api/transactions", headers=anna).json() == []
 
 
+def test_commit_two_copies_of_a_new_account_file_creates_only_one_account(client: TestClient, login_as: LoginAs) -> None:
+    anna = login_as("anna@portfolio.dev")
+
+    response = client.post("/api/imports", files=_files((IKE_NAME, _ike()), (IKE_NAME, _ike())), headers=anna)
+
+    assert response.status_code == 201
+    assert len(client.get("/api/accounts", headers=anna).json()) == 1
+    first, second = response.json()["files"]
+    assert (first["new_account"], first["new_transactions"], first["duplicate_transactions"]) == (True, 2, 0)
+    assert (second["new_account"], second["new_transactions"], second["duplicate_transactions"]) == (False, 0, 2)
+
+
+def test_commit_two_periods_of_a_new_account_creates_only_one_account_and_reconciles(
+    client: TestClient, login_as: LoginAs
+) -> None:
+    anna = login_as("anna@portfolio.dev")
+    year1 = _ike()
+    year2 = xf.build_report(
+        cash=[
+            xf.cash_row("IKE deposit", 5000.0, "1001", datetime(2026, 3, 1, 8, 0),
+                        comment="Transfer in operation on account with id 56204082"),
+            xf.buy_row("SXR8.DE", "2", "500.5", -4304.3, "1002", AT, "777"),
+            xf.buy_row("SXR8.DE", "1", "505.0", -505.0, "1003", datetime(2026, 4, 1, 9, 0), "778"),
+        ],
+        open_rows=[
+            xf.summary_row("SXR8.DE", "Core S&P 500", 3.0, 1530.0, 500.5, 19.0),
+            xf.lot_row("SXR8.DE", "777", 2.0, 500.5, AT, 510.0, 1020.0, 19.0),
+            xf.lot_row("SXR8.DE", "778", 1.0, 505.0, datetime(2026, 4, 1, 9, 0), 510.0, 510.0, 5.0),
+        ],
+        period_to=datetime(2026, 9, 26),
+    )
+
+    response = client.post("/api/imports", files=_files((IKE_NAME, year1), (IKE_NAME, year2)), headers=anna)
+
+    assert response.status_code == 201
+    assert len(client.get("/api/accounts", headers=anna).json()) == 1
+    first, second = response.json()["files"]
+    assert (first["new_transactions"], second["new_transactions"], second["duplicate_transactions"]) == (2, 1, 2)
+    all_warning_codes = {w["code"] for f in (first, second) for w in f["warnings"]}
+    assert "reconciliation_mismatch" not in all_warning_codes
+
+
 def test_commit_writes_and_second_commit_only_finds_duplicates(client: TestClient, login_as: LoginAs) -> None:
     anna = login_as("anna@portfolio.dev")
 

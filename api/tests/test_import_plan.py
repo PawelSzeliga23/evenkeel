@@ -117,3 +117,31 @@ def test_other_users_account_is_never_matched(session: Session) -> None:
     (plan,) = plan_import(_scope(session), [_report([_buy("1")])])
 
     assert plan.account is None and plan.new_account is not None
+
+
+def test_only_the_first_file_for_a_new_account_carries_new_account_fields(session: Session) -> None:
+    report = _report([_buy("1002")])
+
+    first, second = plan_import(_scope(session), [report, report])
+
+    assert first.new_account is not None and second.new_account is None
+    assert first.account_name == second.account_name == "XTB IKE"
+
+
+def test_older_and_newer_files_of_the_same_account_reconcile_together(session: Session) -> None:
+    """Neither file's own history covers everything; combined, the batch matches both summaries."""
+    older = _report(
+        [_buy("1", "2", "777")],
+        [xf.summary_row("SXR8.DE", "Core S&P 500", 2.0, 1020.0, 500.5, 19.0)],
+        period_from=datetime(2020, 1, 1), period_to=datetime(2026, 3, 5),
+    )
+    newer = _report(
+        [_buy("1", "2", "777"), _buy("2", "1", "778")],
+        [xf.summary_row("SXR8.DE", "Core S&P 500", 3.0, 1530.0, 500.5, 19.0)],
+        period_from=datetime(2020, 1, 1), period_to=datetime(2026, 9, 26),
+    )
+
+    older_plan, newer_plan = plan_import(_scope(session), [older, newer])
+
+    assert older_plan.warnings == []
+    assert newer_plan.warnings == []

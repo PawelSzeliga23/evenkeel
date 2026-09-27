@@ -95,18 +95,19 @@ def build_report(
     product: str = "IKE", cash: Iterable[Row] = (), open_rows: Iterable[Row] = (),
     closed: Iterable[Row] = (), include_open: bool = True, include_closed: bool = True,
     include_cash: bool = True, summary_currency: str = "PLN",
+    period_from: datetime = PERIOD_FROM, period_to: datetime = PERIOD_TO,
 ) -> bytes:
     cash = list(cash)
     workbook = Workbook()
     workbook.remove(workbook.active)
     if include_closed:
         sheet = workbook.create_sheet("Closed Positions")
-        _period_header(sheet, account_number, "Closed Positions")
+        _period_header(sheet, account_number, "Closed Positions", period_from, period_to)
         _table(sheet, CLOSED_HEADER, closed)
         sheet.append(["Profit/loss"])
     if include_cash:
         sheet = workbook.create_sheet("Cash Operations")
-        _period_header(sheet, account_number, "Cash Operations")
+        _period_header(sheet, account_number, "Cash Operations", period_from, period_to)
         _table(sheet, CASH_HEADER, cash)
         sheet.append(["Total", None, None, None, None, sum(row["Amount"] for row in cash)])
     if include_open:
@@ -125,11 +126,11 @@ def build_report(
     return buffer.getvalue()
 
 
-def _period_header(sheet: Worksheet, account_number: str, title: str) -> None:
+def _period_header(sheet: Worksheet, account_number: str, title: str, period_from: datetime, period_to: datetime) -> None:
     sheet.append(["Account number", account_number])
     sheet.append([title, ""])
-    sheet.append(["Date from (UTC)", PERIOD_FROM])
-    sheet.append(["Date to (UTC)", PERIOD_TO])
+    sheet.append(["Date from (UTC)", period_from])
+    sheet.append(["Date to (UTC)", period_to])
 
 
 def _table(sheet: Worksheet, header: list[str], rows: Iterable[Row]) -> None:

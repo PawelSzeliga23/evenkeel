@@ -33,16 +33,20 @@ class FilePlan:
 
     @property
     def account_name(self) -> str:
-        return self.account.name if self.account else str(self.new_account["name"])
+        return self.account.name if self.account else _account_display_name(self.report)
 
 
 def _fmt(value: Decimal) -> str:
     return format(value.normalize(), "f")
 
 
+def _account_display_name(report: XtbReport) -> str:
+    return NEW_ACCOUNT_NAMES.get(report.wrapper, f"XTB {report.currency}")
+
+
 def _new_account_fields(report: XtbReport) -> dict[str, Any]:
     return {
-        "name": NEW_ACCOUNT_NAMES.get(report.wrapper, f"XTB {report.currency}"),
+        "name": _account_display_name(report),
         "kind": "broker",
         "wrapper": report.wrapper,
         "broker": "xtb",
@@ -52,12 +56,23 @@ def _new_account_fields(report: XtbReport) -> dict[str, Any]:
 
 
 def plan_import(scope: UserScope, reports: list[XtbReport]) -> list[FilePlan]:
-    """Works out what importing the reports would change. Writes nothing."""
+    """Works out what importing the reports would change. Writes nothing.
+
+    Several files in one batch can name the same not-yet-existing account (by account number):
+    only the first such file carries `new_account` (apply_import creates it once); later files
+    for that same number leave `new_account` None and get the real account once it's created.
+    """
     plans: list[FilePlan] = []
     seen_in_batch: dict[str, set[str]] = defaultdict(set)
+    known_by_index: list[set[str]] = []
+    pending_new_accounts: set[str] = set()
+    accounts_by_number: dict[str, Account | None] = {}
     for report in reports:
-        account = scope.broker_account("xtb", report.account_number)
+        account = accounts_by_number.setdefault(
+            report.account_number, scope.broker_account("xtb", report.account_number)
+        )
         known = _existing_ids(scope, account, report) if account else set()
+        known_by_index.append(known)
         batch_seen = seen_in_batch[report.account_number]
         new_operations: list[CashOperation] = []
         duplicates = 0
@@ -68,10 +83,15 @@ def plan_import(scope: UserScope, reports: list[XtbReport]) -> list[FilePlan]:
             batch_seen.add(operation.external_id)
             new_operations.append(operation)
         unknown = [op for op in new_operations if op.classified.type == "unknown"]
+        if account is not None or report.account_number in pending_new_accounts:
+            new_account = None
+        else:
+            new_account = _new_account_fields(report)
+            pending_new_accounts.add(report.account_number)
         plan = FilePlan(
             report=report,
             account=account,
-            new_account=None if account else _new_account_fields(report),
+            new_account=new_account,
             new_operations=new_operations,
             duplicate_count=duplicates,
             unknown_count=len(unknown),
@@ -82,8 +102,8 @@ def plan_import(scope: UserScope, reports: list[XtbReport]) -> list[FilePlan]:
                 "message": f"Nierozpoznane operacje: {len(unknown)}. Zostaną zapisane i oznaczone do wyjaśnienia.",
                 "details": {"types": sorted({op.xtb_type for op in unknown})},
             })
-        plan.warnings.extend(_reconciliation_warnings(scope, account, report, new_operations))
         plans.append(plan)
+    _add_reconciliation_warnings(scope, reports, plans, accounts_by_number, known_by_index)
     return plans
 
 
@@ -96,46 +116,81 @@ def _existing_ids(scope: UserScope, account: Account, report: XtbReport) -> set[
     )
 
 
-def _reconciliation_warnings(
-    scope: UserScope, account: Account | None, report: XtbReport, new_operations: list[CashOperation]
-) -> list[dict[str, Any]]:
-    """Compares holdings implied by the transaction history with what XTB reports as open."""
-    if not report.has_open_positions:
-        return []
-    held: dict[str, Decimal] = defaultdict(Decimal)
-    if account is not None:
-        stored = scope.db.execute(
-            select(Instrument.xtb_ticker, Transaction.type, Transaction.quantity)
-            .join(Instrument, Transaction.instrument_id == Instrument.id)
-            .where(Transaction.account_id == account.id, Transaction.type.in_(("buy", "sell")))
-        )
-        for ticker, type_, quantity in stored:
-            held[ticker] += quantity if type_ == "buy" else -quantity
-    for operation in new_operations:
-        classified = operation.classified
-        if classified.type in ("buy", "sell") and operation.ticker and classified.quantity is not None:
-            held[operation.ticker] += classified.quantity if classified.type == "buy" else -classified.quantity
-    reported = {summary.ticker: summary.volume or Decimal(0) for summary in report.instrument_summaries}
-    warnings = []
-    for ticker in sorted(set(held) | set(reported)):
-        calculated, xtb = held.get(ticker, Decimal(0)), reported.get(ticker, Decimal(0))
-        if calculated != xtb:
-            warnings.append({
-                "code": "reconciliation_mismatch",
-                "message": f"{ticker}: z historii wynika {_fmt(calculated)} szt., a XTB pokazuje {_fmt(xtb)} szt.",
-                "details": {"ticker": ticker, "calculated": _fmt(calculated), "xtb": _fmt(xtb)},
-            })
-    return warnings
+def _add_reconciliation_warnings(
+    scope: UserScope,
+    reports: list[XtbReport],
+    plans: list[FilePlan],
+    accounts_by_number: dict[str, Account | None],
+    known_by_index: list[set[str]],
+) -> None:
+    """Compares holdings implied by the transaction history with what XTB reports as open.
+
+    Several files for the same account in one batch each cover part of the history: a file's
+    own `new_operations` alone (post in-batch dedup) understate holdings once another file in
+    the batch already claimed the shared rows. So holdings are accumulated per account across
+    every file of that account in the batch, oldest statement period first, and each file's
+    warning is checked against the running total as of that file (not just its own rows).
+    """
+    epoch = datetime.min.replace(tzinfo=UTC)
+    by_account: dict[str, list[int]] = defaultdict(list)
+    for index, report in enumerate(reports):
+        by_account[report.account_number].append(index)
+    for account_number, indices in by_account.items():
+        indices.sort(key=lambda i: reports[i].report_from or epoch)
+        account = accounts_by_number[account_number]
+        held: dict[str, Decimal] = defaultdict(Decimal)
+        if account is not None:
+            stored = scope.db.execute(
+                select(Instrument.xtb_ticker, Transaction.type, Transaction.quantity)
+                .join(Instrument, Transaction.instrument_id == Instrument.id)
+                .where(Transaction.account_id == account.id, Transaction.type.in_(("buy", "sell")))
+            )
+            for ticker, type_, quantity in stored:
+                held[ticker] += quantity if type_ == "buy" else -quantity
+        counted: set[str] = set()
+        for index in indices:
+            counted |= known_by_index[index]
+        for index in indices:
+            report = reports[index]
+            for operation in report.cash_operations:
+                if operation.external_id in counted:
+                    continue
+                counted.add(operation.external_id)
+                classified = operation.classified
+                if classified.type in ("buy", "sell") and operation.ticker and classified.quantity is not None:
+                    held[operation.ticker] += (
+                        classified.quantity if classified.type == "buy" else -classified.quantity
+                    )
+            if not report.has_open_positions:
+                continue
+            reported = {summary.ticker: summary.volume or Decimal(0) for summary in report.instrument_summaries}
+            for ticker in sorted(set(held) | set(reported)):
+                calculated, xtb = held.get(ticker, Decimal(0)), reported.get(ticker, Decimal(0))
+                if calculated != xtb:
+                    plans[index].warnings.append({
+                        "code": "reconciliation_mismatch",
+                        "message": f"{ticker}: z historii wynika {_fmt(calculated)} szt., a XTB pokazuje {_fmt(xtb)} szt.",
+                        "details": {"ticker": ticker, "calculated": _fmt(calculated), "xtb": _fmt(xtb)},
+                    })
 
 
 def apply_import(scope: UserScope, plans: list[FilePlan]) -> list[ImportRecord]:
-    """Writes the planned imports in a single database transaction (all or nothing)."""
+    """Writes the planned imports in a single database transaction (all or nothing).
+
+    Several plans in the batch can share the same not-yet-existing account (by account number):
+    `account_cache` makes sure it's created once, and every plan for that number reuses it.
+    """
     db = scope.db
     records: list[ImportRecord] = []
+    account_cache: dict[str, Account] = {}
     try:
         for plan in plans:
-            account = plan.account or scope.add_account(**plan.new_account)
-            db.flush()
+            number = plan.report.account_number
+            account = plan.account or account_cache.get(number)
+            if account is None:
+                account = scope.add_account(**(plan.new_account or _new_account_fields(plan.report)))
+                db.flush()
+            account_cache[number] = account
             plan.account = account
             report = plan.report
             record = ImportRecord(
