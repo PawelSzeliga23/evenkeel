@@ -32,9 +32,9 @@ docker compose exec db psql -U portfolio      # konsola SQL bazy deweloperskiej
 
 `docker compose up` uruchamia też usługę `worker` (ten sam obraz, `python -m app.worker`):
 
-- przy starcie i codziennie o `MARKET_DAILY_AT` (domyślnie 23:00, Europe/Warsaw): ceny wszystkich
-  instrumentów (Yahoo), kursy NBP (tabela A), inflacja GUS r/r, stopa referencyjna NBP; usuwa refresh tokeny
-  wygasłe lub unieważnione ponad 30 dni temu;
+- przy starcie i codziennie o `MARKET_DAILY_AT` (domyślnie 23:00, Europe/Warsaw): ceny instrumentów, które
+  ktoś posiada lub którymi handlował (Yahoo), kursy NBP (tabela A), inflacja GUS r/r, stopa referencyjna NBP;
+  usuwa refresh tokeny wygasłe lub unieważnione ponad 30 dni temu;
 - co 5 minut: pełna historia cen dla nowych instrumentów (np. po imporcie XTB lub po zmianie symbolu).
 
 Błąd źródła nie zatrzymuje workera — jest w logach (`docker compose logs -f worker`) i w polu `price_error`
