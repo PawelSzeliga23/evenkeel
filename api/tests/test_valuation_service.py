@@ -16,6 +16,7 @@ from app.valuation.service import (
     load_inputs,
     local_day,
     mark_market_changes,
+    mark_new_days,
     mark_stale,
     recompute_stale,
     recompute_user,
@@ -164,6 +165,21 @@ def test_instrument_without_prices_is_valued_from_xtb_and_flagged(db: Session) -
 
     position = next(row for key, row in _rows(db, user_id, SAT).items() if key is not None)
     assert (position.value_pln, position.flags) == (Decimal("4304.30"), [FLAG_XTB_PRICE])
+
+
+def test_new_days_are_marked_from_the_day_after_each_users_last_row(db: Session) -> None:
+    instrument_id = seed_market(db)
+    behind, current, fresh = seed_user(db), seed_user(db, "bartek@portfolio.dev"), seed_user(db, "carol@portfolio.dev")
+    seed_holdings(db, behind, instrument_id)
+    seed_holdings(db, current, instrument_id, number="22222222")
+    seed_holdings(db, fresh, instrument_id, number="33333333")
+    valuate(db, behind, today=dt.date(2026, 9, 23))  # rows end three days before today: the worker was down
+    valuate(db, current, today=SAT)
+
+    mark_new_days(db, SAT)
+    db.commit()
+
+    assert (_stale(db, behind), _stale(db, current), _stale(db, fresh)) == (dt.date(2026, 9, 24), SAT, dt.date.min)
 
 
 def test_market_changes_mark_holders_and_fx_marks_everyone(db: Session) -> None:

@@ -30,7 +30,7 @@ from app.market.providers.gus import GusInflationProvider
 from app.market.providers.nbp import NbpFxProvider, NbpRefRateProvider
 from app.market.providers.yahoo import YahooPriceProvider
 from app.market.update import MarketProviders, backfill_new_instruments, run_market_update
-from app.valuation.service import mark_market_changes, mark_stale, recompute_stale, users_with_transactions
+from app.valuation.service import mark_market_changes, mark_new_days, recompute_stale
 
 logger = logging.getLogger("app.worker")
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
@@ -66,9 +66,9 @@ def tick(
         summary = run_market_update(db, providers, now, today)
         mark_market_changes(db, summary.prices_changed_from, summary.fx_changed_from)
         # Advisory locks of one transaction must be taken in a single ascending-id pass, so the
-        # market-change locks are committed before mark_stale takes its own ascending-id pass below.
+        # market-change locks are committed before mark_new_days takes its own ascending-id pass below.
         db.commit()
-        mark_stale(db, users_with_transactions(db), today)  # every portfolio's history gets the new day
+        mark_new_days(db, today)  # every portfolio gets the new day and any day missed while the worker was down
         pruned = prune_refresh_tokens(db, now)
         db.commit()
         state.last_completed = schedule.completed_through(now)

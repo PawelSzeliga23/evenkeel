@@ -9,7 +9,7 @@ from sqlalchemy import Engine, select, update
 from sqlalchemy.orm import Session
 
 from app.imports.service import apply_import, plan_import
-from app.models import DailyValuation, Instrument, Price, User
+from app.models import DailyValuation, FxRate, Instrument, Price, User
 from app.scoping import UserScope
 from app.valuation.engine import FLAG_XTB_PRICE
 from app.worker import WorkerState, tick
@@ -17,7 +17,7 @@ from app.xtb.report import parse_report
 from tests import xtb_factory as xf
 from tests.market_fakes import fake_providers
 from tests.test_worker import SCHEDULE, _at
-from tests.valuation_seed import FRI, seed_holdings, seed_market, seed_user
+from tests.valuation_seed import FRI, seed_holdings, seed_market, seed_user, valuate
 
 LoginAs = Callable[[str], dict[str, str]]
 IKE = "56216965"
@@ -119,6 +119,19 @@ def test_daily_tick_revalues_holders_with_the_new_prices(db: Session) -> None:
     position = db.scalar(select(DailyValuation).where(
         DailyValuation.user_id == user_id, DailyValuation.date == FRI, DailyValuation.instrument_id.is_not(None)))
     assert position.value_pln == Decimal("6067.30")  # 2 × 713.80 EUR (fake provider) × 4.25
+
+
+def test_daily_tick_fills_the_days_missed_while_the_worker_was_down(db: Session) -> None:
+    user_id = seed_user(db)
+    seed_holdings(db, user_id, seed_market(db))
+    db.add(FxRate(currency="EUR", date=dt.date(2026, 2, 19), rate_pln=Decimal("4.30")))  # no FX gap to fetch
+    db.commit()
+    valuate(db, user_id, today=dt.date(2026, 9, 20))  # the last run; new prices come from 09-24 only
+
+    assert tick(db, fake_providers(), SCHEDULE, WorkerState(last_completed=dt.date(2026, 9, 20)), _at(10)) == "daily"
+
+    days = set(db.scalars(select(DailyValuation.date).where(DailyValuation.user_id == user_id)))
+    assert {dt.date(2026, 9, 21), dt.date(2026, 9, 22), dt.date(2026, 9, 23), FRI} <= days
 
 
 def test_backfill_tick_revalues_holders_of_a_new_instrument_with_provider_prices(db: Session) -> None:

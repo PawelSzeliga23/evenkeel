@@ -174,6 +174,19 @@ def mark_market_changes(db: Session, prices_from: dict[int, dt.date], fx_from: d
     _mark_stale_days(db, days)
 
 
+def mark_new_days(db: Session, today: dt.date) -> None:
+    """Requests the days each user's history is missing: from the day after their last stored row (at most
+    `today`, so today's row is refreshed), or the whole history when they have no rows yet. Days missed
+    while the worker was down are filled this way. Does not commit."""
+    last_rows = dict(db.execute(
+        select(DailyValuation.user_id, func.max(DailyValuation.date)).group_by(DailyValuation.user_id)
+    ).all())
+    _mark_stale_days(db, {
+        user_id: min(today, last_rows[user_id] + dt.timedelta(days=1)) if user_id in last_rows else dt.date.min
+        for user_id in users_with_transactions(db)
+    })
+
+
 def recompute_user(db: Session, user_id: int, today: dt.date) -> int:
     """Rebuilds the user's rows from `valuations_stale_from` to `today` and commits; returns the rows written.
 
