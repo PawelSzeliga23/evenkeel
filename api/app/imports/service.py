@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import and_, case, or_, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -228,7 +228,13 @@ def _suffix(ticker: str) -> str | None:
 
 
 def _ensure_instruments(db: Session, report: XtbReport) -> dict[str, int]:
-    """Creates missing instruments (shared by all users) and returns ticker → id."""
+    """Creates missing instruments (shared by all users) and returns ticker → id.
+
+    A ticker seen for the first time only via an open lot (no name/category anywhere in that
+    file) is created with the ticker itself as a placeholder name. A later import that does
+    know the real name/category must be able to fill them in, but never overwrite a real name
+    with another placeholder, nor a real category with an unknown one.
+    """
     known: dict[str, tuple[str | None, str | None]] = {}
     for summary in report.instrument_summaries:
         known[summary.ticker] = (summary.name, summary.category)
@@ -245,7 +251,26 @@ def _ensure_instruments(db: Session, report: XtbReport) -> dict[str, int]:
         {"xtb_ticker": ticker, "name": name or ticker, "category": _category(category), "exchange_suffix": _suffix(ticker)}
         for ticker, (name, category) in known.items()
     ]
-    db.execute(insert(Instrument).values(rows).on_conflict_do_nothing(index_elements=["xtb_ticker"]))
+    statement = insert(Instrument).values(rows)
+    excluded = statement.excluded
+    statement = statement.on_conflict_do_update(
+        index_elements=["xtb_ticker"],
+        set_={
+            "name": case(
+                (
+                    and_(Instrument.name == Instrument.xtb_ticker, excluded.name != excluded.xtb_ticker),
+                    excluded.name,
+                ),
+                else_=Instrument.name,
+            ),
+            "category": case(
+                (Instrument.category.is_(None), excluded.category),
+                else_=Instrument.category,
+            ),
+        },
+        where=or_(Instrument.name == Instrument.xtb_ticker, Instrument.category.is_(None)),
+    )
+    db.execute(statement)
     return dict(db.execute(select(Instrument.xtb_ticker, Instrument.id).where(Instrument.xtb_ticker.in_(known))).all())
 
 

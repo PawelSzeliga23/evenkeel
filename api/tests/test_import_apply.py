@@ -87,6 +87,37 @@ def test_closing_a_lot_in_a_later_import_updates_it(scope: UserScope) -> None:
     assert _count(scope, PositionLot) == 1
 
 
+def test_instrument_name_is_upgraded_once_a_real_name_is_seen(scope: UserScope) -> None:
+    """The first import only has an open lot (no name anywhere), so the instrument is created
+    with the ticker as a placeholder name; a later import that also knows the real name and
+    category must fill them in rather than leaving the placeholder forever."""
+    lot_only = xf.lot_row("SXR8.DE", "777", 2.0, 500.5, AT, 510.0, 1020.0, 19.0)
+    _import(scope, (xf.filename("IKE", IKE), _ike([], [lot_only])))
+
+    instrument = scope.db.scalar(select(Instrument))
+    assert (instrument.name, instrument.category) == ("SXR8.DE", None)
+
+    _import(scope, (xf.filename("IKE", IKE), _ike([], [SUMMARY, lot_only])))
+
+    scope.db.expire_all()
+    instrument = scope.db.scalar(select(Instrument))
+    assert (instrument.name, instrument.category) == ("Core S&P 500", "etf")
+    assert _count(scope, Instrument) == 1
+
+
+def test_instrument_name_already_set_is_not_overwritten_by_a_worse_one(scope: UserScope) -> None:
+    """Once a real name is stored, a later import that only has the ticker (e.g. an open lot with
+    no summary) must not clobber it back down to the ticker placeholder."""
+    _import(scope, (xf.filename("IKE", IKE), _ike([], [SUMMARY, LOT])))
+
+    lot_only = xf.lot_row("SXR8.DE", "777", 3.0, 500.5, AT, 510.0, 1530.0, 19.0)
+    _import(scope, (xf.filename("IKE", IKE), _ike([], [lot_only])))
+
+    scope.db.expire_all()
+    instrument = scope.db.scalar(select(Instrument))
+    assert (instrument.name, instrument.category) == ("Core S&P 500", "etf")
+
+
 def test_duplicate_closed_position_ids_in_one_report_do_not_break_the_import(scope: UserScope) -> None:
     first = xf.closed_row("SXR8.DE", "777", 2.0, 500.5, AT, 520.0, datetime(2026, 4, 1, 9, 0), name="Core S&P 500")
     second = xf.closed_row("SXR8.DE", "777", 2.0, 500.5, AT, 530.0, datetime(2026, 4, 1, 10, 0), name="Core S&P 500")
