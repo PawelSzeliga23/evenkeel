@@ -95,6 +95,17 @@ def test_missing_provider_price_falls_back_to_the_newest_xtb_value() -> None:
     assert (earlier.value_pln, earlier.quote.price_date) == (D("400.00"), MAR_02)
 
 
+def test_account_currency_without_rates_gives_no_zero_xtb_price_and_is_flagged() -> None:
+    market = _market()
+    market.snapshots[(2, NOPRICE)] = Series([(SEP_20, D("120"))])
+    buy = Entry(9, 2, NOPRICE, "buy", MAR_02, D("-400"), "CHF", D("4"), D("100"), "6")
+
+    view = replay([buy], [], market, FRI).position(2, NOPRICE, FRI)
+
+    assert view is not None
+    assert (view.quote, view.value_pln, view.flags) == (None, D("0.00"), (FLAG_XTB_PRICE, FLAG_FX_MISSING))
+
+
 def test_split_keeps_the_value_continuous_and_shows_the_quantity_of_the_day() -> None:
     split = Split(NVDA, JUN_10, D(1), D(10))
     buy = Entry(4, 1, NVDA, "buy", dt.date(2024, 6, 3), D("-4800"), "PLN", D("1"), D("1200"), "1")

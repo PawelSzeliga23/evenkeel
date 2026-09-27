@@ -267,6 +267,8 @@ class Book:
             taken_on, unit = snapshot
             currency = self.account_currency.get(account_id, BASE_CURRENCY)
             candidates.append((taken_on, self.to_pln(unit, currency, taken_on) / self.factor(instrument_id, taken_on)))
+        # A zero unit is an account-currency amount without any NBP rate yet (`to_pln`), not a price.
+        candidates = [candidate for candidate in candidates if candidate[1] != 0]
         if not candidates:
             return None
         found_on, unit = max(candidates, key=lambda candidate: candidate[0])
@@ -299,6 +301,8 @@ class Book:
             cost_total += lot.cost_pln
             fx_total += fx_effect
         flags = () if quote is not None and quote.source == SOURCE_PROVIDER else (FLAG_XTB_PRICE,)
+        if self.market.rate(self.account_currency.get(account_id, BASE_CURRENCY), day) is None:
+            flags += (FLAG_FX_MISSING,)  # the cost (and any XTB figure) could not be converted to PLN
         return PositionView(account_id, instrument_id, day, quantity / factor,
                             *_effects(value_total, cost_total, fx_total), quote, tuple(views), flags)
 
