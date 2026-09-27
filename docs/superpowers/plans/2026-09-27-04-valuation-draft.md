@@ -2,7 +2,7 @@
 
 > Szkic zbiera zakres, ustalenia przeniesione z planów 2–3 i pytania projektowe. Pełny plan z kodem
 > (`2026-09-2X-04-valuation.md`) powstaje w osobnej sesji na podstawie tego pliku.
-> Stan: **pytania w toku** — odpowiedzi użytkownika dopisywane w sekcji „Decyzje”.
+> Stan: **pytania zamknięte (2026-09-27)** — decyzje w sekcji „Decyzje”; następny krok na końcu pliku.
 
 **Spec:** `docs/superpowers/specs/2026-09-26-portfolio-tracker-design.md` — §6 (Akcje/ETF, Splity i konwersje,
 Zamknięte inwestycje, Ekspozycja walutowa, Limity IKE/IKZE, Historia wartości i zwrot), §4 (`corporate_actions`,
@@ -54,4 +54,27 @@ Zamknięte inwestycje, Ekspozycja walutowa, Limity IKE/IKZE, Historia wartości 
 
 ## Decyzje
 
-(dopisywane po odpowiedziach)
+1. **Podział: dwa plany.** 4a — rdzeń: stan posiadania, wycena dzienna (`daily_valuations`), gotówka, dywidendy, zysk, API pulpitu i pozycji. 4b — splity/konwersje, zamknięte inwestycje, ekspozycja walutowa, limity IKE/IKZE, TWR.
+2. **Splity: automatycznie z Yahoo + ręczna korekta.** Worker pobiera zdarzenia splitów (`events=split` w chart API,
+   to samo zapytanie co ceny) do `corporate_actions` (`source=provider`); użytkownik może dodać/poprawić ręcznie.
+   *Wniosek dla podziału:* pobieranie splitów i przeliczanie ilości „na stan cen” trafia do **4a** (bez tego wycena
+   po splicie jest błędna); konwersje i ręczna edycja zdarzeń — **4b**. Test: NVDA 10:1, 2024-06-07.
+3. **Brak ceny u dostawcy → ostatnia cena z XTB + znacznik.** Cena z najnowszego importu (`xtb_snapshots.current_price`,
+   awaryjnie cena ostatniej transakcji), waluta z transakcji XTB (uwaga na GBX w pensach); pozycja oznaczona
+   „cena z importu XTB z dnia X” (flaga w `daily_valuations.flags` i w API).
+4. **Gotówka w walutach obcych:** lista walut workera = waluty instrumentów (referencjonowanych) ∪ waluty kont ∪
+   waluty transakcji, bez PLN (zmiana `update_fx` z planu 3, w 4a). Gotówka wyceniana kursem NBP z dnia;
+   ekspozycja walutowa (4b) liczy gotówkę w jej walucie.
+5. **`daily_valuations` jako tabela-cache przeliczana w tle** (per konto i składnik), od najwcześniejszej zmienionej
+   daty: po imporcie (zaraz po commicie importu) i po nowych danych rynkowych (worker). Pulpit czyta gotowe wiersze.
+6. **TWR w 4b** (z `daily_valuations` i `net_flow_pln`); XIRR i stopy zwrotu w okresach zostają w etapie 2.
+7. **Limity: seed tylko dla IKE** (kwoty z komunikatów MRPiPS, zweryfikowane przy pisaniu planu, nie z pamięci),
+   ale model gotowy na IKZE: `wrapper_limits.wrapper` przyjmuje `ike | ikze | ikze_self_employed`, a konto `ikze`
+   liczy się tak samo jak IKE — dodanie IKZE to później tylko nowe wiersze seedu (+ wybór wariantu samozatrudnienia w koncie).
+
+## Następny krok
+
+Na nowym limicie: skill `superpowers:writing-plans` → pełny plan **4a** z kodem (`docs/superpowers/plans/…-04a-valuation-core.md`)
+na podstawie tego szkicu i specyfikacji; plan **4b** po realizacji 4a. Przed pisaniem przeczytać modele z planów 2–3
+(`api/app/models/ledger.py`, `instrument.py`, `market.py`) i `app/market/store.py`, `app/market/update.py`.
+Uzupełnić mapę planów (`2026-09-26-00-roadmap.md`): wiersz 3 → ✅, wiersz 4 → 4a/4b.
