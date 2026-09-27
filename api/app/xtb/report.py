@@ -21,6 +21,17 @@ ACCOUNT_SUMMARY_HEADER = ("Product", "Metric", "Amount", "Currency")
 _FILENAME = re.compile(r"^(?P<prefix>[A-Za-z]+)_(?P<number>\d+)_\d{4}-\d{2}-\d{2}_\d{4}-\d{2}-\d{2}\.xlsx$")
 _WRAPPERS = {"IKE": "ike", "IKZE": "ikze"}
 
+# Column widths, matching the database schema (see app/models). Exceeding one raises XtbFormatError
+# ("bad_value"); MAX_FILENAME and MAX_CATEGORY are display/descriptive and are truncated instead.
+MAX_FILENAME = 255
+MAX_TICKER = 40
+MAX_POSITION_ID = 40
+MAX_EXTERNAL_ID = 64
+MAX_XTB_TYPE = 60
+MAX_COUNTERPARTY_ACCOUNT = 50
+MAX_INSTRUMENT_NAME = 200
+MAX_CATEGORY = 20
+
 Raw = dict[str, str | None]
 
 
@@ -168,6 +179,22 @@ def _required(value: Any, what: str) -> Any:
     return value
 
 
+def _checked_text(value: Any, field: str, max_len: int) -> str | None:
+    """Like to_text, but rejects a value too long for the database column it will end up in."""
+    text = to_text(value)
+    if text is not None and len(text) > max_len:
+        raise XtbFormatError(
+            "bad_value", f"Zbyt długa wartość w kolumnie „{field}” (maks. {max_len} znaków)."
+        )
+    return text
+
+
+def _truncated_category(row: dict[str, Any]) -> str | None:
+    """Category is descriptive, not an identifier, so it's silently truncated rather than rejected."""
+    category = to_text(row.get("Category"))
+    return category[:MAX_CATEGORY] if category is not None else None
+
+
 def parse_report(filename: str, content: bytes) -> XtbReport:
     name = PurePath(filename).name
     sheets = open_workbook(content)
@@ -196,7 +223,7 @@ def parse_report(filename: str, content: bytes) -> XtbReport:
         generated_at = to_utc(open_sheet.metadata.get("Data as of report generated"), "Data as of report generated")
         account_summary = _account_summary(open_sheet.pre_rows)
         for row in open_sheet.rows:
-            ticker = to_text(row.get("Ticker"))
+            ticker = _checked_text(row.get("Ticker"), "Ticker", MAX_TICKER)
             if ticker is None:
                 continue
             if to_text(row.get("Type")) is None:
@@ -216,7 +243,7 @@ def parse_report(filename: str, content: bytes) -> XtbReport:
         closed = tuple(_closed_lot(row) for row in closed_sheet.rows if to_text(row.get("Ticker")))
 
     return XtbReport(
-        filename=name,
+        filename=name[:MAX_FILENAME],
         file_hash=hashlib.sha256(content).hexdigest(),
         account_number=number,
         wrapper=wrapper,
@@ -234,22 +261,28 @@ def parse_report(filename: str, content: bytes) -> XtbReport:
 
 
 def _cash_operation(row: dict[str, Any]) -> CashOperation:
-    external_id = _required(to_text(row.get("ID")), "ID operacji")
+    external_id = _required(_checked_text(row.get("ID"), "ID", MAX_EXTERNAL_ID), "ID operacji")
     occurred_at = _required(to_utc(row.get("Time"), "Time"), "czas operacji")
     amount = _required(to_decimal(row.get("Amount"), "Amount"), "kwota operacji")
-    xtb_type = to_text(row.get("Type")) or ""
+    xtb_type = _checked_text(row.get("Type"), "Type", MAX_XTB_TYPE) or ""
     comment = to_text(row.get("Comment")) or ""
+    classified = classify(xtb_type, comment)
+    if classified.counterparty_account is not None and len(classified.counterparty_account) > MAX_COUNTERPARTY_ACCOUNT:
+        raise XtbFormatError(
+            "bad_value",
+            f"Zbyt długa wartość w kolumnie „Comment” (maks. {MAX_COUNTERPARTY_ACCOUNT} znaków).",
+        )
     return CashOperation(
         external_id=external_id,
         xtb_type=xtb_type,
-        classified=classify(xtb_type, comment),
+        classified=classified,
         occurred_at=occurred_at,
         amount=amount,
-        instrument_name=to_text(row.get("Instrument")),
-        ticker=to_text(row.get("Ticker")),
-        category=to_text(row.get("Category")),
+        instrument_name=_checked_text(row.get("Instrument"), "Instrument", MAX_INSTRUMENT_NAME),
+        ticker=_checked_text(row.get("Ticker"), "Ticker", MAX_TICKER),
+        category=_truncated_category(row),
         comment=comment,
-        xtb_position_id=to_text(row.get("Position ID")),
+        xtb_position_id=_checked_text(row.get("Position ID"), "Position ID", MAX_POSITION_ID),
         product=to_text(row.get("Product")),
         raw=jsonable(row),
     )
@@ -258,8 +291,8 @@ def _cash_operation(row: dict[str, Any]) -> CashOperation:
 def _summary(ticker: str, row: dict[str, Any]) -> InstrumentSummary:
     return InstrumentSummary(
         ticker=ticker,
-        name=to_text(row.get("Instrument/Position")) or ticker,
-        category=to_text(row.get("Category")),
+        name=_checked_text(row.get("Instrument/Position"), "Instrument/Position", MAX_INSTRUMENT_NAME) or ticker,
+        category=_truncated_category(row),
         volume=to_decimal(row.get("Volume"), "Volume"),
         value=to_decimal(row.get("Value"), "Value"),
         open_price=to_decimal(row.get("Open price"), "Open price"),
@@ -272,7 +305,9 @@ def _summary(ticker: str, row: dict[str, Any]) -> InstrumentSummary:
 
 def _open_lot(ticker: str, row: dict[str, Any]) -> OpenLot:
     return OpenLot(
-        xtb_position_id=_required(to_text(row.get("Instrument/Position")), "numer pozycji"),
+        xtb_position_id=_required(
+            _checked_text(row.get("Instrument/Position"), "Instrument/Position", MAX_POSITION_ID), "numer pozycji"
+        ),
         ticker=ticker,
         side=to_text(row.get("Type")) or "BUY",
         quantity=_required(to_decimal(row.get("Volume"), "Volume"), "wolumen pozycji"),
@@ -295,10 +330,12 @@ def _open_lot(ticker: str, row: dict[str, Any]) -> OpenLot:
 
 def _closed_lot(row: dict[str, Any]) -> ClosedLot:
     return ClosedLot(
-        xtb_position_id=_required(to_text(row.get("Position ID")), "numer pozycji"),
-        ticker=_required(to_text(row.get("Ticker")), "ticker"),
-        name=to_text(row.get("Instrument")),
-        category=to_text(row.get("Category")),
+        xtb_position_id=_required(
+            _checked_text(row.get("Position ID"), "Position ID", MAX_POSITION_ID), "numer pozycji"
+        ),
+        ticker=_required(_checked_text(row.get("Ticker"), "Ticker", MAX_TICKER), "ticker"),
+        name=_checked_text(row.get("Instrument"), "Instrument", MAX_INSTRUMENT_NAME),
+        category=_truncated_category(row),
         side=_required(to_text(row.get("Type")), "kierunek pozycji"),
         quantity=_required(to_decimal(row.get("Volume"), "Volume"), "wolumen pozycji"),
         open_price=_required(to_decimal(row.get("Open Price"), "Open Price"), "cena otwarcia"),

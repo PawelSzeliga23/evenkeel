@@ -132,3 +132,22 @@ def test_closed_position_without_type_is_rejected() -> None:
         parse_report(xf.filename(), _ike_report(closed=closed))
 
     assert exc_info.value.code == "missing_value"
+
+
+def test_overlong_filename_is_truncated_for_display_only() -> None:
+    long_name = "A" * 300 + ".xlsx"
+    content = xf.build_report(cash=[xf.cash_row("Deposit", 1.0, "1", datetime(2026, 3, 1))])
+
+    report = parse_report(long_name, content)
+
+    assert len(report.filename) == 255
+    assert report.filename == long_name[:255]
+
+
+def test_overlong_ticker_is_rejected() -> None:
+    content = xf.build_report(cash=[xf.buy_row("X" * 41, "1", "10", -10.0, "1", datetime(2026, 3, 1), "1")])
+
+    with pytest.raises(XtbFormatError) as exc_info:
+        parse_report(xf.filename(), content)
+
+    assert exc_info.value.code == "bad_value"
