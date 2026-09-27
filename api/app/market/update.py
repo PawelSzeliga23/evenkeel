@@ -196,22 +196,26 @@ def fx_needed_from(db: Session, today: dt.date) -> dt.date:
     return start - dt.timedelta(days=FX_MARGIN_DAYS)
 
 
-def update_fx(db: Session, provider: FxProvider, today: dt.date) -> tuple[int, list[str]]:
-    currencies = db.scalars(
-        select(Instrument.currency)
-        .where(Instrument.currency.is_not(None), Instrument.currency != BASE_CURRENCY, _referenced())
-        .distinct()
-        .order_by(Instrument.currency)
-    ).all()
+def fx_currencies(db: Session) -> list[str]:
+    """Quote currencies of referenced instruments and currencies of transactions (= account currencies:
+    cash held in USD/EUR on an XTB account needs rates too)."""
+    quoted = db.scalars(
+        select(Instrument.currency).where(Instrument.currency.is_not(None), _referenced()).distinct()
+    )
+    booked = db.scalars(select(Transaction.currency).distinct())
+    return sorted((set(quoted) | set(booked)) - {BASE_CURRENCY})
+
+
+def update_fx(
+    db: Session, provider: FxProvider, today: dt.date, changed: dict[str, dt.date] | None = None
+) -> tuple[int, list[str]]:
     needed_from = fx_needed_from(db, today)
     rows, failed = 0, []
-    for currency in currencies:
+    for currency in fx_currencies(db):
         stored_min, stored_max = fx_date_bounds(db, currency)
+        ranges = fx_ranges_to_fetch(stored_min, stored_max, needed_from, today)
         try:
-            written = sum(
-                upsert_fx_rates(db, currency, provider.rates(currency, start, end))
-                for start, end in fx_ranges_to_fetch(stored_min, stored_max, needed_from, today)
-            )
+            written = sum(upsert_fx_rates(db, currency, provider.rates(currency, start, end)) for start, end in ranges)
         except ProviderError as exc:
             db.rollback()
             failed.append(currency)
@@ -224,6 +228,8 @@ def update_fx(db: Session, provider: FxProvider, today: dt.date) -> tuple[int, l
             continue
         db.commit()
         rows += written
+        if written:
+            _note(changed, currency, ranges[0][0])
     return rows, failed
 
 
@@ -249,7 +255,7 @@ def run_market_update(db: Session, providers: MarketProviders, now: dt.datetime,
     summary.price_rows, summary.failed_instruments = update_all_prices(
         db, providers.prices, now, summary.prices_changed_from
     )
-    summary.fx_rows, summary.failed_currencies = update_fx(db, providers.fx, today)
+    summary.fx_rows, summary.failed_currencies = update_fx(db, providers.fx, today, summary.fx_changed_from)
     summary.cpi_rows = _source(db, "cpi", lambda: upsert_cpi(db, providers.inflation.cpi()), summary)
     summary.ref_rate_rows = _source(
         db, "nbp_ref_rates", lambda: upsert_ref_rates(db, providers.ref_rates.ref_rates()), summary

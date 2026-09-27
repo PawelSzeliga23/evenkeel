@@ -14,6 +14,7 @@ from app.market.update import (
     MSG_NOT_FOUND,
     MSG_UNMAPPED,
     backfill_new_instruments,
+    fx_currencies,
     fx_ranges_to_fetch,
     run_market_update,
     update_all_prices,
@@ -397,3 +398,40 @@ def test_run_market_update_reports_changed_instruments(db: Session) -> None:
     instrument = _instrument(db, "SXR8.DE")
     summary = run_market_update(db, fake_providers(), NOW, TODAY)
     assert summary.prices_changed_from == {instrument.id: dt.date(2026, 9, 24)}
+
+
+def test_fx_covers_currencies_of_foreign_currency_accounts(db: Session) -> None:
+    user = User(email="usd@portfolio.dev", password_hash="x")
+    db.add(user)
+    db.flush()
+    account = Account(user_id=user.id, name="XTB USD", kind="broker", wrapper="regular", broker="xtb",
+                      external_account_number="99", currency="USD")
+    db.add(account)
+    db.flush()
+    db.add(Transaction(account_id=account.id, type="deposit", xtb_type="Deposit",
+                       occurred_at=dt.datetime(2026, 9, 1, tzinfo=dt.UTC), amount=Decimal("100"), currency="USD",
+                       external_id="1", comment="", raw={}))
+    _instrument(db, "SXR8.DE", currency="EUR")
+
+    assert fx_currencies(db) == ["EUR", "USD"]
+
+
+def test_fx_update_reports_the_earliest_fetched_day(db: Session) -> None:
+    _instrument(db, "SXR8.DE", currency="EUR")
+    _first_transaction_at(db, dt.datetime(2026, 9, 1, 10, 0, tzinfo=dt.UTC))
+    changed: dict[str, dt.date] = {}
+
+    update_fx(db, FakeFx(), TODAY, changed)
+
+    assert changed == {"EUR": dt.date(2026, 9, 1) - dt.timedelta(days=FX_MARGIN_DAYS)}
+
+
+def test_fx_without_new_rows_reports_nothing(db: Session) -> None:
+    _instrument(db, "SXR8.DE", currency="EUR")
+    upsert_fx_rates(db, "EUR", [FxPoint(TODAY - dt.timedelta(days=30), Decimal("4.3")), FxPoint(TODAY, Decimal("4.2"))])
+    db.commit()
+    changed: dict[str, dt.date] = {}
+
+    update_fx(db, FakeFx(), TODAY, changed)
+
+    assert changed == {}
