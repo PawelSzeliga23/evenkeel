@@ -21,3 +21,5 @@ class Instrument(Base):
     price_symbol_overridden: Mapped[bool] = mapped_column(server_default=false())
     isin: Mapped[str | None] = mapped_column(String(12))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    price_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    price_error: Mapped[str | None] = mapped_column(String(200))
