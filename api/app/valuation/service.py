@@ -105,18 +105,29 @@ def lock_user(db: Session, user_id: int) -> None:
     db.execute(text("SELECT pg_advisory_xact_lock(CAST(:key AS bigint))"), {"key": (LOCK_NAMESPACE << 32) | user_id})
 
 
-def mark_stale(db: Session, user_ids: Iterable[int], from_day: dt.date) -> None:
-    """Requests a recompute of the users' valuations from `from_day`; an earlier pending day wins. Does not commit."""
-    ids = sorted(set(user_ids))
+def _mark_stale_days(db: Session, days: dict[int, dt.date]) -> None:
+    """Locks every affected user exactly once, in ascending id order (so two markers never wait for each
+    other in a cycle), then sets each `valuations_stale_from` to the earliest of the existing and
+    requested day. Does not commit."""
+    ids = sorted(days)
     if not ids:
         return
-    for user_id in ids:  # always in id order: two markers never wait for each other in a cycle
+    for user_id in ids:
         lock_user(db, user_id)
-    earliest = func.least(func.coalesce(User.valuations_stale_from, from_day), from_day)
-    db.execute(
-        update(User).where(User.id.in_(ids)).values(valuations_stale_from=earliest)
-        .execution_options(synchronize_session=False)
-    )
+    by_day: dict[dt.date, list[int]] = defaultdict(list)
+    for user_id in ids:
+        by_day[days[user_id]].append(user_id)
+    for day, group in by_day.items():
+        earliest = func.least(func.coalesce(User.valuations_stale_from, day), day)
+        db.execute(
+            update(User).where(User.id.in_(group)).values(valuations_stale_from=earliest)
+            .execution_options(synchronize_session=False)
+        )
+
+
+def mark_stale(db: Session, user_ids: Iterable[int], from_day: dt.date) -> None:
+    """Requests a recompute of the users' valuations from `from_day`; an earlier pending day wins. Does not commit."""
+    _mark_stale_days(db, {user_id: from_day for user_id in user_ids})
 
 
 def holders(db: Session, instrument_ids: Iterable[int]) -> list[int]:
@@ -139,11 +150,19 @@ def users_with_transactions(db: Session) -> list[int]:
 
 def mark_market_changes(db: Session, prices_from: dict[int, dt.date], fx_from: dict[str, dt.date]) -> None:
     """New prices or splits concern the instrument's holders; new NBP rates concern everyone with transactions
-    (cash in a foreign currency too). Does not commit."""
+    (cash in a foreign currency too). Every affected user is locked exactly once, in ascending id order,
+    regardless of how many instruments or currencies changed. Does not commit."""
+    days: dict[int, dt.date] = {}
     for instrument_id, day in prices_from.items():
-        mark_stale(db, holders(db, [instrument_id]), day)
+        for user_id in holders(db, [instrument_id]):
+            if user_id not in days or day < days[user_id]:
+                days[user_id] = day
     if fx_from:
-        mark_stale(db, users_with_transactions(db), min(fx_from.values()))
+        fx_day = min(fx_from.values())
+        for user_id in users_with_transactions(db):
+            if user_id not in days or fx_day < days[user_id]:
+                days[user_id] = fx_day
+    _mark_stale_days(db, days)
 
 
 def recompute_user(db: Session, user_id: int, today: dt.date) -> int:

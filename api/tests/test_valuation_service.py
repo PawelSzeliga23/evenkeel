@@ -7,8 +7,9 @@ import pytest
 from sqlalchemy import Engine, func, select, update
 from sqlalchemy.orm import Session
 
-from app.models import DailyValuation, Price, Transaction, User
+from app.models import DailyValuation, Instrument, Price, Transaction, User
 from app.scoping import UserScope
+from app.valuation import service
 from app.valuation.engine import FLAG_XTB_PRICE
 from app.valuation.service import (
     holders,
@@ -152,6 +153,32 @@ def test_market_changes_mark_holders_and_fx_marks_everyone(db: Session) -> None:
     mark_market_changes(db, {}, {"EUR": dt.date(2026, 9, 1), "USD": dt.date(2026, 8, 1)})
     db.commit()
     assert (_stale(db, anna), _stale(db, bartek), _stale(db, carol)) == (dt.date(2026, 8, 1), dt.date(2026, 8, 1), None)
+
+
+def test_mark_market_changes_locks_every_user_once_in_ascending_id_order(
+    db: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    instrument1 = seed_market(db)
+    instrument2 = Instrument(xtb_ticker="OTHER.US", name="Other ETF", currency="USD")
+    db.add(instrument2)
+    db.flush()
+    low, high = seed_user(db, "low@portfolio.dev"), seed_user(db, "high@portfolio.dev")
+    assert low < high
+    seed_holdings(db, high, instrument1, number="11111111")  # holder of the instrument listed first
+    seed_holdings(db, low, instrument2.id, number="22222222")  # holder of the instrument listed second
+
+    calls: list[int] = []
+    original_lock_user = service.lock_user
+
+    def recording_lock_user(db_: Session, user_id: int) -> None:
+        calls.append(user_id)
+        original_lock_user(db_, user_id)
+
+    monkeypatch.setattr(service, "lock_user", recording_lock_user)
+
+    mark_market_changes(db, {instrument1: dt.date(2026, 1, 1), instrument2.id: dt.date(2026, 1, 2)}, {})
+
+    assert calls == [low, high]
 
 
 def test_recompute_stale_handles_every_marked_user(db: Session) -> None:
