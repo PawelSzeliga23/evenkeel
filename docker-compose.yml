@@ -53,5 +53,20 @@ services:
       db-test:
         condition: service_healthy
 
+  worker:
+    build: ./api
+    command: python -m app.worker
+    environment:
+      DATABASE_URL: postgresql+psycopg://portfolio:portfolio@db:5432/portfolio
+      JWT_SECRET: ${JWT_SECRET:?Ustaw JWT_SECRET w pliku .env (skopiuj .env.example)}
+      MARKET_DAILY_AT: ${MARKET_DAILY_AT:-23:00}
+      PYTHONPATH: /app
+    volumes:
+      - ./api:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pgdata:
