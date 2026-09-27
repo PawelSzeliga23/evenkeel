@@ -31,6 +31,13 @@ def money(value: Decimal) -> Decimal:
     return value.quantize(CENT, rounding=ROUND_HALF_UP)
 
 
+def _effects(value: Decimal, cost: Decimal, fx_effect: Decimal) -> tuple[Decimal, Decimal, Decimal, Decimal]:
+    """(cost, value, price effect, currency effect) in grosze; the price effect is the remainder, so the two
+    effects add up to value − cost exactly after rounding."""
+    value, cost, fx_effect = money(value), money(cost), money(fx_effect)
+    return cost, value, value - cost - fx_effect, fx_effect
+
+
 @dataclass(frozen=True)
 class Entry:
     """One transaction as the engine sees it; `amount` is in the account currency `currency`."""
@@ -274,27 +281,26 @@ class Book:
         quote = self.quote(account_id, instrument_id, day)
         factor = self.factor(instrument_id, day)
         views: list[LotView] = []
-        quantity = value_total = cost_total = price_total = fx_total = ZERO
+        quantity = value_total = cost_total = fx_total = ZERO
         for lot in lots.values():
             value = lot.quantity * quote.unit_pln if quote else ZERO
             fx_effect = ZERO
             if quote is not None and quote.source == SOURCE_PROVIDER and lot.fx_open is not None:
                 assert quote.price is not None and quote.rate is not None
                 fx_effect = lot.quantity * quote.price * (quote.rate - lot.fx_open)
-            price_effect = value - lot.cost_pln - fx_effect
             open_price = (
-                (lot.cost_pln * factor / (lot.quantity * lot.fx_open)).quantize(PRICE_PLACES) if lot.fx_open else None
+                (lot.cost_pln * factor / (lot.quantity * lot.fx_open)).quantize(PRICE_PLACES, rounding=ROUND_HALF_UP)
+                if lot.fx_open else None
             )
-            views.append(LotView(lot.position_id, lot.opened_on, lot.quantity / factor, open_price, money(lot.cost_pln),
-                                 money(value), money(price_effect), money(fx_effect)))
+            views.append(LotView(lot.position_id, lot.opened_on, lot.quantity / factor, open_price,
+                                 *_effects(value, lot.cost_pln, fx_effect)))
             quantity += lot.quantity
             value_total += value
             cost_total += lot.cost_pln
-            price_total += price_effect
             fx_total += fx_effect
         flags = () if quote is not None and quote.source == SOURCE_PROVIDER else (FLAG_XTB_PRICE,)
-        return PositionView(account_id, instrument_id, day, quantity / factor, money(cost_total), money(value_total),
-                            money(price_total), money(fx_total), quote, tuple(views), flags)
+        return PositionView(account_id, instrument_id, day, quantity / factor,
+                            *_effects(value_total, cost_total, fx_total), quote, tuple(views), flags)
 
     def cash_row(self, account_id: int, day: dt.date) -> Row:
         cash = self.cash[account_id]

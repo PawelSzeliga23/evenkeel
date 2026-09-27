@@ -50,6 +50,32 @@ def test_position_value_splits_into_price_and_currency_effects() -> None:
     assert (lot.position_id, lot.open_price, lot.value_pln, lot.price_effect_pln) == ("777", D("500.5"), D("5100.00"), D("855.70"))
 
 
+def _half_grosz_market() -> MarketData:
+    """Price effect 4.005 zł and currency effect 5.005 zł: rounded separately they would add up to 9.02 zł."""
+    return MarketData(prices={SXR8: Series([(MAR_03, D("1.001"))])}, currencies={SXR8: "EUR"},
+                      fx={"EUR": Series([(MAR_02, D("5")), (MAR_03, D("10"))])})
+
+
+def test_price_and_currency_effects_add_up_to_the_gain_to_the_grosz() -> None:
+    buy = Entry(7, 1, SXR8, "buy", MAR_02, D("-1"), "PLN", D("1"), D("0.2"), "8")
+
+    view = replay([buy], [], _half_grosz_market(), MAR_03).position(1, SXR8, MAR_03)
+
+    assert view is not None
+    (lot,) = view.lots
+    assert (view.value_pln, view.cost_pln, view.price_effect_pln, view.fx_effect_pln) == (
+        D("10.01"), D("1.00"), D("4.00"), D("5.01"))
+    assert (lot.value_pln - lot.cost_pln, lot.price_effect_pln, lot.fx_effect_pln) == (D("9.01"), D("4.00"), D("5.01"))
+
+
+def test_open_price_rounds_half_up() -> None:
+    buy = Entry(8, 1, SXR8, "buy", MAR_02, D("-1.00025"), "PLN", D("1"), D("0.2"), "8")
+
+    view = replay([buy], [], _half_grosz_market(), MAR_03).position(1, SXR8, MAR_03)
+
+    assert view is not None and view.lots[0].open_price == D("0.2001")
+
+
 def test_weekend_is_valued_with_the_last_session() -> None:
     view = replay([DEPOSIT, BUY], [], _market(), SAT).position(1, SXR8, SAT)
     assert view is not None and view.value_pln == D("5100.00") and view.quote.price_date == FRI
