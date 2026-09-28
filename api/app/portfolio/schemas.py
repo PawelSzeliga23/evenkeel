@@ -128,3 +128,48 @@ class PositionDetailOut(BaseModel):
     income: list[IncomeOut]
     transactions: list[TransactionOut]
     reconciliation: ReconciliationOut
+
+
+class ClosedSaleOut(BaseModel):
+    account_id: int
+    account_name: str
+    instrument_id: int
+    ticker: str
+    name: str
+    opened_on: dt.date
+    closed_on: dt.date
+    holding_days: int
+    quantity: Decimal  # as traded
+    cost_pln: Decimal
+    proceeds_pln: Decimal
+    realized_pln: Decimal
+    price_effect_pln: Decimal
+    fx_effect_pln: Decimal
+    return_pct: Decimal | None
+    matched: bool
+
+
+class ClosedTotalsOut(BaseModel):
+    sold_cost_pln: Decimal
+    realized_pln: Decimal
+    dividends_net_pln: Decimal
+    fees_pln: Decimal
+    total_pln: Decimal  # realized + dividends + fees
+    return_pct: Decimal | None  # total / sold cost
+
+
+class ClosedInvestmentOut(ClosedTotalsOut):
+    account_id: int
+    account_name: str
+    instrument_id: int
+    ticker: str
+    name: str
+    status: Literal["closed", "partial"]
+    first_buy: dt.date
+    last_sale: dt.date
+
+
+class ClosedOut(BaseModel):
+    sales: list[ClosedSaleOut]
+    investments: list[ClosedInvestmentOut]
+    totals: ClosedTotalsOut

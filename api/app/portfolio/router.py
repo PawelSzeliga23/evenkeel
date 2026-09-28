@@ -3,7 +3,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 
-from app.portfolio.schemas import HistoryOut, PositionDetailOut, PositionOut, SummaryOut
+from app.portfolio.closed import closed_investments
+from app.portfolio.schemas import ClosedOut, HistoryOut, PositionDetailOut, PositionOut, SummaryOut
 from app.portfolio.service import list_positions, portfolio_history, portfolio_summary, position_detail
 from app.scoping import DbId, UserScope, get_scope
 from app.valuation.service import local_today
@@ -51,3 +52,8 @@ def get_position(
 ) -> PositionDetailOut:
     account, instrument = scope.get_account(account_id), scope.get_instrument(instrument_id)
     return position_detail(scope, account, instrument, day or local_today())
+
+
+@router.get("/portfolio/closed", response_model=ClosedOut)
+def get_closed(scope: UserScope = Depends(get_scope), account_id: AccountFilter = None) -> ClosedOut:
+    return closed_investments(scope, _account(scope, account_id), local_today())
