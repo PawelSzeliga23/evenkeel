@@ -4,6 +4,7 @@ from app.accounts.router import router as accounts_router
 from app.auth.rate_limit import RateLimiter
 from app.auth.router import router as auth_router
 from app.config import Settings, get_settings
+from app.corporate_actions.router import router as corporate_actions_router
 from app.errors import register_error_handlers
 from app.health import router as health_router
 from app.imports.router import router as imports_router
@@ -24,6 +25,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(imports_router)
     app.include_router(transactions_router)
     app.include_router(instruments_router)
+    app.include_router(corporate_actions_router)
     app.include_router(portfolio_router)
     return app
 
