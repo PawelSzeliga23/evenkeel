@@ -23,10 +23,18 @@ def wrapper_limits(scope: UserScope, today: dt.date) -> list[LimitOut]:
     if not accounts:
         return []
     wrapper_of = {account.id: account.wrapper for account in accounts}
-    paid: dict[tuple[str, int], dict[int, Decimal]] = defaultdict(lambda: defaultdict(Decimal))
-    for transaction in db.scalars(scope.transactions().where(
+    transactions = list(db.scalars(scope.transactions().where(
         Transaction.account_id.in_(list(wrapper_of)), Transaction.type.in_(CONTRIBUTION_TYPES)
-    )).unique():
+    )).unique())
+    pair_ids = [t.transfer_pair_id for t in transactions if t.transfer_pair_id is not None]
+    pairs = {row.id: row for row in db.execute(
+        select(Transaction.id, Transaction.account_id, Transaction.type).where(Transaction.id.in_(pair_ids))
+    )} if pair_ids else {}
+    paid: dict[tuple[str, int], dict[int, Decimal]] = defaultdict(lambda: defaultdict(Decimal))
+    for transaction in transactions:
+        pair = pairs.get(transaction.transfer_pair_id) if transaction.transfer_pair_id is not None else None
+        if pair is not None and pair.type == "transfer_out" and wrapper_of.get(pair.account_id) == wrapper_of[transaction.account_id]:
+            continue  # already counted when first deposited into the other IKE/IKZE account of the same wrapper
         year = local_day(transaction.occurred_at).year
         paid[(wrapper_of[transaction.account_id], year)][transaction.account_id] += amount_pln(db, transaction)
     limits = {(row.wrapper, row.year): row.limit_pln for row in db.scalars(select(WrapperLimit))}

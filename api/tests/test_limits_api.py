@@ -58,6 +58,31 @@ def test_contributions_to_all_ike_accounts_count_against_one_yearly_limit(db: Se
     ]
 
 
+def test_a_transfer_between_the_users_own_ike_accounts_does_not_double_count(db: Session) -> None:
+    db.add(WrapperLimit(year=2026, wrapper="ike", limit_pln=Decimal("28260")))
+    user_id = seed_user(db)
+    first = _account(db, user_id, "XTB IKE", "ike", "11111111")
+    second = _account(db, user_id, "XTB IKE 2", "ike", "22222222")
+    _cash(db, first, "1", "deposit", "10000", dt.datetime(2026, 3, 1, 10, 0, tzinfo=dt.UTC))
+    out = Transaction(account_id=first, type="transfer_out", xtb_type="transfer_out",
+                      occurred_at=dt.datetime(2026, 5, 1, 10, 0, tzinfo=dt.UTC), amount=Decimal("-4000"),
+                      currency="PLN", external_id="2", comment="", raw={})
+    db.add(out)
+    db.commit()
+    incoming = Transaction(account_id=second, type="transfer_in", xtb_type="transfer_in",
+                           occurred_at=dt.datetime(2026, 5, 1, 10, 0, tzinfo=dt.UTC), amount=Decimal("4000"),
+                           currency="PLN", external_id="3", comment="", raw={}, transfer_pair_id=out.id)
+    db.add(incoming)
+    db.commit()
+    out.transfer_pair_id = incoming.id
+    db.commit()
+
+    (item,) = wrapper_limits(UserScope(db, db.get(User, user_id)), TODAY)
+
+    assert item.paid_pln == Decimal("10000.00")
+    assert {a.account_id: a.paid_pln for a in item.accounts} == {first: Decimal("10000.00"), second: Decimal("0.00")}
+
+
 def test_ike_without_contributions_shows_the_current_year(db: Session) -> None:
     db.add(WrapperLimit(year=2026, wrapper="ike", limit_pln=Decimal("28260")))
     user_id = seed_user(db)
