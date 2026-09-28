@@ -66,6 +66,18 @@ class Split:
         return self.ratio_to / self.ratio_from
 
 
+@dataclass(frozen=True)
+class Conversion:
+    """At the start of `effective_date` every lot of `instrument_id` becomes `target_instrument_id`: one unit held
+    that day becomes ratio_to / ratio_from units. Cost in PLN, purchase day and position id are kept."""
+
+    instrument_id: int
+    target_instrument_id: int
+    effective_date: dt.date
+    ratio_from: Decimal
+    ratio_to: Decimal
+
+
 @dataclass
 class Lot:
     key: str
@@ -145,7 +157,7 @@ class Row:
 class Book:
     """Replays transactions in date order and keeps lots, cash, external flows, income and sales."""
 
-    def __init__(self, splits: Iterable[Split], market: MarketData) -> None:
+    def __init__(self, splits: Iterable[Split], market: MarketData, conversions: Iterable[Conversion] = ()) -> None:
         self.market = market
         self.splits: dict[int, list[Split]] = defaultdict(list)
         for split in splits:
@@ -158,6 +170,8 @@ class Book:
         self.withholding: dict[Key, Decimal] = defaultdict(Decimal)
         self.sales: list[Sale] = []
         self.trades: dict[Key, Series] = {}
+        self._conversions = sorted(conversions, key=lambda c: (c.effective_date, c.instrument_id))
+        self._converted = 0  # conversions applied so far (they are applied in date order)
 
     def factor(self, instrument_id: int, day: dt.date) -> Decimal:
         """How many current units one unit held on `day` has become."""
@@ -173,7 +187,34 @@ class Book:
         rate = self.market.rate(currency, day)
         return amount * rate if rate is not None else ZERO
 
+    def advance(self, day: dt.date) -> None:
+        """Applies the conversions effective on or before `day` that have not been applied yet."""
+        while self._converted < len(self._conversions) and self._conversions[self._converted].effective_date <= day:
+            self._convert(self._conversions[self._converted])
+            self._converted += 1
+
+    def _convert(self, conversion: Conversion) -> None:
+        day, source_id, target_id = conversion.effective_date, conversion.instrument_id, conversion.target_instrument_id
+        # Current units of the source → units held on the day → units of the target → its current units.
+        scale = conversion.ratio_to / conversion.ratio_from * self.factor(target_id, day) / self.factor(source_id, day)
+        currency = self.market.currencies.get(target_id)
+        for account_id, instrument_id in [key for key in self.lots if key[1] == source_id]:
+            source = self.lots.pop((account_id, instrument_id))
+            target = self.lots[(account_id, target_id)]
+            for lot in source.values():
+                quantity = lot.quantity * scale
+                existing = target.get(lot.key)
+                if existing is None:
+                    # The purchase rate is the target's quote currency on the purchase day (price + currency
+                    # effects must add up to value − cost in the target's currency).
+                    fx_open = self.market.rate(currency, lot.opened_on)
+                    target[lot.key] = Lot(lot.key, lot.position_id, lot.opened_on, quantity, lot.cost_pln, fx_open)
+                else:
+                    existing.quantity += quantity
+                    existing.cost_pln += lot.cost_pln
+
     def apply(self, entry: Entry) -> None:
+        self.advance(entry.day)
         self.account_currency.setdefault(entry.account_id, entry.currency)
         self.cash[entry.account_id] = self.cash.get(entry.account_id, ZERO) + entry.amount
         if entry.type in EXTERNAL_FLOWS:
@@ -338,28 +379,34 @@ def _ordered(entries: Iterable[Entry]) -> list[Entry]:
     return sorted(entries, key=lambda entry: (entry.day, entry.id))
 
 
-def replay(entries: Iterable[Entry], splits: Iterable[Split], market: MarketData, until: dt.date) -> Book:
-    """The book after every transaction dated `until` or earlier."""
-    book = Book(splits, market)
+def replay(
+    entries: Iterable[Entry], splits: Iterable[Split], market: MarketData, until: dt.date,
+    conversions: Iterable[Conversion] = (),
+) -> Book:
+    """The book after every transaction and conversion dated `until` or earlier."""
+    book = Book(splits, market, conversions)
     for entry in _ordered(entries):
         if entry.day > until:
             break
         book.apply(entry)
+    book.advance(until)
     return book
 
 
 def daily_rows(
-    entries: Sequence[Entry], splits: Iterable[Split], market: MarketData, end: dt.date, start: dt.date | None = None
+    entries: Sequence[Entry], splits: Iterable[Split], market: MarketData, end: dt.date, start: dt.date | None = None,
+    conversions: Iterable[Conversion] = (),
 ) -> list[Row]:
     """Every day from the first transaction (or from `start`, if later) to `end`: a cash row per account and a
     row per open position. Transactions before `start` are still replayed; only their days get no rows."""
     ordered = _ordered(entries)
     if not ordered:
         return []
-    book = Book(splits, market)
+    book = Book(splits, market, conversions)
     rows: list[Row] = []
     index, day = 0, ordered[0].day
     while day <= end:
+        book.advance(day)
         while index < len(ordered) and ordered[index].day <= day:
             book.apply(ordered[index])
             index += 1
