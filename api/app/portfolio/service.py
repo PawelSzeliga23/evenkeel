@@ -207,7 +207,7 @@ def build_positions(
 ) -> tuple[Book, list[PositionOut]]:
     """Open positions, then each account's cash, valued on `day`; shares are of the listed total."""
     db = scope.db
-    book = replay(inputs.entries, inputs.splits, inputs.market, day)
+    book = replay(inputs.entries, inputs.splits, inputs.market, day, conversions=inputs.conversions)
     accounts = {account.id: account for account in db.scalars(scope.accounts())}
     instruments = {instrument.id: instrument for instrument in db.scalars(scope.instruments())}
     items: list[PositionOut] = []

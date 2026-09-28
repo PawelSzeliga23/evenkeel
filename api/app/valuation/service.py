@@ -8,17 +8,18 @@ import datetime as dt
 import logging
 from collections import defaultdict
 from collections.abc import Callable, Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import delete, func, insert, select, text, update
+from sqlalchemy import delete, func, insert, or_, select, text, update
 from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.orm import Session
 
 from app.models import Account, CorporateAction, DailyValuation, FxRate, Instrument, Price, Transaction, User, XtbSnapshot
 from app.scoping import UserScope
-from app.valuation.engine import Entry, Split, daily_rows
+from app.valuation.actions import Action, action_of, resolve
+from app.valuation.engine import Conversion, Entry, Split, daily_rows
 from app.valuation.market_data import BASE_CURRENCY, MarketData, Series
 
 logger = logging.getLogger(__name__)
@@ -26,7 +27,6 @@ logger = logging.getLogger(__name__)
 ZONE = ZoneInfo("Europe/Warsaw")  # valuation days are Warsaw calendar days, like the worker's schedule
 LOCK_NAMESPACE = 4  # high 32 bits of the advisory lock key "valuations of user N"
 INSERT_CHUNK = 1000
-SPLIT_TYPES = ("split", "reverse_split")
 
 
 def local_day(moment: dt.datetime) -> dt.date:
@@ -42,6 +42,7 @@ class Inputs:
     entries: list[Entry]
     splits: list[Split]
     market: MarketData
+    conversions: list[Conversion] = field(default_factory=list)
 
 
 def _series(points: dict[object, list[tuple[dt.date, object]]]) -> dict:
@@ -62,6 +63,26 @@ def _series_from(db: Session, key: Any, day: Any, value: Any, keys: Iterable[obj
     return _series(points)
 
 
+def _actions(db: Session, user_id: int, instrument_ids: set[int]) -> list[Action]:
+    """Shared corporate actions and the user's own manual ones for the instruments, following conversion targets
+    (a converted holding needs the target's actions too)."""
+    found: dict[int, Action] = {}
+    seen: set[int] = set()
+    pending = set(instrument_ids)
+    while pending:
+        seen |= pending
+        rows = db.scalars(select(CorporateAction).where(
+            CorporateAction.instrument_id.in_(pending),
+            or_(CorporateAction.user_id.is_(None), CorporateAction.user_id == user_id),
+        )).all()
+        pending = set()
+        for row in rows:
+            found[row.id] = action_of(row)
+            if row.target_instrument_id is not None and row.target_instrument_id not in seen:
+                pending.add(row.target_instrument_id)
+    return list(found.values())
+
+
 def load_inputs(scope: UserScope) -> Inputs:
     """The user's transactions and the market data the engine may look up for them (from the first transaction)."""
     db = scope.db
@@ -73,22 +94,15 @@ def load_inputs(scope: UserScope) -> Inputs:
     if not entries:
         return Inputs(entries, [], MarketData())
     first_day = min(entry.day for entry in entries)
-    instrument_ids = sorted({entry.instrument_id for entry in entries if entry.instrument_id is not None})
+    traded = {entry.instrument_id for entry in entries if entry.instrument_id is not None}
+    splits, conversions = resolve(_actions(db, scope.user.id, traded))
+    instrument_ids = sorted(traded | {conversion.target_instrument_id for conversion in conversions})
     market = MarketData()
-    splits: list[Split] = []
     if instrument_ids:
         market.prices = _series_from(db, Price.instrument_id, Price.date, Price.close, instrument_ids, first_day)
         market.currencies = dict(
             db.execute(select(Instrument.id, Instrument.currency).where(Instrument.id.in_(instrument_ids))).all()
         )
-        splits = [
-            Split(action.instrument_id, action.effective_date, action.ratio_from, action.ratio_to)
-            for action in db.scalars(
-                select(CorporateAction).where(
-                    CorporateAction.instrument_id.in_(instrument_ids), CorporateAction.type.in_(SPLIT_TYPES)
-                )
-            )
-        ]
         snapshots: dict[object, list] = defaultdict(list)
         for snapshot in db.scalars(
             scope.snapshots()
@@ -106,7 +120,7 @@ def load_inputs(scope: UserScope) -> Inputs:
     currencies = ({c for c in market.currencies.values() if c} | {entry.currency for entry in entries}) - {BASE_CURRENCY}
     if currencies:
         market.fx = _series_from(db, FxRate.currency, FxRate.date, FxRate.rate_pln, sorted(currencies), first_day)
-    return Inputs(entries, splits, market)
+    return Inputs(entries, splits, market, conversions)
 
 
 def lock_user(db: Session, user_id: int) -> None:
@@ -140,14 +154,20 @@ def mark_stale(db: Session, user_ids: Iterable[int], from_day: dt.date) -> None:
 
 
 def holders(db: Session, instrument_ids: Iterable[int]) -> list[int]:
-    """Users with any transaction in one of the instruments."""
+    """Users with any transaction in one of the instruments, or whose own conversion leads into one of them."""
     ids = list(instrument_ids)
     if not ids:
         return []
-    return list(db.scalars(
+    traded = db.scalars(
         select(Account.user_id).join(Transaction, Transaction.account_id == Account.id)
-        .where(Transaction.instrument_id.in_(ids)).distinct().order_by(Account.user_id)
-    ))
+        .where(Transaction.instrument_id.in_(ids)).distinct()
+    )
+    converted = db.scalars(
+        select(CorporateAction.user_id).where(
+            CorporateAction.target_instrument_id.in_(ids), CorporateAction.user_id.is_not(None)
+        ).distinct()
+    )
+    return sorted(set(traded) | set(converted))
 
 
 def users_with_transactions(db: Session) -> list[int]:
@@ -200,7 +220,8 @@ def recompute_user(db: Session, user_id: int, today: dt.date) -> int:
             db.commit()
             return 0
         inputs = load_inputs(UserScope(db, user))
-        rows = daily_rows(inputs.entries, inputs.splits, inputs.market, today, start=stale_from)
+        rows = daily_rows(inputs.entries, inputs.splits, inputs.market, today, start=stale_from,
+                          conversions=inputs.conversions)
         db.execute(delete(DailyValuation).where(DailyValuation.user_id == user_id, DailyValuation.date >= stale_from))
         values = [
             {

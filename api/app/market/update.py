@@ -28,7 +28,7 @@ from app.market.types import (
     RefRateProvider,
     SymbolNotFound,
 )
-from app.models import Instrument, PositionLot, Transaction
+from app.models import CorporateAction, Instrument, PositionLot, Transaction
 
 logger = logging.getLogger(__name__)
 
@@ -63,10 +63,11 @@ class UpdateSummary:
 
 
 def _referenced() -> object:
-    """Instruments are shared across users; the worker only touches ones actually held or traded."""
+    """Instruments are shared across users; the worker only touches ones held, traded or converted into."""
     return or_(
         exists().where(Transaction.instrument_id == Instrument.id),
         exists().where(PositionLot.instrument_id == Instrument.id),
+        exists().where(CorporateAction.target_instrument_id == Instrument.id),
     )
 
 

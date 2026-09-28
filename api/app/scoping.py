@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 from app.auth.deps import get_current_user
 from app.db import get_db
 from app.errors import ApiError
-from app.models import Account, DailyValuation, ImportRecord, Instrument, PositionLot, Transaction, User, XtbSnapshot
+from app.models import (
+    Account, CorporateAction, DailyValuation, ImportRecord, Instrument, PositionLot, Transaction, User, XtbSnapshot,
+)
 
 # Path parameter type for any database id: keeps Postgres int4 range errors
 # (which would otherwise surface as an opaque 500) as a 422 validation_error.
@@ -71,15 +73,19 @@ class UserScope:
         )
 
     def instruments(self) -> Select[tuple[Instrument]]:
-        """Instruments this user has traded or holds. Instruments are shared; visibility is not."""
+        """Instruments this user has traded, holds, or converted a holding into. Instruments are shared;
+        visibility is not."""
         own_accounts = select(Account.id).where(Account.user_id == self.user.id)
         traded = select(Transaction.instrument_id).where(
             Transaction.account_id.in_(own_accounts), Transaction.instrument_id.is_not(None)
         )
         held = select(PositionLot.instrument_id).where(PositionLot.account_id.in_(own_accounts))
+        converted = select(CorporateAction.target_instrument_id).where(
+            CorporateAction.user_id == self.user.id, CorporateAction.target_instrument_id.is_not(None)
+        )
         return (
             select(Instrument)
-            .where(or_(Instrument.id.in_(traded), Instrument.id.in_(held)))
+            .where(or_(Instrument.id.in_(traded), Instrument.id.in_(held), Instrument.id.in_(converted)))
             .order_by(Instrument.xtb_ticker)
         )
 

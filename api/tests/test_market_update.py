@@ -513,3 +513,20 @@ def test_fx_without_new_rows_reports_nothing(db: Session) -> None:
     update_fx(db, FakeFx(), TODAY, changed)
 
     assert changed == {}
+
+
+def test_conversion_target_gets_prices_although_nobody_traded_it(db: Session) -> None:
+    source = _instrument(db, "SXR8.DE")
+    target = Instrument(xtb_ticker="CSPX.UK", name="CSPX.UK")
+    db.add(target)
+    db.flush()
+    owner = db.scalar(select(User.id).where(User.email == f"ref-{source.id}@portfolio.dev"))
+    db.add(CorporateAction(instrument_id=source.id, type="conversion", effective_date=dt.date(2026, 9, 1),
+                           ratio_from=Decimal(1), ratio_to=Decimal(1), target_instrument_id=target.id,
+                           source="manual", user_id=owner))
+    db.commit()
+    cspx = PriceHistory("CSPX.L", "USD", (PriceBar(dt.date(2026, 9, 24), Decimal("610.00")),))
+
+    backfill_new_instruments(db, FakePrices({"SXR8.DE": SXR8, "CSPX.L": cspx}), NOW)
+
+    assert _stored_closes(db, target.id) == {dt.date(2026, 9, 24): Decimal("610.00000000")}

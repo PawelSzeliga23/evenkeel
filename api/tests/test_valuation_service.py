@@ -7,10 +7,10 @@ import pytest
 from sqlalchemy import Engine, func, select, update
 from sqlalchemy.orm import Session
 
-from app.models import DailyValuation, FxRate, Instrument, Price, Transaction, User
+from app.models import CorporateAction, DailyValuation, FxRate, Instrument, Price, Transaction, User
 from app.scoping import UserScope
 from app.valuation import service
-from app.valuation.engine import FLAG_XTB_PRICE
+from app.valuation.engine import FLAG_XTB_PRICE, Conversion, Split
 from app.valuation.service import (
     holders,
     load_inputs,
@@ -261,3 +261,77 @@ def test_recompute_waits_for_a_concurrent_marking(engine: Engine, db: Session) -
     assert finished.is_set()
     assert _count(db, user_id) > 0
     assert _stale(db, user_id) is None
+
+
+JUN_01, JUL_01 = dt.date(2026, 6, 1), dt.date(2026, 7, 1)
+
+
+def _manual(db: Session, user_id: int, instrument_id: int, type_: str, day: dt.date, ratio: tuple[int, int] = (1, 1),
+            target: int | None = None) -> None:
+    db.add(CorporateAction(instrument_id=instrument_id, type=type_, effective_date=day, ratio_from=Decimal(ratio[0]),
+                           ratio_to=Decimal(ratio[1]), target_instrument_id=target, source="manual", user_id=user_id))
+    db.commit()
+
+
+def _cspx(db: Session) -> int:
+    """The conversion target: EUR, one close of 50 EUR on Friday 2026-09-25."""
+    instrument = Instrument(xtb_ticker="CSPX.UK", name="CSPX.UK", category="etf", currency="EUR", price_symbol="CSPX.L",
+                            price_checked_at=dt.datetime(2026, 9, 25, 21, 0, tzinfo=dt.UTC))
+    db.add(instrument)
+    db.flush()
+    db.add(Price(instrument_id=instrument.id, date=FRI, close=Decimal("50.00"), source="yahoo"))
+    db.commit()
+    return instrument.id
+
+
+def test_load_inputs_applies_shared_and_own_actions_but_not_other_users(db: Session) -> None:
+    instrument_id = seed_market(db)
+    anna, bartek = seed_user(db), seed_user(db, "bartek@portfolio.dev")
+    seed_holdings(db, anna, instrument_id)
+    seed_holdings(db, bartek, instrument_id, number="22222222")
+    db.add(CorporateAction(instrument_id=instrument_id, type="split", effective_date=JUN_01, ratio_from=Decimal(1),
+                           ratio_to=Decimal(2), source="provider"))
+    db.commit()
+    _manual(db, anna, instrument_id, "suppress", JUN_01)
+    _manual(db, bartek, instrument_id, "split", JUL_01, (1, 3))
+
+    for_anna = load_inputs(UserScope(db, db.get(User, anna)))
+    for_bartek = load_inputs(UserScope(db, db.get(User, bartek)))
+
+    assert (for_anna.splits, for_anna.conversions) == ([], [])
+    assert for_bartek.splits == [Split(instrument_id, JUN_01, Decimal(1), Decimal(2)),
+                                 Split(instrument_id, JUL_01, Decimal(1), Decimal(3))]
+
+
+def test_own_conversion_moves_the_valuation_to_the_target(db: Session) -> None:
+    instrument_id = seed_market(db)
+    target_id = _cspx(db)
+    anna = seed_user(db)
+    seed_holdings(db, anna, instrument_id)
+    _manual(db, anna, instrument_id, "conversion", dt.date(2026, 9, 1), target=target_id)
+
+    inputs = load_inputs(UserScope(db, db.get(User, anna)))
+    valuate(db, anna)
+
+    assert inputs.conversions == [Conversion(instrument_id, target_id, dt.date(2026, 9, 1), Decimal(1), Decimal(1))]
+    assert (inputs.market.currencies[target_id], target_id in inputs.market.prices) == ("EUR", True)
+    assert set(_rows(db, anna, dt.date(2026, 8, 31))) == {None, instrument_id}
+    rows = _rows(db, anna, SAT)
+    assert set(rows) == {None, target_id}
+    assert (rows[target_id].quantity, rows[target_id].value_pln, rows[target_id].cost_pln) == (
+        Decimal("2.00000000"), Decimal("425.0000"), Decimal("4304.3000"))  # 2 × 50 EUR × 4.25
+
+
+def test_conversion_target_is_visible_to_its_author_only_and_makes_them_a_holder(db: Session) -> None:
+    instrument_id = seed_market(db)
+    target_id = _cspx(db)
+    anna, bartek = seed_user(db), seed_user(db, "bartek@portfolio.dev")
+    seed_holdings(db, anna, instrument_id)
+    seed_holdings(db, bartek, instrument_id, number="22222222")
+    _manual(db, anna, instrument_id, "conversion", dt.date(2026, 9, 1), target=target_id)
+
+    def tickers(user_id: int) -> list[str]:
+        return [i.xtb_ticker for i in db.scalars(UserScope(db, db.get(User, user_id)).instruments())]
+
+    assert (tickers(anna), tickers(bartek)) == (["CSPX.UK", "SXR8.DE"], ["SXR8.DE"])
+    assert holders(db, [target_id]) == [anna]
