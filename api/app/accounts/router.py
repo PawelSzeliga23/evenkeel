@@ -1,12 +1,16 @@
+import datetime as dt
 from collections.abc import Sequence
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Response
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.accounts.schemas import AccountCreate, AccountOut, AccountUpdate
+from app.db import get_session_factory
 from app.errors import ApiError
 from app.models import Account
 from app.scoping import DbId, UserScope, get_scope
+from app.valuation.service import mark_stale, recompute_in_background
 
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
 
@@ -34,12 +38,25 @@ def get_account(account_id: DbId, scope: UserScope = Depends(get_scope)) -> Acco
 
 
 @router.patch("/{account_id}", response_model=AccountOut)
-def update_account(account_id: DbId, body: AccountUpdate, scope: UserScope = Depends(get_scope)) -> Account:
+def update_account(
+    account_id: DbId,
+    body: AccountUpdate,
+    background: BackgroundTasks,
+    scope: UserScope = Depends(get_scope),
+    sessions: sessionmaker[Session] = Depends(get_session_factory),
+) -> Account:
     account = scope.get_account(account_id)
-    for field, value in body.model_dump(exclude_unset=True).items():
+    changes = body.model_dump(exclude_unset=True)
+    wrapper_changed = "wrapper" in changes and changes["wrapper"] != account.wrapper
+    for field, value in changes.items():
         setattr(account, field, value)
+    if wrapper_changed:
+        # Podatek od odsetek obligacji i kont zależy od IKE/IKZE — cała historia konta się zmienia.
+        mark_stale(scope.db, [scope.user.id], dt.date.min)
     scope.db.commit()
     scope.db.refresh(account)
+    if wrapper_changed:
+        background.add_task(recompute_in_background, sessions, scope.user.id)
     return account
 
 

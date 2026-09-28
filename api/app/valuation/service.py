@@ -9,6 +9,7 @@ import logging
 from collections import defaultdict
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
+from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -16,10 +17,15 @@ from sqlalchemy import delete, func, insert, or_, select, text, update
 from sqlalchemy.dialects.postgresql import distinct_on
 from sqlalchemy.orm import Session
 
-from app.models import Account, CorporateAction, DailyValuation, FxRate, Instrument, Price, Transaction, User, XtbSnapshot
+from app.bonds.edo import Series as BondTerms
+from app.models import (
+    Account, BondHolding, BondSeries, CorporateAction, Cpi, DailyValuation, FxRate, Instrument, Price, SavingsAccount,
+    SavingsBalance, SavingsRate, Transaction, User, XtbSnapshot,
+)
 from app.scoping import UserScope
 from app.valuation.actions import Action, action_of, resolve
 from app.valuation.engine import Conversion, Entry, Split, daily_rows
+from app.valuation.fixed_income import FLAG_RATE_ESTIMATED, Holding, SavingsInput, bond_rows, savings_rows
 from app.valuation.market_data import BASE_CURRENCY, MarketData, Series
 
 logger = logging.getLogger(__name__)
@@ -123,6 +129,40 @@ def load_inputs(scope: UserScope) -> Inputs:
     return Inputs(entries, splits, market, conversions)
 
 
+@dataclass(frozen=True)
+class FixedIncome:
+    holdings: list[Holding]
+    savings: list[SavingsInput]
+    cpi: dict[dt.date, Decimal]
+
+
+def load_fixed_income(scope: UserScope) -> FixedIncome:
+    """The user's bond purchases (with their series) and savings accounts (with balances and rates); CPI when
+    there are bonds. Accounts marked IKE / IKZE pay no tax."""
+    db = scope.db
+    taxed = {account.id: account.wrapper == "regular" for account in db.scalars(scope.accounts())}
+    holdings = [
+        Holding(holding.id, holding.account_id, holding.purchase_date, holding.quantity, holding.redeemed_at,
+                BondTerms(series.first_period_rate, series.margin, series.early_redemption_fee),
+                taxed[holding.account_id])
+        for holding, series in db.execute(
+            scope.bond_holdings().add_columns(BondSeries).join(BondSeries, BondSeries.series == BondHolding.series)
+        )
+    ]
+    savings = []
+    for account in db.scalars(scope.savings_accounts()):
+        balances = db.execute(select(SavingsBalance.as_of_date, SavingsBalance.balance)
+                              .where(SavingsBalance.savings_account_id == account.id)
+                              .order_by(SavingsBalance.as_of_date)).all()
+        rates = db.execute(select(SavingsRate.valid_from, SavingsRate.annual_rate)
+                           .where(SavingsRate.savings_account_id == account.id)
+                           .order_by(SavingsRate.valid_from)).all()
+        savings.append(SavingsInput(account.id, account.account_id, account.capitalization, taxed[account.account_id],
+                                    [tuple(b) for b in balances], [tuple(r) for r in rates]))
+    cpi = dict(db.execute(select(Cpi.year_month, Cpi.yoy)).all()) if holdings else {}
+    return FixedIncome(holdings, savings, cpi)
+
+
 def lock_user(db: Session, user_id: int) -> None:
     """Transaction-scoped: released on commit or rollback."""
     db.execute(text("SELECT pg_advisory_xact_lock(CAST(:key AS bigint))"), {"key": (LOCK_NAMESPACE << 32) | user_id})
@@ -194,17 +234,32 @@ def mark_market_changes(db: Session, prices_from: dict[int, dt.date], fx_from: d
     _mark_stale_days(db, days)
 
 
+def users_with_holdings(db: Session) -> list[int]:
+    """Users with anything to value: transactions, bond purchases or a savings account."""
+    traded = select(Account.user_id).join(Transaction, Transaction.account_id == Account.id)
+    bonds = select(Account.user_id).join(BondHolding, BondHolding.account_id == Account.id)
+    savings = select(Account.user_id).join(SavingsAccount, SavingsAccount.account_id == Account.id)
+    return sorted(set(db.scalars(traded)) | set(db.scalars(bonds)) | set(db.scalars(savings)))
+
+
 def mark_new_days(db: Session, today: dt.date) -> None:
     """Requests the days each user's history is missing: from the day after their last stored row (at most
-    `today`, so today's row is refreshed), or the whole history when they have no rows yet. Days missed
-    while the worker was down are filled this way. Does not commit."""
+    `today`, so today's row is refreshed), or the whole history when they have no rows yet; and from the first
+    row valued at an estimated bond rate (the CPI may have arrived since). Days missed while the worker was down
+    are filled this way. Does not commit."""
     last_rows = dict(db.execute(
         select(DailyValuation.user_id, func.max(DailyValuation.date)).group_by(DailyValuation.user_id)
     ).all())
-    _mark_stale_days(db, {
-        user_id: min(today, last_rows[user_id] + dt.timedelta(days=1)) if user_id in last_rows else dt.date.min
-        for user_id in users_with_transactions(db)
-    })
+    estimated = dict(db.execute(
+        select(DailyValuation.user_id, func.min(DailyValuation.date))
+        .where(DailyValuation.flags.contains([FLAG_RATE_ESTIMATED]))
+        .group_by(DailyValuation.user_id)
+    ).all())
+    days = {}
+    for user_id in users_with_holdings(db):
+        day = min(today, last_rows[user_id] + dt.timedelta(days=1)) if user_id in last_rows else dt.date.min
+        days[user_id] = min(day, estimated.get(user_id, day))
+    _mark_stale_days(db, days)
 
 
 def recompute_user(db: Session, user_id: int, today: dt.date) -> int:
@@ -222,12 +277,15 @@ def recompute_user(db: Session, user_id: int, today: dt.date) -> int:
         inputs = load_inputs(UserScope(db, user))
         rows = daily_rows(inputs.entries, inputs.splits, inputs.market, today, start=stale_from,
                           conversions=inputs.conversions)
+        fixed = load_fixed_income(UserScope(db, user))
+        rows += bond_rows(fixed.holdings, fixed.cpi, stale_from, today) + savings_rows(fixed.savings, stale_from, today)
         db.execute(delete(DailyValuation).where(DailyValuation.user_id == user_id, DailyValuation.date >= stale_from))
         values = [
             {
                 "user_id": user_id, "account_id": row.account_id, "instrument_id": row.instrument_id, "date": row.day,
                 "quantity": row.quantity, "value_pln": row.value_pln, "cost_pln": row.cost_pln,
                 "net_flow_pln": row.net_flow_pln, "flags": list(row.flags),
+                "bond_holding_id": row.bond_holding_id, "savings_account_id": row.savings_account_id,
             }
             for row in rows
         ]

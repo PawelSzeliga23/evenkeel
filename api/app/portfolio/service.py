@@ -2,6 +2,7 @@
 import datetime as dt
 from collections import defaultdict
 from decimal import ROUND_HALF_UP, Decimal
+from typing import Any
 
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
@@ -27,7 +28,12 @@ FEE_TYPES = ("fee",)
 EVENT_TYPES = ("deposit", "withdrawal", "transfer_in", "transfer_out", "buy", "sell", "dividend")
 CASH_KIND = "cash"
 OTHER_KIND = "other"
-KIND_NAMES = {CASH_KIND: "Gotówka", "etf": "ETF", "stock": "Akcje", OTHER_KIND: "Inne"}
+BOND_KIND = "bonds"
+SAVINGS_KIND = "savings"
+KIND_NAMES = {
+    CASH_KIND: "Gotówka", "etf": "ETF", "stock": "Akcje", OTHER_KIND: "Inne",
+    BOND_KIND: "Obligacje", SAVINGS_KIND: "Konta oszczędnościowe",
+}
 CASH_NAME = "Gotówka"
 
 
@@ -75,6 +81,16 @@ def _allocation(groups: dict[str, tuple[str, Decimal]], total: Decimal) -> list[
     return sorted(items, key=lambda item: (-item.value_pln, item.key))
 
 
+def _kind(row: Any, categories: dict[int, str | None]) -> str:
+    if row.bond_holding_id is not None:
+        return BOND_KIND
+    if row.savings_account_id is not None:
+        return SAVINGS_KIND
+    if row.instrument_id is None:
+        return CASH_KIND
+    return categories.get(row.instrument_id) or OTHER_KIND
+
+
 def portfolio_summary(scope: UserScope, account_id: int | None) -> SummaryOut:
     db = scope.db
     rows = _valuations(scope, account_id)
@@ -108,8 +124,8 @@ def portfolio_summary(scope: UserScope, account_id: int | None) -> SummaryOut:
         day_change_pct = percent(day_change, totals[previous])
     names = {account.id: account.name for account in db.scalars(scope.accounts())}
     latest_rows = db.execute(
-        rows.with_only_columns(DailyValuation.account_id, DailyValuation.instrument_id, DailyValuation.value_pln,
-                               DailyValuation.flags)
+        rows.with_only_columns(DailyValuation.account_id, DailyValuation.instrument_id, DailyValuation.bond_holding_id,
+                               DailyValuation.savings_account_id, DailyValuation.value_pln, DailyValuation.flags)
         .where(DailyValuation.date == latest)
     ).all()
     instrument_ids = {row.instrument_id for row in latest_rows if row.instrument_id is not None}
@@ -122,9 +138,9 @@ def portfolio_summary(scope: UserScope, account_id: int | None) -> SummaryOut:
     for row in latest_rows:
         account_key = str(row.account_id)
         by_account[account_key] = (names[row.account_id], by_account.get(account_key, ("", ZERO))[1] + row.value_pln)
-        kind = CASH_KIND if row.instrument_id is None else (categories.get(row.instrument_id) or OTHER_KIND)
+        kind = _kind(row, categories)
         by_kind[kind] = (KIND_NAMES.get(kind, kind), by_kind.get(kind, ("", ZERO))[1] + row.value_pln)
-        if row.instrument_id is None:
+        if kind == CASH_KIND:
             cash += row.value_pln
         elif row.flags:
             approximate += 1

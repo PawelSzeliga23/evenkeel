@@ -8,7 +8,8 @@ from app.auth.deps import get_current_user
 from app.db import get_db
 from app.errors import ApiError
 from app.models import (
-    Account, CorporateAction, DailyValuation, ImportRecord, Instrument, PositionLot, Transaction, User, XtbSnapshot,
+    Account, BondHolding, CorporateAction, DailyValuation, ImportRecord, Instrument, PositionLot, SavingsAccount,
+    Transaction, User, XtbSnapshot,
 )
 
 # Path parameter type for any database id: keeps Postgres int4 range errors
@@ -94,6 +95,17 @@ class UserScope:
         if instrument is None:
             raise not_found()
         return instrument
+
+    def bond_holdings(self) -> Select[tuple[BondHolding]]:
+        own_accounts = select(Account.id).where(Account.user_id == self.user.id)
+        return (
+            select(BondHolding).where(BondHolding.account_id.in_(own_accounts))
+            .order_by(BondHolding.purchase_date, BondHolding.id)
+        )
+
+    def savings_accounts(self) -> Select[tuple[SavingsAccount]]:
+        own_accounts = select(Account.id).where(Account.user_id == self.user.id)
+        return select(SavingsAccount).where(SavingsAccount.account_id.in_(own_accounts)).order_by(SavingsAccount.id)
 
     def daily_valuations(self) -> Select[tuple[DailyValuation]]:
         return select(DailyValuation).where(DailyValuation.user_id == self.user.id)
