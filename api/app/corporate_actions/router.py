@@ -25,7 +25,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/corporate-actions", tags=["corporate-actions"])
 
 InstrumentFilter = Annotated[int | None, Query(ge=1, le=2**31 - 1)]
-ONE = Decimal("1.00000000")  # full NUMERIC(18,8) scale: the session never re-reads it from the DB after commit
+ONE = Decimal(1)
+RATIO_PLACES = Decimal("1e-8")  # full NUMERIC(18,8) scale: the session never re-reads it from the DB after commit
 DUPLICATE = "Masz już własny wpis dla tego waloru w tym dniu."
 
 
@@ -91,8 +92,10 @@ def _fill(scope: UserScope, action: CorporateAction, body: CorporateActionIn) ->
     action.instrument_id = instrument.id
     action.type = body.type
     action.effective_date = body.effective_date
-    action.ratio_from = body.ratio_from if body.ratio_from is not None else ONE  # suppress is stored as 1:1
-    action.ratio_to = body.ratio_to if body.ratio_to is not None else ONE
+    # suppress is stored as 1:1; quantized to the column's full NUMERIC(18,8) scale so POST/PUT echo the same
+    # representation GET does (the session never re-reads the row from the DB after commit).
+    action.ratio_from = (body.ratio_from if body.ratio_from is not None else ONE).quantize(RATIO_PLACES)
+    action.ratio_to = (body.ratio_to if body.ratio_to is not None else ONE).quantize(RATIO_PLACES)
     action.target_instrument_id = target_id
 
 

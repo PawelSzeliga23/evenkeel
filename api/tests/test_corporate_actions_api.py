@@ -64,6 +64,12 @@ def test_own_split_changes_only_the_authors_valuation(client: TestClient, world:
     assert (_value(client, world["anna"]), _value(client, world["bartek"])) == (DOUBLED, BEFORE)
 
 
+def test_created_ratios_are_echoed_at_full_scale(client: TestClient, world: dict) -> None:
+    response = client.post(URL, json=_split(world), headers=world["anna"])
+
+    assert (response.json()["ratio_from"], response.json()["ratio_to"]) == ("1.00000000", "2.00000000")
+
+
 def test_suppress_hides_a_provider_split_for_its_author_only(client: TestClient, world: dict, engine: Engine) -> None:
     _provider_split(engine, world)
     assert _value(client, world["anna"]) == DOUBLED
