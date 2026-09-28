@@ -51,7 +51,7 @@ dla ręcznych — na użytkownika).
 każda partia A na każdym koncie użytkownika przechodzi na B: ilość × `ratio_to / ratio_from`, **koszt w PLN,
 `fx_open`, data zakupu i `xtb_position_id` bez zmian**. Od D pozycja A nie istnieje; dywidendy, sprzedaże i wiersze
 `daily_valuations` A sprzed D zostają przy A. Sprzedaż B dopasowuje partie po `xtb_position_id` jak w 4a.
-Kurs zakupu (`fx_open`) partii pochodzi z waluty A — rozbicie zysku B liczy efekt walutowy względem niego.
+Kurs zakupu (`fx_open`) partii = kurs NBP waluty notowania B z dnia zakupu partii, więc efekt ceny + efekt walutowy = wartość − koszt także przy różnych walutach A i B.
 Konwersja jest wpisem ręcznym (brak przykładów w eksportach XTB).
 
 **Przeliczenie.** Dodanie, zmiana lub usunięcie wpisu ręcznego oznacza autora do przeliczenia od
@@ -61,8 +61,8 @@ Konwersja jest wpisem ręcznym (brak przykładów w eksportach XTB).
 - `GET ?instrument_id=` — wpisy walorów, które użytkownik ma lub miał (wspólne + własne ręczne), z polem
   `active` (czy wygrywa pierwszeństwo) i `editable` (własny ręczny).
 - `POST` — nowy wpis ręczny: `split` / `reverse_split` / `conversion` / `suppress`. Walor musi należeć do
-  użytkownika (`scope.get_instrument`); cel konwersji — dowolny istniejący instrument (także nowy dla użytkownika).
-- `PATCH /{id}`, `DELETE /{id}` — tylko własne ręczne. Cudzy wpis ręczny albo wspólny wpis waloru, którego
+  użytkownika (`scope.get_instrument`); cel konwersji podaje się tickerem XTB (`target_ticker`) — brakujący walor jest tworzony (wspólny, jak przy imporcie), a użytkownik go widzi, bo jest celem jego konwersji.
+- `PUT /{id}` (pełne dane wpisu), `DELETE /{id}` — tylko własne ręczne. Cudzy wpis ręczny albo wspólny wpis waloru, którego
   użytkownik nie ma → 404 (nie zdradzamy istnienia). Wspólny wpis waloru użytkownika (widoczny na liście) →
   409 `shared_action` z polskim komunikatem „Wpis z Yahoo/XTB można tylko przykryć własnym wpisem”.
 - Walidacja: stosunek > 0, `split` ⇒ `ratio_to > ratio_from`, `reverse_split` ⇒ odwrotnie, `suppress` bez stosunku
@@ -92,10 +92,10 @@ czy wiersze `fee` mają symbol.
 
 ## 4. Ekspozycja walutowa
 
-`GET /api/portfolio/exposure?account_id=&range=` — z `daily_valuations`: waluta wiersza = `instruments.currency`
+`GET /api/portfolio/exposure?account_id=&from=&to=` — z `daily_valuations`: waluta wiersza = `instruments.currency`
 (waluta notowania), gotówka = waluta konta, instrument bez waluty (brak ceny u dostawcy) → grupa `unknown`.
-Odpowiedź: `current` (dzień jak w pulpicie: kwota PLN i udział % per waluta) i `history` (per dzień z zakresu
-`1M|3M|1Y|ALL` jak historia wartości: kwota PLN per waluta). Zmiana waluty instrumentu (ręczny symbol)
+Odpowiedź: `current` (dzień jak w pulpicie: kwota PLN i udział % per waluta) i `history` (per dzień z zakresu `from`–`to`, jak
+historia wartości: kwota PLN per waluta). Zmiana waluty instrumentu (ręczny symbol)
 przepisuje ekspozycję w całej historii — świadome uproszczenie.
 
 ## 5. Limity IKE/IKZE
