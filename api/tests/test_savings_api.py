@@ -65,3 +65,12 @@ def test_wrong_kind_and_foreign_accounts(client: TestClient, world: dict) -> Non
 
     assert [(r.status_code, r.json()["code"]) for r in (wrong, foreign, unset)] == [
         (422, "wrong_account_kind"), (404, "not_found"), (404, "not_found")]
+
+
+def test_savings_need_a_pln_account(client: TestClient, world: dict) -> None:
+    euro = client.post("/api/accounts", json={"name": "Konto EUR", "kind": "savings", "currency": "EUR"},
+                       headers=world["anna"]).json()["id"]
+
+    response = client.put(f"/api/savings-accounts/{euro}", json={"capitalization": "monthly"}, headers=world["anna"])
+
+    assert (response.status_code, response.json()["code"]) == (422, "wrong_currency")

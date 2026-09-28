@@ -23,7 +23,7 @@ DUPLICATE = "Dla tego dnia jest już wpis."
 def _account(scope: UserScope, account_id: int) -> Account:
     account = scope.get_account(account_id)
     if account.kind != "savings":
-        raise ApiError(422, "wrong_account_kind", 'Saldo i stawki wpisuje się na koncie typu "oszczędnościowe".')
+        raise ApiError(422, "wrong_account_kind", 'Saldo i stawki wpisuje się na koncie typu „oszczędnościowe”.')
     return account
 
 
@@ -77,6 +77,8 @@ def set_savings(
     scope: UserScope = Depends(get_scope),
     sessions: sessionmaker[Session] = Depends(get_session_factory),
 ) -> SavingsAccountOut:
+    if _account(scope, account_id).currency != "PLN":
+        raise ApiError(422, "wrong_currency", "Obligacje i konta oszczędnościowe prowadzi się w PLN.")
     settings = _settings(scope, account_id)
     if settings is None:
         settings = SavingsAccount(account_id=account_id, capitalization=body.capitalization)

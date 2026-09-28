@@ -6,6 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Response
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.bonds import edo
@@ -33,6 +34,10 @@ def _new_series(name: str, first_period_rate: Decimal, margin: Decimal, fee: Dec
                       early_redemption_fee=fee, interest_mode="capitalized", rate_basis="cpi")
 
 
+def _series_exists(name: str) -> ApiError:
+    return ApiError(409, "series_exists", f"Seria {name} już jest w aplikacji.")
+
+
 def _holding(scope: UserScope, holding_id: int) -> BondHolding:
     holding = scope.db.scalar(scope.bond_holdings().where(BondHolding.id == holding_id))
     if holding is None:
@@ -58,10 +63,14 @@ def list_series(scope: UserScope = Depends(get_scope)) -> list[BondSeries]:
 @router.post("/bond-series", status_code=201, response_model=BondSeriesOut)
 def add_series(body: BondSeriesIn, scope: UserScope = Depends(get_scope)) -> BondSeries:
     if scope.db.get(BondSeries, body.series) is not None:
-        raise ApiError(409, "series_exists", f"Seria {body.series} już jest w aplikacji.")
+        raise _series_exists(body.series)
     series = _new_series(body.series, body.first_period_rate, body.margin, body.early_redemption_fee)
     scope.db.add(series)
-    scope.db.commit()
+    try:
+        scope.db.commit()
+    except IntegrityError:  # the same series was added concurrently
+        scope.db.rollback()
+        raise _series_exists(body.series) from None
     return series
 
 
@@ -69,13 +78,18 @@ def add_series(body: BondSeriesIn, scope: UserScope = Depends(get_scope)) -> Bon
 def list_bonds(scope: UserScope = Depends(get_scope), day: DayQuery = None) -> list[BondOut]:
     fixed = load_fixed_income(scope)
     accounts = {account.id: account for account in scope.db.scalars(scope.accounts())}
-    return [bond_detail(h, accounts[h.account_id], fixed, day or local_today()).bond
-            for h in scope.db.scalars(scope.bond_holdings())]
+    on = day or local_today()
+    return [bond_detail(h, accounts[h.account_id], fixed, on).bond
+            for h in scope.db.scalars(scope.bond_holdings()) if h.purchase_date <= on]
 
 
 @router.get("/bonds/{holding_id}", response_model=BondDetailOut)
 def get_bond(holding_id: DbId, scope: UserScope = Depends(get_scope), day: DayQuery = None) -> BondDetailOut:
-    return _detail(scope, _holding(scope, holding_id), day or local_today())
+    holding = _holding(scope, holding_id)
+    on = day or local_today()
+    if on < holding.purchase_date:
+        raise ApiError(422, "date_before_purchase", "Wybrany dzień jest wcześniejszy niż data zakupu obligacji.")
+    return _detail(scope, holding, on)
 
 
 @router.post("/bonds", status_code=201, response_model=BondOut)
@@ -87,7 +101,9 @@ def buy_bonds(
 ) -> BondOut:
     account = scope.get_account(body.account_id)
     if account.kind != "bonds":
-        raise ApiError(422, "wrong_account_kind", 'Obligacje zapisuje się na koncie typu "obligacje".')
+        raise ApiError(422, "wrong_account_kind", 'Obligacje zapisuje się na koncie typu „obligacje”.')
+    if account.currency != "PLN":
+        raise ApiError(422, "wrong_currency", "Obligacje i konta oszczędnościowe prowadzi się w PLN.")
     if body.purchase_date > local_today():
         raise ApiError(422, "purchase_in_future", "Data zakupu nie może być z przyszłości.")
     name = edo.series_name(body.purchase_date)
@@ -97,7 +113,11 @@ def buy_bonds(
                            f"Serii {name} nie ma jeszcze w aplikacji — podaj oprocentowanie 1. roku i marżę.",
                            {"series": name})
         scope.db.add(_new_series(name, body.first_period_rate, body.margin, DEFAULT_EDO_FEE))
-        scope.db.flush()
+        try:
+            scope.db.flush()
+        except IntegrityError:  # the same series was added concurrently
+            scope.db.rollback()
+            raise _series_exists(name) from None
     holding = BondHolding(account_id=account.id, bond_type=body.bond_type, series=name, quantity=body.quantity,
                           purchase_date=body.purchase_date, note=body.note)
     scope.db.add(holding)

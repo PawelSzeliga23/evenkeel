@@ -142,3 +142,27 @@ def test_switching_an_account_to_ike_revalues_its_history_without_tax(
     with Session(engine) as db:
         rows = db.scalars(select(DailyValuation).filter_by(bond_holding_id=holding_id, date=SAT)).all()
         assert [row.value_pln for row in rows] == [Decimal("1001.6000")]
+
+
+def test_portfolio_of_bonds_alone_survives_an_early_redemption(
+    client: TestClient, login_as: LoginAs, engine: Engine
+) -> None:
+    headers = login_as("anna@portfolio.dev")
+    with Session(engine, expire_on_commit=False) as db:
+        _series(db)
+        user_id = db.scalar(select(User.id).where(User.email == "anna@portfolio.dev"))
+        holding_id = _bonds(db, _account(db, user_id, "bonds"))
+        db.get(BondHolding, holding_id).redeemed_at = dt.date(2026, 9, 20)
+        db.commit()
+        valuate(db, user_id)
+
+    points = {p["date"]: p for p in client.get("/api/portfolio/history", headers=headers).json()["points"]}
+    summary = client.get("/api/portfolio/summary", headers=headers).json()
+
+    payout = Decimal("1000.00")  # 5 days: 100.07 per bond, the fee takes the 0.07 zł of interest
+    assert points["2026-09-20"]["value_pln"] == "1000.00"
+    assert (points["2026-09-21"]["value_pln"], points["2026-09-21"]["net_flow_pln"]) == ("0.00", str(-payout))
+    assert points["2026-09-21"]["twr_pct"] == points["2026-09-20"]["twr_pct"] != "-100.00"
+    assert points["2026-09-21"]["invested_pln"] == str(Decimal(points["2026-09-20"]["invested_pln"]) - payout)
+    assert (summary["value_pln"], summary["invested_pln"], summary["twr_pct"]) == (
+        "0.00", "0.00", points["2026-09-20"]["twr_pct"])

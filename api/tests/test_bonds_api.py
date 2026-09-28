@@ -119,3 +119,59 @@ def test_deleting_a_purchase_removes_its_valuation(client: TestClient, world: di
     assert client.delete(f"/api/bonds/{holding_id}", headers=world["anna"]).status_code == 204
     with Session(engine) as db:
         assert db.scalar(select(DailyValuation.id).where(DailyValuation.bond_holding_id == holding_id)) is None
+
+
+def test_bonds_need_a_pln_account(client: TestClient, world: dict) -> None:
+    euro = client.post("/api/accounts", json={"name": "Obligacje EUR", "kind": "bonds", "currency": "EUR"},
+                       headers=world["anna"]).json()["id"]
+
+    response = _buy(client, world, account_id=euro)
+
+    assert (response.status_code, response.json()["code"]) == (422, "wrong_currency")
+
+
+def test_dates_before_the_purchase_are_left_out_or_rejected(client: TestClient, world: dict) -> None:
+    holding_id = _buy(client, world).json()["id"]
+    before = {"date": "2026-09-10"}
+
+    listed = client.get("/api/bonds", params=before, headers=world["anna"])
+    detail = client.get(f"/api/bonds/{holding_id}", params=before, headers=world["anna"])
+    on_purchase_day = client.get(f"/api/bonds/{holding_id}", params={"date": "2026-09-15"}, headers=world["anna"])
+
+    assert (listed.status_code, listed.json()) == (200, [])
+    assert (detail.status_code, detail.json()["code"]) == (422, "date_before_purchase")
+    assert (on_purchase_day.status_code, on_purchase_day.json()["bond"]["value_pln"]) == (200, "1000.00")
+
+
+def test_on_the_payout_day_the_payout_is_still_the_value(client: TestClient, world: dict) -> None:
+    holding_id = _buy(client, world).json()["id"]
+    client.patch(f"/api/bonds/{holding_id}", json={"redeemed_at": "2026-09-20"}, headers=world["anna"])
+
+    def on(day: str) -> tuple[str, str]:
+        bond = client.get(f"/api/bonds/{holding_id}", params={"date": day}, headers=world["anna"]).json()["bond"]
+        return bond["status"], bond["value_pln"]
+
+    # 5 days: 100.07 per bond, the fee takes the 0.07 zł of interest → 100.00 × 10 paid out on the day
+    assert [on("2026-09-19"), on("2026-09-20"), on("2026-09-21")] == [
+        ("active", "1000.50"), ("redeemed", "1000.00"), ("redeemed", "0.00")]
+
+
+@pytest.fixture
+def series_race(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The series exists already but the pre-check does not see it (as when two requests add it at once)."""
+    real_get = Session.get
+
+    def blind_get(self: Session, entity: type, ident: object, *args: object, **kwargs: object) -> object:
+        return None if entity is BondSeries else real_get(self, entity, ident, *args, **kwargs)
+
+    monkeypatch.setattr(Session, "get", blind_get)
+
+
+def test_concurrent_series_creation_is_a_conflict_not_a_500(
+    client: TestClient, world: dict, series_race: None
+) -> None:
+    added = client.post("/api/bond-series", json={"series": "EDO0936", "first_period_rate": "6", "margin": "2"},
+                        headers=world["anna"])
+    bought = _buy(client, world, first_period_rate="6", margin="2")
+
+    assert [(r.status_code, r.json()["code"]) for r in (added, bought)] == [(409, "series_exists")] * 2
