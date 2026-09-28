@@ -53,23 +53,27 @@ class CorporateAction(Base):
 class DailyValuation(Base):
     """Cache of the valuation engine: one row per account, component and day; can be dropped and rebuilt.
 
-    `instrument_id` NULL is the account's cash: `quantity` is the balance in the account currency and
-    `net_flow_pln` carries its external flows (deposits, withdrawals, transfers) of that day.
+    `instrument_id`, `bond_holding_id`, `savings_account_id` — co najwyżej jeden ustawiony; żaden = gotówka konta.
+    `net_flow_pln` carries external flows (deposits, withdrawals, transfers) of that day.
     """
 
     __tablename__ = "daily_valuations"
     __table_args__ = (
         Index(
-            "uq_daily_valuations_account_id_instrument_id_date", "account_id", "instrument_id", "date",
+            "uq_daily_valuations_component_date",
+            "account_id", "instrument_id", "bond_holding_id", "savings_account_id", "date",
             unique=True, postgresql_nulls_not_distinct=True,
         ),
         Index("ix_daily_valuations_user_id_date", "user_id", "date"),
+        CheckConstraint("num_nonnulls(instrument_id, bond_holding_id, savings_account_id) <= 1", name="one_component"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"))
     instrument_id: Mapped[int | None] = mapped_column(ForeignKey("instruments.id"))
+    bond_holding_id: Mapped[int | None] = mapped_column(ForeignKey("bond_holdings.id", ondelete="CASCADE"))
+    savings_account_id: Mapped[int | None] = mapped_column(ForeignKey("savings_accounts.id", ondelete="CASCADE"))
     date: Mapped[dt.date] = mapped_column(Date)
     quantity: Mapped[Decimal | None] = mapped_column(QUANTITY)
     value_pln: Mapped[Decimal] = mapped_column(MONEY)

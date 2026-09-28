@@ -1,5 +1,14 @@
 from app.models.account import ACCOUNT_KINDS, WRAPPERS, Account
 from app.models.base import Base
+from app.models.fixed_income import (
+    BOND_TYPES,
+    CAPITALIZATIONS,
+    BondHolding,
+    BondSeries,
+    SavingsAccount,
+    SavingsBalance,
+    SavingsRate,
+)
 from app.models.instrument import Instrument
 from app.models.ledger import (
     SNAPSHOT_KINDS,
@@ -21,8 +30,9 @@ from app.models.valuation import (
 )
 
 __all__ = [
-    "ACCOUNT_KINDS", "CORPORATE_ACTION_SOURCES", "CORPORATE_ACTION_TYPES", "SNAPSHOT_KINDS", "TRANSACTION_TYPES",
-    "WRAPPER_LIMIT_KINDS", "WRAPPERS", "Account", "Base", "CorporateAction", "Cpi", "DailyValuation", "FxRate",
-    "ImportRecord", "Instrument", "NbpRefRate", "PositionLot", "Price", "RefreshToken", "Transaction", "User",
+    "ACCOUNT_KINDS", "BOND_TYPES", "CAPITALIZATIONS", "CORPORATE_ACTION_SOURCES", "CORPORATE_ACTION_TYPES",
+    "SNAPSHOT_KINDS", "TRANSACTION_TYPES", "WRAPPER_LIMIT_KINDS", "WRAPPERS", "Account", "Base", "BondHolding",
+    "BondSeries", "CorporateAction", "Cpi", "DailyValuation", "FxRate", "ImportRecord", "Instrument", "NbpRefRate",
+    "PositionLot", "Price", "RefreshToken", "SavingsAccount", "SavingsBalance", "SavingsRate", "Transaction", "User",
     "WrapperLimit", "XtbSnapshot",
 ]
