@@ -149,7 +149,8 @@ class PositionView:
 
 @dataclass(frozen=True)
 class Row:
-    """One `daily_valuations` row; `instrument_id` None is the account's cash."""
+    """One `daily_valuations` row: a holding of an instrument, a bond purchase or a savings account (at most one
+    of the three ids), or with none of them the account's cash."""
 
     account_id: int
     instrument_id: int | None
@@ -159,6 +160,8 @@ class Row:
     cost_pln: Decimal
     net_flow_pln: Decimal
     flags: tuple[str, ...] = ()
+    bond_holding_id: int | None = None
+    savings_account_id: int | None = None
 
 
 class Book:
