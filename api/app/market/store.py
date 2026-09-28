@@ -90,6 +90,29 @@ def _split_type(split: SplitEvent) -> str:
     return "split" if split.ratio_to > split.ratio_from else "reverse_split"
 
 
+def _provider_splits(
+    db: Session, instrument_id: int, splits: Iterable[SplitEvent], since: dt.date | None
+) -> tuple[Sequence[CorporateAction], set[tuple[dt.date, Decimal, Decimal]]]:
+    """The stored provider splits dated `since` or later (all when None) and the wanted ones among `splits`."""
+    query = select(CorporateAction).where(
+        CorporateAction.instrument_id == instrument_id,
+        CorporateAction.source == "provider",
+        CorporateAction.type.in_(("split", "reverse_split")),
+    )
+    if since is not None:
+        query = query.where(CorporateAction.effective_date >= since)
+    wanted = {(s.date, s.ratio_from, s.ratio_to) for s in splits if since is None or s.date >= since}
+    return db.scalars(query).all(), wanted
+
+
+def provider_splits_differ(
+    db: Session, instrument_id: int, splits: Iterable[SplitEvent], since: dt.date | None
+) -> bool:
+    """Whether `replace_provider_splits` with the same arguments would change anything; writes nothing."""
+    stored, wanted = _provider_splits(db, instrument_id, splits, since)
+    return {(a.effective_date, a.ratio_from, a.ratio_to) for a in stored} != wanted
+
+
 def replace_provider_splits(
     db: Session, instrument_id: int, splits: Iterable[SplitEvent], since: dt.date | None
 ) -> bool:
@@ -98,15 +121,7 @@ def replace_provider_splits(
     The provider only reports events inside the fetched window, so older ones are kept. Manual and XTB
     entries are never touched. Returns True when anything was added, removed or changed. Does not commit.
     """
-    query = select(CorporateAction).where(
-        CorporateAction.instrument_id == instrument_id,
-        CorporateAction.source == "provider",
-        CorporateAction.type.in_(("split", "reverse_split")),
-    )
-    if since is not None:
-        query = query.where(CorporateAction.effective_date >= since)
-    stored = db.scalars(query).all()
-    wanted = {(s.date, s.ratio_from, s.ratio_to) for s in splits if since is None or s.date >= since}
+    stored, wanted = _provider_splits(db, instrument_id, splits, since)
     if {(a.effective_date, a.ratio_from, a.ratio_to) for a in stored} == wanted:
         return False
     for action in stored:

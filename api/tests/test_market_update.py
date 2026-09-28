@@ -462,6 +462,10 @@ def test_failed_full_refetch_is_reported_and_retried_in_full_next_time(db: Sessi
     db.refresh(instrument)
     assert (rows, failed, instrument.price_error) == (0, ["NVDA.US"], MSG_FAILED.format(symbol="NVDA"))
     assert instrument.splits_synced is False
+    # Until the retry, the stored splits and closes stay on the same (old) basis: no split without adjusted closes.
+    assert db.scalar(select(func.count()).select_from(CorporateAction)
+                     .where(CorporateAction.instrument_id == instrument.id)) == 0
+    assert _stored_closes(db, instrument.id)[dt.date(2024, 6, 3)] == Decimal("1200.00")
     provider = FakePrices({"NVDA": NVDA_FULL})
     update_all_prices(db, provider, NOW)
     assert provider.calls == [("NVDA", None)]

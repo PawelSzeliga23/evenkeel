@@ -12,6 +12,7 @@ from app.market.store import (
     delete_prices,
     fx_date_bounds,
     last_price_date,
+    provider_splits_differ,
     replace_provider_splits,
     upsert_cpi,
     upsert_fx_rates,
@@ -116,22 +117,25 @@ def update_instrument_prices(
     if history is None:
         return 0
     currency_changed = instrument.currency is not None and instrument.currency != history.currency
+    refetch = start is not None and (
+        currency_changed or provider_splits_differ(db, instrument.id, history.splits, start)
+    )
+    if refetch:
+        # Closes come split-adjusted (and in the quote currency) as of the fetch, so every stored bar
+        # outside the window is on the old basis: the whole history is fetched again and replaces it.
+        # Nothing is written before it arrives, so a failed refetch leaves splits and closes on one basis.
+        history = _fetch(provider, instrument, symbol, None)
+        if history is None:
+            instrument.splits_synced = False  # the next run fetches the full history again
+            return 0
+        start = None
+        delete_prices(db, instrument.id)
     instrument.currency = history.currency
     instrument.price_error = None
     instrument.splits_synced = True
     splits_changed = replace_provider_splits(db, instrument.id, history.splits, start)
-    if splits_changed or currency_changed:
+    if splits_changed or currency_changed or refetch:
         _note(changed, instrument.id, dt.date.min)
-        if start is not None:
-            # Closes come split-adjusted (and in the quote currency) as of the fetch, so every stored bar
-            # outside the window is on the old basis: the whole history is fetched again and replaces it.
-            history = _fetch(provider, instrument, symbol, None)
-            if history is None:
-                instrument.splits_synced = False  # the next run fetches the full history again
-                return 0
-            instrument.currency = history.currency
-            replace_provider_splits(db, instrument.id, history.splits, None)
-            delete_prices(db, instrument.id)
     elif history.bars:
         _note(changed, instrument.id, history.bars[0].date)
     return upsert_prices(db, instrument.id, history.bars, provider.name)
