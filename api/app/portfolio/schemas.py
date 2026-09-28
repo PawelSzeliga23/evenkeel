@@ -190,3 +190,19 @@ class ExposureOut(BaseModel):
     as_of: dt.date | None
     current: list[ExposureItemOut]
     history: list[ExposurePointOut]
+
+
+class LimitAccountOut(BaseModel):
+    account_id: int
+    name: str
+    paid_pln: Decimal
+
+
+class LimitOut(BaseModel):
+    wrapper: Literal["ike", "ikze"]
+    year: int
+    paid_pln: Decimal
+    limit_pln: Decimal | None  # None: no statutory limit stored for that year
+    remaining_pln: Decimal | None
+    exceeded: bool
+    accounts: list[LimitAccountOut]

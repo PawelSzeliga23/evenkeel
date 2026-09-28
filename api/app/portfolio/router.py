@@ -5,7 +5,8 @@ from fastapi import APIRouter, Depends, Query
 
 from app.portfolio.closed import closed_investments
 from app.portfolio.exposure import currency_exposure
-from app.portfolio.schemas import ClosedOut, ExposureOut, HistoryOut, PositionDetailOut, PositionOut, SummaryOut
+from app.portfolio.limits import wrapper_limits
+from app.portfolio.schemas import ClosedOut, ExposureOut, HistoryOut, LimitOut, PositionDetailOut, PositionOut, SummaryOut
 from app.portfolio.service import list_positions, portfolio_history, portfolio_summary, position_detail
 from app.scoping import DbId, UserScope, get_scope
 from app.valuation.service import local_today
@@ -68,3 +69,8 @@ def get_exposure(
     end: Annotated[dt.date | None, Query(alias="to")] = None,
 ) -> ExposureOut:
     return currency_exposure(scope, _account(scope, account_id), start, end)
+
+
+@router.get("/portfolio/limits", response_model=list[LimitOut])
+def get_limits(scope: UserScope = Depends(get_scope)) -> list[LimitOut]:
+    return wrapper_limits(scope, local_today())
