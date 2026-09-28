@@ -128,7 +128,7 @@ def test_reconciliation_compares_quantities_at_the_stored_precision(
     with Session(engine) as db:  # 1:3 reverse split: 2 units become 0.666666666… (XTB reports 0.66666667)
         db.add(CorporateAction(instrument_id=world["instrument_id"], type="reverse_split",
                                effective_date=dt.date(2026, 6, 1), ratio_from=Decimal(3), ratio_to=Decimal(1),
-                               source="manual"))
+                               source="xtb"))
         db.commit()
         seed_snapshot(db, world["account_id"], world["instrument_id"], "0.66666667")
 

@@ -155,7 +155,7 @@ def test_provider_splits_are_replaced_only_inside_the_fetched_window(db: Session
     old = SplitEvent(dt.date(2021, 7, 20), Decimal(1), Decimal(4))
     new = SplitEvent(dt.date(2024, 6, 10), Decimal(1), Decimal(10))
     db.add(CorporateAction(instrument_id=instrument.id, type="split", effective_date=dt.date(2024, 6, 10),
-                           ratio_from=Decimal(1), ratio_to=Decimal(10), source="manual"))
+                           ratio_from=Decimal(1), ratio_to=Decimal(10), source="xtb"))
 
     assert replace_provider_splits(db, instrument.id, [old, new], None) is True
     assert replace_provider_splits(db, instrument.id, [new], dt.date(2024, 1, 1)) is False
@@ -164,8 +164,8 @@ def test_provider_splits_are_replaced_only_inside_the_fetched_window(db: Session
 
     assert _actions(db, instrument.id) == [
         ("split", dt.date(2021, 7, 20), Decimal(1), Decimal(4), "provider"),
-        ("split", dt.date(2024, 6, 10), Decimal(1), Decimal(10), "manual"),
         ("split", dt.date(2024, 6, 10), Decimal(1), Decimal(10), "provider"),
+        ("split", dt.date(2024, 6, 10), Decimal(1), Decimal(10), "xtb"),
     ]
 
 

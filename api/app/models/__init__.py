@@ -11,10 +11,18 @@ from app.models.ledger import (
 )
 from app.models.market import Cpi, FxRate, NbpRefRate, Price
 from app.models.user import RefreshToken, User
-from app.models.valuation import CORPORATE_ACTION_SOURCES, CORPORATE_ACTION_TYPES, CorporateAction, DailyValuation
+from app.models.valuation import (
+    CORPORATE_ACTION_SOURCES,
+    CORPORATE_ACTION_TYPES,
+    WRAPPER_LIMIT_KINDS,
+    CorporateAction,
+    DailyValuation,
+    WrapperLimit,
+)
 
 __all__ = [
     "ACCOUNT_KINDS", "CORPORATE_ACTION_SOURCES", "CORPORATE_ACTION_TYPES", "SNAPSHOT_KINDS", "TRANSACTION_TYPES",
-    "WRAPPERS", "Account", "Base", "CorporateAction", "Cpi", "DailyValuation", "FxRate", "ImportRecord",
-    "Instrument", "NbpRefRate", "PositionLot", "Price", "RefreshToken", "Transaction", "User", "XtbSnapshot",
+    "WRAPPER_LIMIT_KINDS", "WRAPPERS", "Account", "Base", "CorporateAction", "Cpi", "DailyValuation", "FxRate",
+    "ImportRecord", "Instrument", "NbpRefRate", "PositionLot", "Price", "RefreshToken", "Transaction", "User",
+    "WrapperLimit", "XtbSnapshot",
 ]
