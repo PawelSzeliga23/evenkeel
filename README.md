@@ -60,7 +60,7 @@ instrumentu. Testy nie łączą się z siecią.
 | PATCH | `/api/instruments/{id}` | ręczny symbol u dostawcy cen `{price_symbol}` (`null` = automatyczny); historia pobierze się ponownie |
 | GET | `/api/portfolio/summary` | pulpit: wartość, gotówka, wpłacony kapitał, zysk łączny, zmiana dzienna, dywidendy i odsetki netto, TWR, opłaty, alokacja wg kont i typów (`account_id`) |
 | GET | `/api/portfolio/history` | wartość dzień po dniu z wpłaconym kapitałem, TWR per dzień i operacjami (`account_id`, `from`, `to`) |
-| GET | `/api/positions` | pozycje i gotówka na dzień (`account_id`, `date`): wartość, koszt, zysk (efekt ceny / waluty), dywidendy, udział, źródło ceny |
+| GET | `/api/positions` | pozycje, gotówka, obligacje i konta oszczędnościowe na dzień (`account_id`, `date`): wartość, koszt, zysk (efekt ceny / waluty), dywidendy, udział, źródło ceny |
 | GET | `/api/positions/{account_id}/{instrument_id}` | szczegóły pozycji: partie z SL/TP, sprzedaże, dywidendy, operacje, zgodność z XTB (`date`) |
 | GET | `/api/portfolio/closed` | zamknięte inwestycje: sprzedaże z zyskiem (efekt ceny / waluty, czas trzymania), podsumowanie per walor z dywidendami i kosztami, suma (`account_id`) |
 | GET | `/api/portfolio/exposure` | ekspozycja walutowa wg waluty notowania: dziś i dzień po dniu (`account_id`, `from`, `to`) |
@@ -68,6 +68,11 @@ instrumentu. Testy nie łączą się z siecią.
 | GET | `/api/corporate-actions` | splity, scalenia, konwersje walorów użytkownika (wspólne z Yahoo/XTB i własne), z informacją, który wpis obowiązuje (`instrument_id`) |
 | POST | `/api/corporate-actions` | własny wpis: `split` / `reverse_split` / `conversion` (`target_ticker`) / `suppress` (wyłącza zdarzenie z Yahoo tego dnia); działa tylko na konta autora |
 | PUT, DELETE | `/api/corporate-actions/{id}` | zmiana / usunięcie własnego wpisu (wpisy z Yahoo/XTB są tylko do odczytu) |
+| GET, POST | `/api/bond-series` | serie obligacji (wspólne): stawka 1. roku, marża, opłata; dopisanie serii spoza tabeli |
+| GET, POST | `/api/bonds` | zakupy obligacji EDO (`date`): wartość netto, status; zakup `{account_id, bond_type, quantity, purchase_date}` (+ stawki dla nowej serii) |
+| GET, PATCH, DELETE | `/api/bonds/{id}` | szczegóły (`date`): wartość 1 szt., wartość przy wykupie dziś, harmonogram okresów; `PATCH` — `redeemed_at`, `quantity`, `note` |
+| GET, PUT | `/api/savings-accounts/{account_id}` | konto oszczędnościowe: kapitalizacja (`daily` / `monthly` / `quarterly`), stawki i salda |
+| POST, DELETE | `/api/savings-accounts/{account_id}/rates`, `…/balances` | stawka w skali roku od dnia / saldo z banku na koniec dnia |
 
 ### Wycena
 

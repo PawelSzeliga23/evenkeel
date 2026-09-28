@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
-from app.models import Account, CorporateAction, ImportRecord, Price, Transaction, User, XtbSnapshot
+from app.models import Account, BondSeries, CorporateAction, ImportRecord, Price, Transaction, User, XtbSnapshot
 from tests.valuation_seed import seed_holdings, seed_market, seed_snapshot
 
 LoginAs = Callable[[str], dict[str, str]]
@@ -195,3 +195,28 @@ def test_sale_shows_its_holding_time_and_the_price_and_currency_effects(
         "opened_on": "2026-03-02", "holding_days": 207, "realized_pln": "397.85", "price_effect_pln": "427.85",
         "fx_effect_pln": "-30.00",
     }
+
+
+def test_bonds_and_savings_accounts_are_positions(client: TestClient, login_as: LoginAs, engine: Engine) -> None:
+    headers = login_as("carol@portfolio.dev")
+    with Session(engine) as db:
+        db.add(BondSeries(series="EDO0936", bond_type="EDO", issue_month=dt.date(2026, 9, 1), maturity_months=120,
+                          first_period_rate=Decimal("5.35"), margin=Decimal("2.00"),
+                          early_redemption_fee=Decimal("3.00"), interest_mode="capitalized", rate_basis="cpi"))
+        db.commit()
+    bonds = client.post("/api/accounts", json={"name": "Obligacje", "kind": "bonds"}, headers=headers).json()["id"]
+    client.post("/api/bonds", json={"account_id": bonds, "bond_type": "EDO", "quantity": 10,
+                                    "purchase_date": "2026-09-15"}, headers=headers)
+    savings = client.post("/api/accounts", json={"name": "Konto", "kind": "savings"}, headers=headers).json()["id"]
+    client.put(f"/api/savings-accounts/{savings}", json={"capitalization": "monthly"}, headers=headers)
+    client.post(f"/api/savings-accounts/{savings}/balances", json={"as_of_date": "2026-09-01", "balance": "9000"},
+                headers=headers)
+
+    positions = client.get("/api/positions", params=ON, headers=headers).json()
+
+    assert [(p["kind"], p["name"], p["category"], p["value_pln"], p["cost_pln"], p["unrealized_pln"],
+             p["day_change_pln"], p["share_pct"]) for p in positions] == [
+        ("bond", "EDO0936", "bonds", "1001.30", "1000.00", "1.30", "0.10", "10.01"),
+        ("savings", "Konto", "savings", "9000.00", "9000.00", "0.00", "0.00", "89.99"),
+    ]
+    assert positions[0]["bond_holding_id"] is not None and positions[1]["savings_account_id"] is not None

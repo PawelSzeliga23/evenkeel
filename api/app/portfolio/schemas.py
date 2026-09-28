@@ -53,7 +53,7 @@ class HistoryOut(BaseModel):
 
 
 class PositionOut(BaseModel):
-    kind: Literal["instrument", "cash"]
+    kind: Literal["instrument", "cash", "bond", "savings"]
     account_id: int
     account_name: str
     instrument_id: int | None
@@ -77,6 +77,8 @@ class PositionOut(BaseModel):
     day_change_pln: Decimal
     share_pct: Decimal | None = None
     flags: list[str]
+    bond_holding_id: int | None = None
+    savings_account_id: int | None = None
 
 
 class LotOut(BaseModel):

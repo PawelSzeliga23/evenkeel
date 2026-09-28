@@ -2,7 +2,7 @@ import datetime as dt
 from decimal import Decimal as D
 
 from app.bonds.edo import Series
-from app.valuation.fixed_income import FLAG_RATE_ESTIMATED, Holding, SavingsInput, bond_rows, savings_rows
+from app.valuation.fixed_income import FLAG_RATE_ESTIMATED, Holding, SavingsInput, bond_rows, day_view, savings_rows
 
 EDO0936 = Series(D("5.35"), D("2.00"), D("3.00"))
 BOUGHT, SAT = dt.date(2026, 9, 15), dt.date(2026, 9, 26)
@@ -64,3 +64,14 @@ def test_savings_rows_carry_balance_capital_and_flows() -> None:
     (row,) = rows
     assert (row.account_id, row.savings_account_id, row.quantity, row.value_pln, row.cost_pln, row.net_flow_pln) == (
         5, 4, D("10032.18"), D("10032.18"), D("10000.00"), D("0.00"))
+
+
+def test_day_view_gives_the_row_and_its_change_net_of_the_days_flow() -> None:
+    rows = bond_rows([_holding()], {}, dt.date(2026, 9, 25), SAT)
+
+    row, change = day_view(rows, SAT)
+
+    # 25 IX: 10 days → 100.15, tax 0.03 → 100.12 × 10 = 1001.20; 26 IX: 1001.30
+    assert (row.value_pln, change) == (D("1001.30"), D("0.10"))
+    assert day_view(bond_rows([_holding()], {}, BOUGHT, BOUGHT), BOUGHT)[1] == D("0.00")  # the purchase is a flow
+    assert day_view(rows, dt.date(2026, 9, 27)) is None

@@ -86,3 +86,14 @@ def savings_rows(accounts: Iterable[SavingsInput], start: dt.date, end: dt.date)
                 rows.append(Row(account.account_id, None, day.day, day.balance, money(day.balance), money(invested),
                                 money(day.net_flow), savings_account_id=account.id))
     return rows
+
+
+def day_view(rows: Sequence[Row], day: dt.date) -> tuple[Row, Decimal] | None:
+    """One component's row on `day` and its change since the day before (net of that day's deposit); None when the
+    component has no row that day or has been paid out."""
+    by_day = {row.day: row for row in rows}
+    today = by_day.get(day)
+    if today is None or today.quantity == 0:
+        return None
+    before = by_day.get(day - ONE_DAY)
+    return today, today.value_pln - today.net_flow_pln - (before.value_pln if before else ZERO)

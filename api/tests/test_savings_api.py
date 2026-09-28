@@ -17,7 +17,6 @@ def world(client: TestClient, login_as: LoginAs) -> dict[str, object]:
             "url": f"/api/savings-accounts/{savings}"}
 
 
-@pytest.mark.skip(reason="positions of savings accounts come in Task 8")
 def test_configured_account_with_rate_and_balance_earns_interest(client: TestClient, world: dict) -> None:
     anna, url = world["anna"], world["url"]
     assert client.put(url, json={"capitalization": "monthly"}, headers=anna).status_code == 200

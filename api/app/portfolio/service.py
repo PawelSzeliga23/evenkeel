@@ -8,16 +8,17 @@ from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
 from app.market.store import fx_on
-from app.models import Account, DailyValuation, Instrument, PositionLot, Transaction, User, XtbSnapshot
+from app.models import Account, BondHolding, DailyValuation, Instrument, PositionLot, Transaction, User, XtbSnapshot
 from app.portfolio.schemas import (
     AllocationOut, HistoryEventOut, HistoryOut, HistoryPointOut, IncomeOut, LotOut, PositionDetailOut, PositionOut,
     ReconciliationOut, SaleOut, SummaryOut,
 )
 from app.scoping import UserScope
 from app.transactions.schemas import TransactionOut
-from app.valuation.engine import ZERO, Book, PositionView, last_session, money, previous_session, replay
+from app.valuation.engine import ONE_DAY, ZERO, Book, PositionView, Row, last_session, money, previous_session, replay
+from app.valuation.fixed_income import bond_rows, day_view, savings_rows
 from app.valuation.returns import twr_index, twr_percent
-from app.valuation.service import Inputs, load_inputs, local_day
+from app.valuation.service import Inputs, load_fixed_income, load_inputs, local_day
 
 HUNDRED = Decimal(100)
 PERCENT_PLACES = Decimal("0.01")
@@ -228,10 +229,40 @@ def _cash_item(book: Book, account: Account, day: dt.date) -> PositionOut:
     )
 
 
+def _fixed_item(row: Row, change: Decimal, account: Account, kind: str, name: str) -> PositionOut:
+    zero = money(ZERO)
+    value, cost = money(row.value_pln), money(row.cost_pln)
+    return PositionOut(
+        kind=kind, account_id=account.id, account_name=account.name, instrument_id=None, ticker=None, name=name,
+        category=BOND_KIND if kind == "bond" else SAVINGS_KIND, currency=account.currency,
+        quantity=row.quantity or ZERO, price=None, price_date=None, price_source=None, value_pln=value, cost_pln=cost,
+        unrealized_pln=value - cost, unrealized_pct=percent(value - cost, cost), price_effect_pln=value - cost,
+        fx_effect_pln=zero, dividends_net_pln=zero, fees_pln=zero, realized_pln=zero, day_change_pln=money(change),
+        flags=list(row.flags), bond_holding_id=row.bond_holding_id, savings_account_id=row.savings_account_id,
+    )
+
+
+def _fixed_items(scope: UserScope, accounts: dict[int, Account], day: dt.date, account_id: int | None) -> list[PositionOut]:
+    """Bond purchases and savings accounts valued on `day` with the valuation's own rows."""
+    fixed = load_fixed_income(scope)
+    series = dict(scope.db.execute(scope.bond_holdings().with_only_columns(BondHolding.id, BondHolding.series)).all())
+    items: list[PositionOut] = []
+    for holding in fixed.holdings:
+        view = day_view(bond_rows([holding], fixed.cpi, day - ONE_DAY, day), day)
+        if view is not None and (account_id is None or holding.account_id == account_id):
+            items.append(_fixed_item(*view, accounts[holding.account_id], "bond", series[holding.id]))
+    for savings in fixed.savings:
+        view = day_view(savings_rows([savings], day - ONE_DAY, day), day)
+        if view is not None and (account_id is None or savings.account_id == account_id):
+            account = accounts[savings.account_id]
+            items.append(_fixed_item(*view, account, "savings", account.name))
+    return items
+
+
 def build_positions(
     scope: UserScope, inputs: Inputs, day: dt.date, account_id: int | None
 ) -> tuple[Book, list[PositionOut]]:
-    """Open positions, then each account's cash, valued on `day`; shares are of the listed total."""
+    """Open positions, each account's cash, then bonds and savings accounts, valued on `day`; shares of the total."""
     db = scope.db
     book = replay(inputs.entries, inputs.splits, inputs.market, day, conversions=inputs.conversions)
     accounts = {account.id: account for account in db.scalars(scope.accounts())}
@@ -246,6 +277,7 @@ def build_positions(
     for owner in sorted(book.cash):
         if account_id is None or owner == account_id:
             items.append(_cash_item(book, accounts[owner], day))
+    items += _fixed_items(scope, accounts, day, account_id)
     total = sum((item.value_pln for item in items), ZERO)
     for item in items:
         item.share_pct = percent(item.value_pln, total)
