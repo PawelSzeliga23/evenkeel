@@ -23,10 +23,10 @@ class SummaryOut(BaseModel):
     total_gain_pct: Decimal | None
     day_change_pln: Decimal | None
     day_change_pct: Decimal | None
+    twr_pct: Decimal | None
     dividends_net_pln: Decimal
     interest_net_pln: Decimal
     fees_pln: Decimal
-    twr_pct: Decimal | None
     by_account: list[AllocationOut]
     by_kind: list[AllocationOut]
     approximate_positions: int

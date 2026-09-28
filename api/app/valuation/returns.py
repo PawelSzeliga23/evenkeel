@@ -17,7 +17,7 @@ def twr_index(days: Iterable[tuple[dt.date, Decimal, Decimal]]) -> list[tuple[dt
     previous = Decimal(0)
     for day, value, flow in days:
         if previous > 0:
-            factor = (factor or ONE) * (value - flow) / previous
+            factor = (factor if factor is not None else ONE) * (value - flow) / previous
         elif factor is None and value > 0:
             factor = ONE
         result.append((day, factor))

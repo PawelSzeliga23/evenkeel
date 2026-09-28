@@ -21,3 +21,11 @@ def test_days_after_an_empty_portfolio_are_skipped() -> None:
 
     assert [twr_percent(factor) for _, factor in twr_index(days)] == [
         None, D("0.00"), D("0.00"), D("0.00"), D("0.00"), D("10.00")]
+
+
+def test_zero_factor_persists_when_portfolio_resumes() -> None:
+    # A total loss (factor = 0) followed by recovery should keep the factor at 0, not reset.
+    days = [(D1, D("100"), D("100")), (D2, D("0"), D("0")), (D3, D("50"), D("50")), (D4, D("60"), D("0"))]
+
+    assert [twr_percent(factor) for _, factor in twr_index(days)] == [
+        D("0.00"), D("-100.00"), D("-100.00"), D("-100.00")]
