@@ -11,6 +11,7 @@ from app.health import router as health_router
 from app.imports.router import router as imports_router
 from app.instruments.router import router as instruments_router
 from app.portfolio.router import router as portfolio_router
+from app.savings.router import router as savings_router
 from app.transactions.router import router as transactions_router
 
 
@@ -28,6 +29,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(instruments_router)
     app.include_router(corporate_actions_router)
     app.include_router(bonds_router)
+    app.include_router(savings_router)
     app.include_router(portfolio_router)
     return app
 
