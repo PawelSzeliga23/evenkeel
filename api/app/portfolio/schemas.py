@@ -173,3 +173,20 @@ class ClosedOut(BaseModel):
     sales: list[ClosedSaleOut]
     investments: list[ClosedInvestmentOut]
     totals: ClosedTotalsOut
+
+
+class ExposureItemOut(BaseModel):
+    currency: str  # ISO code of the quote currency (cash: the account currency) or "unknown"
+    value_pln: Decimal
+    share_pct: Decimal | None
+
+
+class ExposurePointOut(BaseModel):
+    date: dt.date
+    values: dict[str, Decimal]  # currency → value in PLN
+
+
+class ExposureOut(BaseModel):
+    as_of: dt.date | None
+    current: list[ExposureItemOut]
+    history: list[ExposurePointOut]
