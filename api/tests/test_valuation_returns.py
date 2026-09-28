@@ -23,6 +23,14 @@ def test_days_after_an_empty_portfolio_are_skipped() -> None:
         None, D("0.00"), D("0.00"), D("0.00"), D("0.00"), D("10.00")]
 
 
+def test_a_same_day_flow_counts_at_the_start_of_the_day() -> None:
+    # V0=1000, then a 100000 deposit invested the same day closing at 100500: the day's small gap on the new
+    # money must not be charged to the old 1000 zł base (old end-of-day formula gave -50.00 %).
+    days = [(D1, D("1000"), D("1000")), (D2, D("100500"), D("100000"))]
+
+    assert [twr_percent(factor) for _, factor in twr_index(days)] == [D("0.00"), D("-0.50")]
+
+
 def test_zero_factor_persists_when_portfolio_resumes() -> None:
     # A total loss (factor = 0) followed by recovery should keep the factor at 0, not reset.
     days = [(D1, D("100"), D("100")), (D2, D("0"), D("0")), (D3, D("50"), D("50")), (D4, D("60"), D("0"))]

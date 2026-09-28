@@ -113,9 +113,10 @@ wypłaty i `transfer_out` limitu nie przywracają. Konto `ikze` porównujemy z `
 
 ## 6. TWR
 
-Z dziennych sum `daily_valuations` (portfel albo jedno konto): `r_t = (V_t − F_t) / V_{t−1} − 1`, gdzie `V` =
-suma `value_pln` dnia, `F` = suma `net_flow_pln` dnia (przepływ na koniec dnia). Dzień z `V_{t−1} = 0` pomijany
-(pusty portfel). TWR = Π(1 + r_t) − 1. Przelewy między kontami użytkownika znoszą się w portfelu; przy filtrze
+Z dziennych sum `daily_valuations` (portfel albo jedno konto): `r_t = V_t / (V_{t−1} + F_t) − 1`, gdzie `V` =
+suma `value_pln` dnia, `F` = suma `net_flow_pln` dnia (przepływ na początku dnia — użytkownicy XTB wpłacają i
+kupują tego samego dnia, więc dzienny spread/zmiana kursu na nowych pieniądzach nie może obciążać starej bazy).
+Dzień z `V_{t−1} + F_t ≤ 0` pomijany (pusty portfel). TWR = Π(1 + r_t) − 1. Przelewy między kontami użytkownika znoszą się w portfelu; przy filtrze
 konta są przepływem tego konta. `summary` dostaje `twr_pct` (od początku, null bez danych), `history` — `twr_pct`
 w każdym punkcie, skumulowany od pierwszego dnia historii (nie od początku zakresu), żeby ten sam dzień miał
 tę samą wartość w każdym zakresie. Procent z 2 miejscami, `ROUND_HALF_UP`.

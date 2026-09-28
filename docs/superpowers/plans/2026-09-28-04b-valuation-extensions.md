@@ -2476,16 +2476,17 @@ PERCENT_PLACES = Decimal("0.01")
 
 def twr_index(days: Iterable[tuple[dt.date, Decimal, Decimal]]) -> list[tuple[dt.date, Decimal | None]]:
     """For each (day, value, net external flow) in date order: how much 1 zł held since the first day with a
-    value has grown to (TWR = factor − 1), or None before that day. A flow counts at the end of its day:
-    r = (V_t − F_t) / V_{t−1} − 1. A day after an empty portfolio (V_{t−1} = 0) has no return and is skipped."""
+    positive base has grown to (TWR = factor − 1), or None before that day. A flow counts at the START of its
+    day — XTB users deposit and buy the same day, so the day's spread/close gap on the new money must not be
+    charged to the old base: r = V_t / (V_{t−1} + F_t) − 1. A day whose denominator V_{t−1} + F_t ≤ 0 has no
+    return and is skipped (the factor stays as it was)."""
     result: list[tuple[dt.date, Decimal | None]] = []
     factor: Decimal | None = None
     previous = Decimal(0)
     for day, value, flow in days:
-        if previous > 0:
-            factor = (factor or ONE) * (value - flow) / previous
-        elif factor is None and value > 0:
-            factor = ONE
+        denominator = previous + flow
+        if denominator > 0:
+            factor = (factor if factor is not None else ONE) * value / denominator
         result.append((day, factor))
         previous = value
     return result
