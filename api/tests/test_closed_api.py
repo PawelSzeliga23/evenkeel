@@ -1,5 +1,5 @@
 import datetime as dt
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from decimal import Decimal
 
 import pytest
@@ -7,8 +7,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
-from app.models import Transaction, User
-from tests.valuation_seed import seed_holdings, seed_market
+from app.models import Account, Instrument, Transaction, User
+from app.portfolio.closed import closed_investments
+from app.scoping import UserScope
+from tests.valuation_seed import seed_holdings, seed_market, seed_user
 
 LoginAs = Callable[[str], dict[str, str]]
 URL = "/api/portfolio/closed"
@@ -89,3 +91,48 @@ def test_nothing_sold_gives_empty_lists_and_zero_totals(client: TestClient, worl
 def test_foreign_account_filter_is_404(client: TestClient, world: dict) -> None:
     response = client.get(URL, params={"account_id": world["account_id"]}, headers=world["bartek"])
     assert (response.status_code, response.json()["code"]) == (404, "not_found")
+
+
+@pytest.fixture
+def db(engine: Engine, clean_db: None) -> Iterator[Session]:
+    with Session(engine, expire_on_commit=False) as session:
+        yield session
+
+
+def _lot(db: Session, account_id: int, instrument_id: int, position: str, buy: str, sell: str, day: dt.date) -> None:
+    """A fully bought-then-sold lot (matched by position, no pro-rata rounding): realized = sell − buy exactly."""
+    buy_at = dt.datetime(day.year, day.month, day.day, 9, 0, tzinfo=dt.UTC)
+    sell_at = dt.datetime(day.year, day.month, day.day + 1, 9, 0, tzinfo=dt.UTC)
+    db.add_all([
+        Transaction(account_id=account_id, instrument_id=instrument_id, type="buy", xtb_type="buy", occurred_at=buy_at,
+                   amount=Decimal(f"-{buy}"), currency="PLN", quantity=Decimal("1"), price=Decimal(buy),
+                   xtb_position_id=position, external_id=f"buy-{position}", comment="", raw={}),
+        Transaction(account_id=account_id, instrument_id=instrument_id, type="sell", xtb_type="sell", occurred_at=sell_at,
+                   amount=Decimal(sell), currency="PLN", quantity=Decimal("1"), price=Decimal(sell),
+                   xtb_position_id=position, external_id=f"sell-{position}", comment="", raw={}),
+    ])
+    db.commit()
+
+
+def test_investment_totals_reconcile_with_the_sum_of_its_rounded_sales(db: Session) -> None:
+    # Two lots whose unrounded realized gain is 10.0050 zł each (a half-grosz, same direction): each sale rounds
+    # (ROUND_HALF_UP) to 10.01, so the investment must total 20.02 — not money(10.0050 + 10.0050) = 20.01.
+    user_id = seed_user(db)
+    instrument = Instrument(xtb_ticker="LOCAL.PL", name="Local Co", currency="PLN")
+    db.add(instrument)
+    db.flush()
+    account = Account(user_id=user_id, name="XTB", kind="broker", wrapper="regular", broker="xtb",
+                      external_account_number="1", currency="PLN")
+    db.add(account)
+    db.flush()
+    _lot(db, account.id, instrument.id, "P1", "100.0050", "110.0100", dt.date(2026, 1, 5))
+    _lot(db, account.id, instrument.id, "P2", "200.0050", "210.0100", dt.date(2026, 2, 5))
+
+    result = closed_investments(UserScope(db, db.get(User, user_id)), None, dt.date(2026, 9, 26))
+
+    assert [sale.realized_pln for sale in result.sales] == [Decimal("10.01"), Decimal("10.01")]
+    (investment,) = result.investments
+    assert (investment.sold_cost_pln, investment.realized_pln, investment.total_pln) == (
+        Decimal("300.02"), Decimal("20.02"), Decimal("20.02"))
+    assert result.totals.sold_cost_pln == Decimal("300.02")
+    assert result.totals.realized_pln == Decimal("20.02")

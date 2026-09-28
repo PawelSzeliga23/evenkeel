@@ -46,7 +46,7 @@ def closed_investments(scope: UserScope, account_id: int | None, day: dt.date) -
     investments = []
     for key, group in grouped.items():
         numbers = _totals(
-            money(sum((s.cost_pln for s in group), ZERO)), money(sum((s.realized_pln for s in group), ZERO)),
+            sum((money(s.cost_pln) for s in group), ZERO), sum((money(s.realized_pln) for s in group), ZERO),
             money(book.dividends.get(key, ZERO) + book.withholding.get(key, ZERO)), money(book.fees.get(key, ZERO)),
         )
         investments.append(ClosedInvestmentOut(
