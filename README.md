@@ -58,10 +58,16 @@ instrumentu. Testy nie łączą się z siecią.
 | GET | `/api/transactions` | operacje (`account_id`, `type`, `limit`, `offset`) |
 | GET | `/api/instruments` | instrumenty użytkownika: waluta, symbol u dostawcy cen, ostatnia cena i jej data, błąd cen |
 | PATCH | `/api/instruments/{id}` | ręczny symbol u dostawcy cen `{price_symbol}` (`null` = automatyczny); historia pobierze się ponownie |
-| GET | `/api/portfolio/summary` | pulpit: wartość, gotówka, wpłacony kapitał, zysk łączny, zmiana dzienna, dywidendy i odsetki netto, alokacja wg kont i typów (`account_id`) |
-| GET | `/api/portfolio/history` | wartość dzień po dniu z wpłaconym kapitałem i operacjami (`account_id`, `from`, `to`) |
+| GET | `/api/portfolio/summary` | pulpit: wartość, gotówka, wpłacony kapitał, zysk łączny, zmiana dzienna, dywidendy i odsetki netto, opłaty, TWR, alokacja wg kont i typów (`account_id`) |
+| GET | `/api/portfolio/history` | wartość dzień po dniu z wpłaconym kapitałem, TWR per dzień i operacjami (`account_id`, `from`, `to`) |
 | GET | `/api/positions` | pozycje i gotówka na dzień (`account_id`, `date`): wartość, koszt, zysk (efekt ceny / waluty), dywidendy, udział, źródło ceny |
 | GET | `/api/positions/{account_id}/{instrument_id}` | szczegóły pozycji: partie z SL/TP, sprzedaże, dywidendy, operacje, zgodność z XTB (`date`) |
+| GET | `/api/portfolio/closed` | zamknięte inwestycje: sprzedaże z zyskiem (efekt ceny / waluty, czas trzymania), podsumowanie per walor z dywidendami i kosztami, suma (`account_id`) |
+| GET | `/api/portfolio/exposure` | ekspozycja walutowa wg waluty notowania: dziś i dzień po dniu (`account_id`, `from`, `to`) |
+| GET | `/api/portfolio/limits` | wpłaty na IKE/IKZE w latach kalendarzowych vs limit ustawowy, rozbicie na konta |
+| GET | `/api/corporate-actions` | splity, scalenia, konwersje walorów użytkownika (wspólne z Yahoo/XTB i własne), z informacją, który wpis obowiązuje (`instrument_id`) |
+| POST | `/api/corporate-actions` | własny wpis: `split` / `reverse_split` / `conversion` (`target_ticker`) / `suppress` (wyłącza zdarzenie z Yahoo tego dnia); działa tylko na konta autora |
+| PUT, DELETE | `/api/corporate-actions/{id}` | zmiana / usunięcie własnego wpisu (wpisy z Yahoo/XTB są tylko do odczytu) |
 
 ### Wycena
 

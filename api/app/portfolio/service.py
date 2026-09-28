@@ -15,6 +15,7 @@ from app.portfolio.schemas import (
 from app.scoping import UserScope
 from app.transactions.schemas import TransactionOut
 from app.valuation.engine import ZERO, Book, PositionView, last_session, money, previous_session, replay
+from app.valuation.returns import twr_index, twr_percent
 from app.valuation.service import Inputs, load_inputs, local_day
 
 HUNDRED = Decimal(100)
@@ -56,6 +57,16 @@ def _flow_sum() -> object:
     return func.coalesce(func.sum(DailyValuation.net_flow_pln), 0)
 
 
+def _daily_totals(scope: UserScope, account_id: int | None) -> list[tuple[dt.date, Decimal, Decimal]]:
+    """(day, value, net external flow) of the portfolio or one account, in date order."""
+    return [tuple(row) for row in scope.db.execute(
+        _valuations(scope, account_id)
+        .with_only_columns(DailyValuation.date, func.sum(DailyValuation.value_pln), func.sum(DailyValuation.net_flow_pln))
+        .group_by(DailyValuation.date)
+        .order_by(DailyValuation.date)
+    )]
+
+
 def _allocation(groups: dict[str, tuple[str, Decimal]], total: Decimal) -> list[AllocationOut]:
     items = [
         AllocationOut(key=key, name=name, value_pln=money(value), share_pct=percent(value, total))
@@ -78,7 +89,7 @@ def portfolio_summary(scope: UserScope, account_id: int | None) -> SummaryOut:
             as_of=None, value_pln=money(ZERO), cash_pln=money(ZERO), invested_pln=money(ZERO),
             total_gain_pln=money(ZERO), total_gain_pct=None, day_change_pln=None, day_change_pct=None,
             dividends_net_pln=money(dividends), interest_net_pln=money(interest), fees_pln=money(fees),
-            by_account=[], by_kind=[], approximate_positions=0, recalculating=recalculating,
+            twr_pct=None, by_account=[], by_kind=[], approximate_positions=0, recalculating=recalculating,
         )
     session = last_session(latest)
     previous = previous_session(session)
@@ -118,12 +129,13 @@ def portfolio_summary(scope: UserScope, account_id: int | None) -> SummaryOut:
         elif row.flags:
             approximate += 1
     gain = value - invested
+    index = twr_index(_daily_totals(scope, account_id))
     return SummaryOut(
         as_of=latest, value_pln=money(value), cash_pln=money(cash), invested_pln=money(invested),
         total_gain_pln=money(gain), total_gain_pct=percent(gain, invested) if invested > 0 else None,
         day_change_pln=day_change, day_change_pct=day_change_pct,
         dividends_net_pln=money(dividends), interest_net_pln=money(interest), fees_pln=money(fees),
-        by_account=_allocation(by_account, value), by_kind=_allocation(by_kind, value),
+        twr_pct=twr_percent(index[-1][1]), by_account=_allocation(by_account, value), by_kind=_allocation(by_kind, value),
         approximate_positions=approximate, recalculating=recalculating,
     )
 
@@ -137,19 +149,14 @@ def portfolio_history(
     def inside(day: dt.date) -> bool:
         return (start is None or day >= start) and (end is None or day <= end)
 
-    grouped = db.execute(
-        _valuations(scope, account_id)
-        .with_only_columns(DailyValuation.date, func.sum(DailyValuation.value_pln), func.sum(DailyValuation.net_flow_pln))
-        .group_by(DailyValuation.date)
-        .order_by(DailyValuation.date)
-    ).all()
+    grouped = _daily_totals(scope, account_id)
     invested = ZERO
     points = []
-    for day, value, flow in grouped:
+    for (day, value, flow), (_, factor) in zip(grouped, twr_index(grouped), strict=True):
         invested += flow
         if inside(day):
             points.append(HistoryPointOut(date=day, value_pln=money(value), invested_pln=money(invested),
-                                          net_flow_pln=money(flow)))
+                                          net_flow_pln=money(flow), twr_pct=twr_percent(factor)))
     buckets: dict[tuple[dt.date, str], Decimal] = defaultdict(Decimal)
     for transaction in _transactions(scope, account_id, EVENT_TYPES):
         day = local_day(transaction.occurred_at)

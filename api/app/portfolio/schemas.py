@@ -26,6 +26,7 @@ class SummaryOut(BaseModel):
     dividends_net_pln: Decimal
     interest_net_pln: Decimal
     fees_pln: Decimal
+    twr_pct: Decimal | None
     by_account: list[AllocationOut]
     by_kind: list[AllocationOut]
     approximate_positions: int
@@ -37,6 +38,7 @@ class HistoryPointOut(BaseModel):
     value_pln: Decimal
     invested_pln: Decimal
     net_flow_pln: Decimal
+    twr_pct: Decimal | None
 
 
 class HistoryEventOut(BaseModel):

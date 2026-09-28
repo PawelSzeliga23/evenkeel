@@ -75,9 +75,12 @@ def test_history_in_a_range(client: TestClient, world: dict) -> None:
                       headers=world["anna"]).json()
 
     assert body["points"] == [
-        {"date": "2026-09-24", "value_pln": "10029.70", "invested_pln": "10000.00", "net_flow_pln": "0.00"},
-        {"date": "2026-09-25", "value_pln": "10829.70", "invested_pln": "10000.00", "net_flow_pln": "0.00"},
-        {"date": "2026-09-26", "value_pln": "10829.70", "invested_pln": "10000.00", "net_flow_pln": "0.00"},
+        {"date": "2026-09-24", "value_pln": "10029.70", "invested_pln": "10000.00", "net_flow_pln": "0.00",
+         "twr_pct": "0.30"},
+        {"date": "2026-09-25", "value_pln": "10829.70", "invested_pln": "10000.00", "net_flow_pln": "0.00",
+         "twr_pct": "8.30"},
+        {"date": "2026-09-26", "value_pln": "10829.70", "invested_pln": "10000.00", "net_flow_pln": "0.00",
+         "twr_pct": "8.30"},
     ]
     assert body["events"] == []
 
@@ -87,7 +90,7 @@ def test_full_history_starts_with_the_first_deposit_and_marks_operations(client:
 
     assert len(body["points"]) == 210
     assert body["points"][0] == {"date": "2026-03-01", "value_pln": "10000.00", "invested_pln": "10000.00",
-                                 "net_flow_pln": "10000.00"}
+                                 "net_flow_pln": "10000.00", "twr_pct": "0.00"}
     assert body["events"] == [
         {"date": "2026-03-01", "type": "deposit", "amount_pln": "10000.00"},
         {"date": "2026-03-02", "type": "buy", "amount_pln": "-4304.30"},
@@ -108,3 +111,10 @@ def test_summary_shows_all_fees(client: TestClient, world: dict, engine: Engine)
         db.commit()
 
     assert client.get("/api/portfolio/summary", headers=world["anna"]).json()["fees_pln"] == "-7.00"
+
+
+def test_summary_shows_the_time_weighted_return(client: TestClient, world: dict) -> None:
+    anna = client.get("/api/portfolio/summary", headers=world["anna"]).json()
+    bartek = client.get("/api/portfolio/summary", headers=world["bartek"]).json()
+
+    assert (anna["twr_pct"], bartek["twr_pct"]) == ("8.30", None)
