@@ -98,10 +98,17 @@ class Sale:
     cost_pln: Decimal
     position_id: str | None
     matched: bool  # the whole quantity came from the lot named by position_id
+    opened_on: dt.date  # the earliest purchase day of the lots sold
+    fx_effect_pln: Decimal  # Σ quantity × sale price × (NBP rate of the sale day − purchase rate), unrounded
 
     @property
     def realized_pln(self) -> Decimal:
         return self.proceeds_pln - self.cost_pln
+
+    @property
+    def price_effect_pln(self) -> Decimal:
+        """The realized gain minus the currency effect, in grosze: the two add up to the rounded gain exactly."""
+        return money(self.realized_pln) - money(self.fx_effect_pln)
 
 
 @dataclass(frozen=True)
@@ -168,6 +175,7 @@ class Book:
         self.flows: dict[tuple[int, dt.date], Decimal] = defaultdict(Decimal)
         self.dividends: dict[Key, Decimal] = defaultdict(Decimal)
         self.withholding: dict[Key, Decimal] = defaultdict(Decimal)
+        self.fees: dict[Key, Decimal] = defaultdict(Decimal)
         self.sales: list[Sale] = []
         self.trades: dict[Key, Series] = {}
         self._conversions = sorted(conversions, key=lambda c: (c.effective_date, c.instrument_id))
@@ -226,6 +234,8 @@ class Book:
             self.dividends[key] += self.to_pln(entry.amount, entry.currency, entry.day)
         elif entry.type == "withholding_tax":
             self.withholding[key] += self.to_pln(entry.amount, entry.currency, entry.day)
+        elif entry.type == "fee":
+            self.fees[key] += self.to_pln(entry.amount, entry.currency, entry.day)
         elif entry.type == "buy" and entry.quantity:
             self._buy(key, entry)
         elif entry.type == "sell" and entry.quantity:
@@ -251,21 +261,39 @@ class Book:
 
     def _sell(self, key: Key, entry: Entry) -> None:
         assert entry.quantity is not None and entry.instrument_id is not None
-        quantity = entry.quantity * self.factor(entry.instrument_id, entry.day)
+        factor = self.factor(entry.instrument_id, entry.day)
+        quantity = entry.quantity * factor
         proceeds = self.to_pln(entry.amount, entry.currency, entry.day)
         lots = self.lots[key]
         target = lots.get(entry.position_id) if entry.position_id else None
         matched = target is not None and target.quantity >= quantity
         cost, remaining = ZERO, quantity
+        parts: list[tuple[Lot, Decimal]] = []  # (lot, current units taken from it)
         if target is not None:
             taken = min(remaining, target.quantity)
+            parts.append((target, taken))
             cost += self._take(lots, target, taken)
             remaining -= taken
         if remaining > 0:
-            cost += self._take_pro_rata(lots, remaining)
+            pro_rata_cost, pro_rata_parts = self._take_pro_rata(lots, remaining)
+            cost += pro_rata_cost
+            parts += pro_rata_parts
         self.sales.append(Sale(entry.account_id, entry.instrument_id, entry.day, entry.quantity, proceeds, cost,
-                               entry.position_id, matched))
+                               entry.position_id, matched, min((lot.opened_on for lot, _ in parts), default=entry.day),
+                               self._sale_fx_effect(entry, factor, parts)))
         self._record_trade(key, entry.day, proceeds / quantity)
+
+    def _sale_fx_effect(self, entry: Entry, factor: Decimal, parts: list[tuple[Lot, Decimal]]) -> Decimal:
+        """Currency effect of a sale (spec §6, like an open lot's): 0 without the sale price, the quote currency's
+        rate or a lot's purchase rate."""
+        assert entry.instrument_id is not None
+        rate = self.market.rate(self.market.currencies.get(entry.instrument_id), entry.day)
+        if rate is None or entry.price is None:
+            return ZERO
+        unit_price = entry.price / factor  # per current unit
+        return sum(
+            (taken * unit_price * (rate - lot.fx_open) for lot, taken in parts if lot.fx_open is not None), ZERO
+        )
 
     @staticmethod
     def _take(lots: dict[str, Lot], lot: Lot, quantity: Decimal) -> Decimal:
@@ -279,15 +307,15 @@ class Book:
             del lots[lot.key]
         return cost
 
-    def _take_pro_rata(self, lots: dict[str, Lot], quantity: Decimal) -> Decimal:
+    def _take_pro_rata(self, lots: dict[str, Lot], quantity: Decimal) -> tuple[Decimal, list[tuple[Lot, Decimal]]]:
         """A sale without (enough of) a matching lot is taken from all open lots in proportion (average cost)."""
         held = sum((lot.quantity for lot in lots.values()), ZERO)
         if held <= 0:
-            return ZERO
-        if quantity >= held:  # everything: whole lots, no inexact share
-            return sum((self._take(lots, lot, lot.quantity) for lot in list(lots.values())), ZERO)
+            return ZERO, []
+        whole = quantity >= held  # everything: whole lots, no inexact share
         share = quantity / held
-        return sum((self._take(lots, lot, lot.quantity * share) for lot in list(lots.values())), ZERO)
+        parts = [(lot, lot.quantity if whole else lot.quantity * share) for lot in list(lots.values())]
+        return sum((self._take(lots, lot, taken) for lot, taken in parts), ZERO), parts
 
     def quote(self, account_id: int, instrument_id: int, day: dt.date) -> Quote | None:
         """Provider close × NBP rate; without either, the newest XTB figure on or before `day`: a trade of this

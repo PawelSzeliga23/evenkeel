@@ -25,6 +25,7 @@ class SummaryOut(BaseModel):
     day_change_pct: Decimal | None
     dividends_net_pln: Decimal
     interest_net_pln: Decimal
+    fees_pln: Decimal
     by_account: list[AllocationOut]
     by_kind: list[AllocationOut]
     approximate_positions: int
@@ -69,6 +70,7 @@ class PositionOut(BaseModel):
     price_effect_pln: Decimal
     fx_effect_pln: Decimal
     dividends_net_pln: Decimal
+    fees_pln: Decimal
     realized_pln: Decimal
     day_change_pln: Decimal
     share_pct: Decimal | None = None
@@ -92,10 +94,14 @@ class LotOut(BaseModel):
 
 class SaleOut(BaseModel):
     date: dt.date
+    opened_on: dt.date
+    holding_days: int
     quantity: Decimal
     proceeds_pln: Decimal
     cost_pln: Decimal
     realized_pln: Decimal
+    price_effect_pln: Decimal
+    fx_effect_pln: Decimal
     position_id: str | None
     matched: bool
 

@@ -22,6 +22,7 @@ PERCENT_PLACES = Decimal("0.01")
 QUANTITY_PLACES = Decimal("1e-8")  # quantities are stored with 8 decimal places
 DIVIDEND_TYPES = ("dividend", "withholding_tax")
 INTEREST_TYPES = ("interest", "interest_tax")
+FEE_TYPES = ("fee",)
 EVENT_TYPES = ("deposit", "withdrawal", "transfer_in", "transfer_out", "buy", "sell", "dividend")
 CASH_KIND = "cash"
 OTHER_KIND = "other"
@@ -66,17 +67,18 @@ def _allocation(groups: dict[str, tuple[str, Decimal]], total: Decimal) -> list[
 def portfolio_summary(scope: UserScope, account_id: int | None) -> SummaryOut:
     db = scope.db
     rows = _valuations(scope, account_id)
-    income = _transactions(scope, account_id, DIVIDEND_TYPES + INTEREST_TYPES)
+    income = _transactions(scope, account_id, DIVIDEND_TYPES + INTEREST_TYPES + FEE_TYPES)
     dividends = sum((amount_pln(db, t) for t in income if t.type in DIVIDEND_TYPES), ZERO)
     interest = sum((amount_pln(db, t) for t in income if t.type in INTEREST_TYPES), ZERO)
+    fees = sum((amount_pln(db, t) for t in income if t.type in FEE_TYPES), ZERO)
     recalculating = db.scalar(select(User.valuations_stale_from).where(User.id == scope.user.id)) is not None
     latest = db.scalar(rows.with_only_columns(func.max(DailyValuation.date)))
     if latest is None:
         return SummaryOut(
             as_of=None, value_pln=money(ZERO), cash_pln=money(ZERO), invested_pln=money(ZERO),
             total_gain_pln=money(ZERO), total_gain_pct=None, day_change_pln=None, day_change_pct=None,
-            dividends_net_pln=money(dividends), interest_net_pln=money(interest), by_account=[], by_kind=[],
-            approximate_positions=0, recalculating=recalculating,
+            dividends_net_pln=money(dividends), interest_net_pln=money(interest), fees_pln=money(fees),
+            by_account=[], by_kind=[], approximate_positions=0, recalculating=recalculating,
         )
     session = last_session(latest)
     previous = previous_session(session)
@@ -120,7 +122,7 @@ def portfolio_summary(scope: UserScope, account_id: int | None) -> SummaryOut:
         as_of=latest, value_pln=money(value), cash_pln=money(cash), invested_pln=money(invested),
         total_gain_pln=money(gain), total_gain_pct=percent(gain, invested) if invested > 0 else None,
         day_change_pln=day_change, day_change_pct=day_change_pct,
-        dividends_net_pln=money(dividends), interest_net_pln=money(interest),
+        dividends_net_pln=money(dividends), interest_net_pln=money(interest), fees_pln=money(fees),
         by_account=_allocation(by_account, value), by_kind=_allocation(by_kind, value),
         approximate_positions=approximate, recalculating=recalculating,
     )
@@ -167,7 +169,8 @@ def _instrument_item(book: Book, account: Account, instrument: Instrument, view:
     fields = {
         "kind": "instrument", "account_id": account.id, "account_name": account.name, "instrument_id": instrument.id,
         "ticker": instrument.xtb_ticker, "name": instrument.name, "category": instrument.category,
-        "currency": instrument.currency, "dividends_net_pln": money(dividends), "realized_pln": money(realized),
+        "currency": instrument.currency, "dividends_net_pln": money(dividends), "fees_pln": money(book.fees.get(key, ZERO)),
+        "realized_pln": money(realized),
     }
     if view is None:  # fully sold: only realized gain and income remain
         return PositionOut(
@@ -197,8 +200,8 @@ def _cash_item(book: Book, account: Account, day: dt.date) -> PositionOut:
         kind="cash", account_id=account.id, account_name=account.name, instrument_id=None, ticker=None, name=CASH_NAME,
         category=None, currency=book.account_currency[account.id], quantity=row.quantity or ZERO, price=None,
         price_date=None, price_source=None, value_pln=row.value_pln, cost_pln=row.value_pln, unrealized_pln=zero,
-        unrealized_pct=None, price_effect_pln=zero, fx_effect_pln=zero, dividends_net_pln=zero, realized_pln=zero,
-        day_change_pln=zero, flags=list(row.flags),
+        unrealized_pct=None, price_effect_pln=zero, fx_effect_pln=zero, dividends_net_pln=zero, fees_pln=zero,
+        realized_pln=zero, day_change_pln=zero, flags=list(row.flags),
     )
 
 
@@ -285,8 +288,10 @@ def position_detail(scope: UserScope, account: Account, instrument: Instrument, 
         ))
     key = (account.id, instrument.id)
     sales = [
-        SaleOut(date=s.day, quantity=s.quantity, proceeds_pln=money(s.proceeds_pln), cost_pln=money(s.cost_pln),
-                realized_pln=money(s.realized_pln), position_id=s.position_id, matched=s.matched)
+        SaleOut(date=s.day, opened_on=s.opened_on, holding_days=(s.day - s.opened_on).days, quantity=s.quantity,
+                proceeds_pln=money(s.proceeds_pln), cost_pln=money(s.cost_pln), realized_pln=money(s.realized_pln),
+                price_effect_pln=s.price_effect_pln, fx_effect_pln=money(s.fx_effect_pln),
+                position_id=s.position_id, matched=s.matched)
         for s in book.sales if (s.account_id, s.instrument_id) == key
     ]
     transactions = list(db.scalars(scope.transactions().where(

@@ -1,12 +1,13 @@
 import datetime as dt
 from collections.abc import Callable
+from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
-from app.models import User
+from app.models import Transaction, User
 from app.valuation.service import mark_stale
 from tests.valuation_seed import seed_holdings, seed_market, valuate
 
@@ -96,3 +97,14 @@ def test_full_history_starts_with_the_first_deposit_and_marks_operations(client:
 
 def test_portfolio_requires_login(client: TestClient) -> None:
     assert client.get("/api/portfolio/summary").status_code == 401
+
+
+def test_summary_shows_all_fees(client: TestClient, world: dict, engine: Engine) -> None:
+    with Session(engine) as db:
+        for external_id, amount in (("5", "-5.00"), ("6", "-2.00")):
+            db.add(Transaction(account_id=world["account_id"], type="fee", xtb_type="SEC fee",
+                               occurred_at=dt.datetime(2026, 9, 25, 10, 0, tzinfo=dt.UTC), amount=Decimal(amount),
+                               currency="PLN", external_id=external_id, comment="", raw={}))
+        db.commit()
+
+    assert client.get("/api/portfolio/summary", headers=world["anna"]).json()["fees_pln"] == "-7.00"

@@ -4,7 +4,7 @@ from decimal import Decimal as D
 from app.valuation.engine import Book, Entry, Split, daily_rows, money
 from app.valuation.market_data import MarketData, Series
 
-MAR_01, MAR_02, MAR_05, JUN_01 = dt.date(2026, 3, 1), dt.date(2026, 3, 2), dt.date(2026, 3, 5), dt.date(2026, 6, 1)
+MAR_01, MAR_02, MAR_05, JUN_01, JUN_02 = dt.date(2026, 3, 1), dt.date(2026, 3, 2), dt.date(2026, 3, 5), dt.date(2026, 6, 1), dt.date(2026, 6, 2)
 ACCOUNT, USD_ACCOUNT, SXR8 = 1, 2, 1
 
 
@@ -13,6 +13,11 @@ def _market() -> MarketData:
         currencies={SXR8: "EUR"},
         fx={"EUR": Series([(MAR_02, D("4.30"))]), "USD": Series([(MAR_01, D("4.00"))])},
     )
+
+
+def _eur_market() -> MarketData:
+    """SXR8 in EUR: 4.30 on the purchase day, 4.50 on the sale day."""
+    return MarketData(currencies={SXR8: "EUR"}, fx={"EUR": Series([(MAR_02, D("4.30")), (JUN_02, D("4.50"))])})
 
 
 def _entry(
@@ -155,3 +160,34 @@ def test_series_lookups() -> None:
     assert series.on(JUN_01) == (JUN_01, D("4"))
     assert MarketData().rate("PLN", MAR_01) == D(1)
     assert MarketData().rate(None, MAR_01) is None
+
+
+def test_fees_are_kept_per_instrument_and_account() -> None:
+    book = _book(_entry(1, "fee", MAR_02, "-5.00", instrument=SXR8), _entry(2, "fee", MAR_02, "-2.00"))
+
+    assert dict(book.fees) == {(ACCOUNT, SXR8): D("-5.00")}
+
+
+def test_realized_gain_splits_into_price_and_currency_effects() -> None:
+    buy = _entry(1, "buy", MAR_02, "-4304.30", instrument=SXR8, quantity="2", position="777")
+    sell = Entry(2, ACCOUNT, SXR8, "sell", JUN_02, D("4950.00"), "PLN", D("2"), D("550"), "777")
+    book = Book((), _eur_market())
+    book.apply(buy)
+    book.apply(sell)
+
+    (sale,) = book.sales
+    # 2 × 550 EUR × (4.50 − 4.30) = 220 zł currency effect; the rest of 645.70 zł is the price effect
+    assert (sale.opened_on, money(sale.fx_effect_pln), sale.price_effect_pln, money(sale.realized_pln)) == (
+        MAR_02, D("220.00"), D("425.70"), D("645.70"))
+
+
+def test_sale_without_a_known_quote_currency_has_no_currency_effect() -> None:
+    unknown = 9
+    buy = _entry(1, "buy", MAR_02, "-400", instrument=unknown, quantity="4", position="6")
+    sell = Entry(2, ACCOUNT, unknown, "sell", JUN_02, D("480"), "PLN", D("4"), D("120"), "6")
+    book = Book((), _eur_market())
+    book.apply(buy)
+    book.apply(sell)
+
+    (sale,) = book.sales
+    assert (sale.fx_effect_pln, sale.price_effect_pln) == (D(0), D("80.00"))

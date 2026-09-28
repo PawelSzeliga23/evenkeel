@@ -160,3 +160,38 @@ def test_sold_out_position_leaves_the_list_but_keeps_its_realized_gain(
 def test_someone_elses_position_is_404(client: TestClient, world: dict) -> None:
     response = client.get(f"/api/positions/{world['account_id']}/{world['instrument_id']}", headers=world["bartek"])
     assert (response.status_code, response.json()["code"]) == (404, "not_found")
+
+
+def _add(engine: Engine, world: dict, external_id: str, type_: str, amount: str, **fields: object) -> None:
+    with Session(engine) as db:
+        db.add(Transaction(account_id=world["account_id"], type=type_, xtb_type=type_,
+                           occurred_at=dt.datetime(2026, 9, 25, 10, 0, tzinfo=dt.UTC), amount=Decimal(amount),
+                           currency="PLN", external_id=external_id, comment="", raw={}, **fields))
+        db.commit()
+
+
+def test_fees_of_the_instrument_are_a_separate_part_of_the_gain(
+    client: TestClient, world: dict, engine: Engine
+) -> None:
+    _add(engine, world, "5", "fee", "-5.00", instrument_id=world["instrument_id"])
+    _add(engine, world, "6", "fee", "-2.00")
+
+    (instrument, _cash) = client.get("/api/positions", params=ON, headers=world["anna"]).json()
+
+    assert instrument["fees_pln"] == "-5.00"
+
+
+def test_sale_shows_its_holding_time_and_the_price_and_currency_effects(
+    client: TestClient, world: dict, engine: Engine
+) -> None:
+    _add(engine, world, "5", "sell", "2550.00", instrument_id=world["instrument_id"], quantity=Decimal("1"),
+         price=Decimal("600"), xtb_position_id="777")
+
+    (sale,) = _detail(client, world)["sales"]
+
+    # cost ½ × 4 304.30 = 2 152.15; currency effect 1 × 600 EUR × (4.25 − 4.30) = −30.00
+    assert {key: sale[key] for key in ("opened_on", "holding_days", "realized_pln", "price_effect_pln",
+                                       "fx_effect_pln")} == {
+        "opened_on": "2026-03-02", "holding_days": 207, "realized_pln": "397.85", "price_effect_pln": "427.85",
+        "fx_effect_pln": "-30.00",
+    }
