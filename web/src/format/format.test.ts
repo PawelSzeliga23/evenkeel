@@ -4,8 +4,8 @@ import {
   fromCents, moneyParts, monthShort, signOf, sumMoney, toCents, todayIso, NBSP,
 } from ".";
 
-const S = " ";
-const M = "−";
+const S = "\u00a0";
+const M = "\u2212";
 
 describe("decimal", () => {
   it("rounds half up to the grosz on the text, never through a float", () => {
@@ -33,7 +33,7 @@ describe("decimal", () => {
 
 describe("money", () => {
   it("writes Polish amounts with a space in every thousand", () => {
-    expect(NBSP).toBe(" ");
+    expect(NBSP).toBe("\u00a0");
     expect(formatMoney("184302.17")).toBe(`184${S}302,17${S}zł`);
     expect(formatMoney("1204.5")).toBe(`1${S}204,50${S}zł`);
     expect(formatMoney("10000.0000")).toBe(`10${S}000,00${S}zł`);

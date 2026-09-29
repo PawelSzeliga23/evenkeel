@@ -1,4 +1,5 @@
 .splash { min-height: 100dvh; background: var(--night); }
+.offline { min-height: 100dvh; background: var(--night); display: grid; place-items: center; padding: 24px 16px; }
 .screen {
   min-height: 100dvh;
   display: grid;
@@ -33,4 +34,4 @@
 }
 .primary:disabled { opacity: .6; cursor: default; }
 .switch { color: var(--dim); font-size: 14px; }
-.switch a { color: var(--amber); }
+.switch a { color: var(--amber); display: inline-flex; align-items: center; min-height: 44px; padding-inline: 4px; }

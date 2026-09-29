@@ -4,8 +4,8 @@ import { ACCOUNTS, DETAIL, POSITIONS } from "../../test/fixtures";
 import { SIGNED_IN, json, mockFetch, renderApp, type MockRoute } from "../../test/render";
 import { groupPositions, subtitleFor } from "./model";
 
-const S = " ";
-const M = "−";
+const S = "\u00a0";
+const M = "\u2212";
 const T = " ";
 
 const LIST: MockRoute[] = [

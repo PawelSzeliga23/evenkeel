@@ -7,11 +7,11 @@ export function Nav() {
     <nav className={styles.nav} aria-label="Główna">
       <NavLink to="/" end className={styles.item}><DashboardIcon />Pulpit</NavLink>
       <NavLink to="/pozycje" className={styles.item}><PositionsIcon />Pozycje</NavLink>
-      <NavLink to="/dodaj" className={`${styles.item} ${styles.add}`}>
+      <NavLink to="/dodaj" className={styles.item}>
         <span className={styles.plus}><AddIcon /></span>Dodaj
       </NavLink>
       <span className={`${styles.item} ${styles.disabled}`} aria-disabled="true" title="Wkrótce">
-        <HistoryIcon />Historia
+        <HistoryIcon />Historia<small className={styles.soon}>wkrótce</small>
       </span>
       <NavLink to="/wiecej" className={styles.item}><MoreIcon />Więcej</NavLink>
     </nav>

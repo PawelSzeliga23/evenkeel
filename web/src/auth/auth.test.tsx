@@ -82,13 +82,25 @@ describe("session", () => {
     expect(await screen.findByText("Sesja wygasła, zaloguj się ponownie.")).toBeInTheDocument();
   });
 
-  it("shows the connection problem instead of failing silently when the API is down", async () => {
+  it("shows the connection problem full screen when the API is down at startup and retries on demand", async () => {
     const fetchMock = mockFetch([]);
     fetchMock.mockImplementation(() => Promise.reject(new TypeError("Failed to fetch")));
     const { user } = renderRoutes(ROUTES, "/");
 
+    expect(await screen.findByRole("alert")).toHaveTextContent(NETWORK_MESSAGE);
+    expect(screen.queryByLabelText("E-mail")).not.toBeInTheDocument();
+
+    mockFetch([...SIGNED_IN, SUMMARY]);
+    await user.click(screen.getByRole("button", { name: "Spróbuj ponownie" }));
+    expect(await screen.findByText(WELCOME)).toBeInTheDocument();
+  });
+
+  it("shows the connection problem on the login form when the API goes down after the page opened", async () => {
+    const fetchMock = mockFetch([NO_SESSION]);
+    const { user } = renderRoutes(ROUTES, "/");
     await user.type(await screen.findByLabelText("E-mail"), "anna@portfolio.dev");
     await user.type(screen.getByLabelText("Hasło"), "haslo-123456");
+    fetchMock.mockImplementation(() => Promise.reject(new TypeError("Failed to fetch")));
     await user.click(screen.getByRole("button", { name: "Zaloguj się" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(NETWORK_MESSAGE);
   });

@@ -10,7 +10,9 @@ describe("app shell", () => {
     const nav = await screen.findByRole("navigation", { name: "Główna" });
     expect(within(nav).getByRole("link", { name: "Więcej" })).toHaveAttribute("aria-current", "page");
     expect(within(nav).getByRole("link", { name: "Dodaj" })).toHaveAttribute("href", "/dodaj");
-    expect(within(nav).getByText("Historia")).toHaveAttribute("aria-disabled", "true");
+    const history = within(nav).getByText("Historia", { exact: false }).closest("[aria-disabled]");
+    expect(history).toHaveAttribute("aria-disabled", "true");
+    expect(within(nav).getByText("wkrótce")).toBeVisible();
   });
 
   it("shows who is signed in and signs out to the login screen", async () => {

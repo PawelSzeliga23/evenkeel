@@ -6,6 +6,7 @@ import type { RegisterIn, UserOut } from "../api/types";
 
 export type SessionState =
   | { status: "loading" }
+  | { status: "offline" }
   | { status: "anonymous"; expired: boolean }
   | { status: "signedIn"; user: UserOut };
 
@@ -14,6 +15,8 @@ interface Session {
   signIn(email: string, password: string): Promise<void>;
   register(body: RegisterIn): Promise<void>;
   signOut(): Promise<void>;
+  /** runs the startup restore again after it failed for lack of a connection */
+  retry(): void;
 }
 
 const SessionContext = createContext<Session | null>(null);
@@ -21,6 +24,7 @@ const SessionContext = createContext<Session | null>(null);
 export function SessionProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [state, setState] = useState<SessionState>({ status: "loading" });
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     setSessionExpiredHandler(() => {
@@ -34,22 +38,33 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (await refreshSession()) {
           const user = await api.me();
           if (!cancelled) setState({ status: "signedIn", user });
-          return;
+        } else if (!cancelled) {
+          setState({ status: "anonymous", expired: false });
         }
       } catch {
-        // no connection: the login screen says so on the first attempt
+        if (!cancelled) setState({ status: "offline" });
       }
-      if (!cancelled) setState({ status: "anonymous", expired: false });
     })();
     return () => {
       cancelled = true;
     };
-  }, [queryClient]);
+  }, [queryClient, attempt]);
+
+  const retry = useCallback(() => {
+    setState({ status: "loading" });
+    setAttempt((n) => n + 1);
+  }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const token = await api.login(email, password);
     setAccessToken(token.access_token);
-    const user = await api.me();
+    let user: UserOut;
+    try {
+      user = await api.me();
+    } catch (error) {
+      setAccessToken(null);
+      throw error;
+    }
     setState({ status: "signedIn", user });
   }, []);
 
@@ -68,7 +83,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, [queryClient]);
 
-  const value = useMemo(() => ({ state, signIn, register, signOut }), [state, signIn, register, signOut]);
+  const value = useMemo(() => ({ state, signIn, register, signOut, retry }), [state, signIn, register, signOut, retry]);
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 

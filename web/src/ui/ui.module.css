@@ -8,7 +8,7 @@
 .section { display: grid; gap: 12px; }
 .sectionHead { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .sectionTitle { font-size: 17px; font-weight: 600; }
-.sectionMore { color: var(--dim); font-size: 13px; }
+.sectionMore { color: var(--dim); font-size: 13px; display: inline-flex; align-items: center; min-height: 44px; }
 .kv { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; margin: 0; }
 .kv dt { color: var(--dim); }
 .kv dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
