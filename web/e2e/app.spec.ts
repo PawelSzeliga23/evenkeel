@@ -34,6 +34,14 @@ test("rejestracja, import eksportu XTB, pulpit, pozycje i szczegóły pozycji", 
   await expect(page.getByRole("heading", { name: "CD Projekt" })).toBeVisible();
   await expect(page.getByText("Zgodne z XTB")).toBeVisible();
   await page.screenshot({ path: `${SCREENS}/pozycja.png`, fullPage: true });
+
+  await page.goto("/ekspozycja");
+  await expect(page.getByRole("img", { name: /Udział walut w czasie/ })).toBeVisible();
+  await page.screenshot({ path: `${SCREENS}/ekspozycja.png`, fullPage: true });
+
+  await page.goto("/limity");
+  await expect(page.getByRole("heading", { name: "Limity IKE i IKZE" })).toBeVisible();
+  await page.screenshot({ path: `${SCREENS}/limity.png`, fullPage: true });
 });
 
 test("konto oszczędnościowe: założenie, odsetki, historia i usunięcie wpłaty", async ({ page }) => {
@@ -68,4 +76,39 @@ test("konto oszczędnościowe: założenie, odsetki, historia i usunięcie wpła
   await page.getByRole("group", { name: "Potwierdzenie" }).getByRole("button", { name: "Usuń" }).click();
   await expect(page.getByRole("listitem").filter({ hasText: "500,00" })).toHaveCount(0);
   await page.screenshot({ path: `${SCREENS}/historia.png`, fullPage: true });
+});
+
+test("ustawienia: zmiana hasła, logowanie nowym hasłem, zamknięte inwestycje i limity", async ({ page }) => {
+  const email = `e2e-settings-${Date.now()}@portfolio.dev`;
+  await page.goto("/rejestracja");
+  await page.getByLabel("E-mail").fill(email);
+  await page.getByLabel("Hasło").fill("e2e-haslo-12345");
+  await page.getByRole("button", { name: "Załóż konto" }).click();
+  await expect(page.getByText("Wgraj eksport z XTB, żeby zobaczyć swój portfel.")).toBeVisible();
+
+  await page.getByRole("navigation", { name: "Główna" }).getByRole("link", { name: "Ustawienia" }).click();
+  await page.getByRole("link", { name: "Zmień hasło" }).click();
+  await page.getByLabel("Obecne hasło").fill("e2e-haslo-12345");
+  await page.getByLabel("Nowe hasło", { exact: true }).fill("e2e-nowe-haslo-678");
+  await page.getByLabel("Powtórz nowe hasło").fill("e2e-nowe-haslo-678");
+  await page.getByRole("button", { name: "Zmień hasło" }).click();
+  await expect(page.getByText("Hasło zmienione. Inne urządzenia zostaną wylogowane.")).toBeVisible();
+  await page.screenshot({ path: `${SCREENS}/ustawienia.png`, fullPage: true });
+
+  await page.getByRole("button", { name: "Wyloguj" }).click();
+  await page.getByLabel("E-mail").fill(email);
+  await page.getByLabel("Hasło").fill("e2e-haslo-12345");
+  await page.getByRole("button", { name: "Zaloguj się" }).click();
+  await expect(page.getByRole("alert")).toBeVisible();
+  await page.getByLabel("Hasło").fill("e2e-nowe-haslo-678");
+  await page.getByRole("button", { name: "Zaloguj się" }).click();
+  // the login returns to the page the user was on (settings)
+  await expect(page.getByRole("heading", { name: "Ustawienia", level: 1 })).toBeVisible();
+
+  await page.getByRole("navigation", { name: "Główna" }).getByRole("link", { name: "Pozycje" }).click();
+  await page.getByRole("button", { name: "Zamknięte" }).click();
+  await expect(page.getByText("Nie masz jeszcze zamkniętych inwestycji.")).toBeVisible();
+
+  await page.goto("/limity");
+  await expect(page.getByText("Nie masz konta IKE ani IKZE.")).toBeVisible();
 });
