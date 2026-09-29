@@ -3,6 +3,7 @@ import { LoginScreen } from "./auth/LoginScreen";
 import { RegisterScreen } from "./auth/RegisterScreen";
 import { GuestOnly, RequireAuth } from "./auth/RequireAuth";
 import { AddScreen } from "./screens/add/AddScreen";
+import { BondDetailScreen } from "./screens/bonds/BondDetailScreen";
 import { BondForm } from "./screens/add/BondForm";
 import { CashForm } from "./screens/add/CashForm";
 import { SavingsForm } from "./screens/add/SavingsForm";
@@ -29,6 +30,7 @@ export const appRoutes: RouteObject[] = [
         children: [
           { path: "/", element: <DashboardScreen /> },
           { path: "/pozycje", element: <PositionsScreen /> },
+          { path: "/pozycje/obligacje/:holdingId", element: <BondDetailScreen /> },
           { path: "/pozycje/:accountId/:instrumentId", element: <PositionDetailScreen /> },
           { path: "/dodaj", element: <AddScreen /> },
           { path: "/dodaj/xtb", element: <ImportScreen /> },
