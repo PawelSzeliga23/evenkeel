@@ -1,6 +1,6 @@
 import { request } from "./client";
 import type {
-  Account, AccountCreate, BondDetail, BondIn, BondOut, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Position, PositionDetail, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, TokenOut, Transaction, TransactionIn, UserOut,
+  Account, AccountCreate, AccountUpdate, AccountUsage, Instrument, BondDetail, BondIn, BondOut, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Position, PositionDetail, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, TokenOut, Transaction, TransactionIn, UserOut,
 } from "./types";
 
 function filesForm(files: File[]): FormData {
@@ -32,6 +32,14 @@ export const api = {
   logout: () => request<void>("/api/auth/logout", { method: "POST", auth: false }),
   me: () => request<UserOut>("/api/auth/me"),
   accounts: () => request<Account[]>("/api/accounts"),
+  changePassword: (current: string, next: string) =>
+    request<void>("/api/auth/password", { method: "POST", json: { current_password: current, new_password: next } }),
+  updateAccount: (id: number, body: AccountUpdate) => request<Account>(`/api/accounts/${id}`, { method: "PATCH", json: body }),
+  deleteAccount: (id: number) => request<void>(`/api/accounts/${id}`, { method: "DELETE" }),
+  accountUsage: (id: number) => request<AccountUsage>(`/api/accounts/${id}/usage`),
+  instruments: () => request<Instrument[]>("/api/instruments"),
+  updateInstrument: (id: number, priceSymbol: string | null) =>
+    request<Instrument>(`/api/instruments/${id}`, { method: "PATCH", json: { price_symbol: priceSymbol } }),
   summary: (accountId: number | null) => request<Summary>("/api/portfolio/summary", { query: { account_id: accountId } }),
   history: (accountId: number | null, from: IsoDate | null) =>
     request<History>("/api/portfolio/history", { query: { account_id: accountId, from } }),

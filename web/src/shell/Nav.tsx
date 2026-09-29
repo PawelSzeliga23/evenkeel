@@ -1,5 +1,5 @@
 import { NavLink } from "react-router";
-import { AddIcon, DashboardIcon, HistoryIcon, MoreIcon, PositionsIcon } from "./icons";
+import { AddIcon, DashboardIcon, HistoryIcon, SettingsIcon, PositionsIcon } from "./icons";
 import styles from "./shell.module.css";
 
 export function Nav() {
@@ -11,7 +11,7 @@ export function Nav() {
         <span className={styles.plus}><AddIcon /></span>Dodaj
       </NavLink>
       <NavLink to="/historia" className={styles.item}><HistoryIcon />Historia</NavLink>
-      <NavLink to="/wiecej" className={styles.item}><MoreIcon />Więcej</NavLink>
+      <NavLink to="/ustawienia" className={styles.item}><SettingsIcon />Ustawienia</NavLink>
     </nav>
   );
 }

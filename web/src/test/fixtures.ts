@@ -1,4 +1,4 @@
-import type { Account, Exposure, History, ImportFile, ImportResult, Position, PositionDetail, Summary } from "../api/types";
+import type { Account, Exposure, History, Instrument, ImportFile, ImportResult, Position, PositionDetail, Summary } from "../api/types";
 
 export const ACCOUNTS: Account[] = [
   { id: 1, name: "IKE", kind: "broker", wrapper: "ike", broker: "xtb", external_account_number: "56216965",
@@ -118,3 +118,16 @@ export const IMPORT_FILE: ImportFile = {
 };
 
 export const PREVIEW: ImportResult = { files: [IMPORT_FILE], errors: [], skipped: [] };
+
+export function instrument(overrides: Partial<Instrument>): Instrument {
+  return {
+    id: 10, xtb_ticker: "SXR8.DE", name: "Core S&P 500", category: "ETF", currency: "EUR", price_symbol: "SXR8.DE",
+    price_symbol_overridden: false, price_error: null, last_price: "612.3400", last_price_date: "2026-09-26",
+    ...overrides,
+  };
+}
+
+export const BROKEN = instrument({
+  id: 11, xtb_ticker: "EIMI.UK", name: "Core MSCI EM", price_symbol: "EIMI.UK", last_price: null,
+  last_price_date: null, price_error: "Dostawca nie zna symbolu EIMI.UK.",
+});

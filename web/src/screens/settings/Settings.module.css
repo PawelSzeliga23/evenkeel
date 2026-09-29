@@ -1,0 +1,15 @@
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.list { display: grid; }
+.panel { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--rule); border-radius: var(--r-sheet); }
+.danger { display: grid; gap: 12px; padding-top: 12px; border-top: 1px solid var(--rule); }
+.source { border-top: 1px solid var(--rule); }
+.source:first-child { border-top: 0; }
+.sourceHead {
+  display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; width: 100%; min-height: 60px;
+  padding: 11px 0; background: none; border: 0; color: var(--ink); text-align: left; cursor: pointer; font: inherit;
+}
+.sourceHead b { font-weight: 500; }
+.sourceHead small { display: block; color: var(--dim); font-size: 12.5px; }
+.problem { color: var(--loss); }
+.sourceEdit { display: grid; gap: 12px; padding: 0 0 14px; }
+.start { justify-self: start; }

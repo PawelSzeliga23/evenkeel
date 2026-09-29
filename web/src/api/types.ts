@@ -164,6 +164,21 @@ export interface ImportFileError { filename: string; code: string; message: stri
 export interface ImportResult { files: ImportFile[]; errors: ImportFileError[]; skipped: string[] }
 
 export interface AccountCreate { name: string; kind: Account["kind"]; wrapper?: Account["wrapper"] }
+export interface AccountUpdate { name?: string; wrapper?: Account["wrapper"] }
+export interface AccountUsage { transactions: number; imports: number; bond_holdings: number; savings_entries: number }
+
+export interface Instrument {
+  id: number;
+  xtb_ticker: string;
+  name: string;
+  category: string | null;
+  currency: string | null;
+  price_symbol: string | null;
+  price_symbol_overridden: boolean;
+  price_error: string | null;
+  last_price: Money | null;
+  last_price_date: IsoDate | null;
+}
 
 export type CashOperationType = "deposit" | "withdrawal" | "interest" | "fee";
 export interface TransactionIn { account_id: number; type: CashOperationType; amount: Money; date: IsoDate; comment: string }

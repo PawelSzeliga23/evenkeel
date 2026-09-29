@@ -12,9 +12,9 @@ import { HistoryScreen } from "./screens/history/HistoryScreen";
 import { ImportScreen } from "./screens/import/ImportScreen";
 import { PositionDetailScreen } from "./screens/positions/PositionDetailScreen";
 import { PositionsScreen } from "./screens/positions/PositionsScreen";
+import { SettingsScreen } from "./screens/settings/SettingsScreen";
 import { SavingsDetailScreen } from "./screens/savings/SavingsDetailScreen";
 import { AppShell } from "./shell/AppShell";
-import { MoreScreen } from "./shell/MoreScreen";
 
 export const appRoutes: RouteObject[] = [
   {
@@ -41,7 +41,8 @@ export const appRoutes: RouteObject[] = [
           { path: "/dodaj/obligacja", element: <BondForm /> },
           { path: "/dodaj/operacja", element: <CashForm /> },
           { path: "/dodaj/konto-oszczednosciowe", element: <SavingsForm /> },
-          { path: "/wiecej", element: <MoreScreen /> },
+          { path: "/ustawienia", element: <SettingsScreen /> },
+          { path: "/wiecej", element: <Navigate to="/ustawienia" replace /> },
           { path: "*", element: <Navigate to="/" replace /> },
         ],
       },
