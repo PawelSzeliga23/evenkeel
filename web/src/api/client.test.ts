@@ -50,6 +50,15 @@ describe("request", () => {
     await expect(request("/api/portfolio/summary")).rejects.toMatchObject({ code: "network", message: NETWORK_MESSAGE });
   });
 
+  it("reports a gateway failure (the dev proxy answers 502 when the API is down) as a lost connection", async () => {
+    const expired = vi.fn();
+    setSessionExpiredHandler(expired);
+    handler = () => new Response(null, { status: 502 });
+
+    await expect(request("/api/portfolio/summary")).rejects.toMatchObject({ code: "network", message: NETWORK_MESSAGE });
+    expect(expired).not.toHaveBeenCalled();
+  });
+
   it("refreshes once for many parallel 401s and repeats each request with the new token", async () => {
     let refreshes = 0;
     handler = async (url, init) => {
@@ -103,6 +112,32 @@ describe("request", () => {
 });
 
 describe("refreshSession", () => {
+  it("runs the refresh inside the cross-tab lock when the browser has one", async () => {
+    const names: string[] = [];
+    const locks = {
+      request: vi.fn(async (name: string, callback: () => Promise<unknown>) => {
+        names.push(name);
+        return callback();
+      }),
+    };
+    Object.defineProperty(navigator, "locks", { configurable: true, value: locks });
+    try {
+      handler = () => json(200, { access_token: "locked", token_type: "bearer" });
+      await expect(refreshSession()).resolves.toBe(true);
+      expect(names).toEqual(["portfolio-refresh"]);
+      expect(getAccessToken()).toBe("locked");
+    } finally {
+      delete (navigator as unknown as { locks?: unknown }).locks;
+    }
+  });
+
+  it("starts a fresh refresh after a failed one", async () => {
+    handler = () => Promise.reject(new TypeError("Failed to fetch"));
+    await expect(refreshSession()).rejects.toMatchObject({ code: "network" });
+    handler = () => json(200, { access_token: "again", token_type: "bearer" });
+    await expect(refreshSession()).resolves.toBe(true);
+  });
+
   it("returns false and clears the token when there is no session", async () => {
     handler = () => json(401, { code: "invalid_refresh", message: "x", details: {} });
     await expect(refreshSession()).resolves.toBe(false);

@@ -44,32 +44,40 @@ async function toApiError(response: Response): Promise<ApiError> {
   return new ApiError(response.status, "http_error", `Serwer odpowiedział błędem ${response.status}. Spróbuj ponownie.`);
 }
 
-/** Exchanges the httpOnly refresh cookie for a new access token. Concurrent callers share one request. */
+function isGatewayFailure(response: Response): boolean {
+  return response.status === 502 || response.status === 503 || response.status === 504;
+}
+
+async function doRefresh(): Promise<boolean> {
+  let response: Response;
+  try {
+    response = await fetch("/api/auth/refresh", { method: "POST", credentials: "same-origin" });
+  } catch {
+    throw networkError();
+  }
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      accessToken = null;
+      return false;
+    }
+    if (isGatewayFailure(response)) throw networkError();
+    throw await toApiError(response);
+  }
+  accessToken = ((await response.json()) as { access_token: string }).access_token;
+  return true;
+}
+
+/**
+ * Exchanges the httpOnly refresh cookie for a new access token. Concurrent callers share one request, and
+ * tabs take turns (the API treats a reused, already rotated refresh token as theft and ends every session).
+ */
 export function refreshSession(): Promise<boolean> {
   refreshing ??= (async () => {
-    try {
-      let response: Response;
-      try {
-        response = await fetch("/api/auth/refresh", { method: "POST", credentials: "same-origin" });
-      } catch {
-        throw networkError();
-      }
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          accessToken = null;
-          return false;
-        }
-        if (response.status === 502 || response.status === 503 || response.status === 504) {
-          throw networkError();
-        }
-        throw await toApiError(response);
-      }
-      accessToken = ((await response.json()) as { access_token: string }).access_token;
-      return true;
-    } finally {
-      refreshing = null;
-    }
-  })();
+    const locks = typeof navigator === "undefined" ? undefined : navigator.locks;
+    return locks ? locks.request("portfolio-refresh", doRefresh) : doRefresh();
+  })().finally(() => {
+    refreshing = null;
+  });
   return refreshing;
 }
 
@@ -114,12 +122,18 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     }
   };
 
-  let response = await send();
+  const sendChecked = async () => {
+    const result = await send();
+    if (isGatewayFailure(result)) throw networkError();
+    return result;
+  };
+
+  let response = await sendChecked();
   if (response.status === 401 && useSession) {
     if (accessToken !== null && accessToken !== sentWith) {
-      response = await send(); // another request refreshed the session meanwhile
+      response = await sendChecked(); // another request refreshed the session meanwhile
     } else if (await refreshSession()) {
-      response = await send();
+      response = await sendChecked();
     } else {
       onSessionExpired();
       throw await toApiError(response);
