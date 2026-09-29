@@ -7,6 +7,7 @@ from app.models.fixed_income import (
     BondSeries,
     SavingsAccount,
     SavingsBalance,
+    SavingsFlow,
     SavingsRate,
 )
 from app.models.instrument import Instrument
@@ -33,6 +34,6 @@ __all__ = [
     "ACCOUNT_KINDS", "BOND_TYPES", "CAPITALIZATIONS", "CORPORATE_ACTION_SOURCES", "CORPORATE_ACTION_TYPES",
     "SNAPSHOT_KINDS", "TRANSACTION_TYPES", "WRAPPER_LIMIT_KINDS", "WRAPPERS", "Account", "Base", "BondHolding",
     "BondSeries", "CorporateAction", "Cpi", "DailyValuation", "FxRate", "ImportRecord", "Instrument", "NbpRefRate",
-    "PositionLot", "Price", "RefreshToken", "SavingsAccount", "SavingsBalance", "SavingsRate", "Transaction", "User",
+    "PositionLot", "Price", "RefreshToken", "SavingsAccount", "SavingsBalance", "SavingsFlow", "SavingsRate", "Transaction", "User",
     "WrapperLimit", "XtbSnapshot",
 ]

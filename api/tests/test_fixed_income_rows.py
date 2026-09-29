@@ -75,3 +75,13 @@ def test_day_view_gives_the_row_and_its_change_net_of_the_days_flow() -> None:
     assert (row.value_pln, change) == (D("1001.30"), D("0.10"))
     assert day_view(bond_rows([_holding()], {}, BOUGHT, BOUGHT), BOUGHT)[1] == D("0.00")  # the purchase is a flow
     assert day_view(rows, dt.date(2026, 9, 27)) is None
+
+
+def test_savings_rows_follow_deposits() -> None:
+    sep_01, sep_30 = dt.date(2026, 9, 1), dt.date(2026, 9, 30)
+    account = SavingsInput(1, 10, "monthly", True, [], [(sep_01, D("5"))], flows=[(sep_01, D("10000"))])
+
+    rows = savings_rows([account], sep_01, sep_30)
+
+    assert (rows[0].net_flow_pln, rows[0].savings_account_id) == (D("10000.00"), 1)
+    assert (rows[-1].value_pln, rows[-1].cost_pln, rows[-1].net_flow_pln) == (D("10032.18"), D("10000.00"), D("0.00"))

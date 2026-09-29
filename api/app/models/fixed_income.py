@@ -1,9 +1,10 @@
 """Treasury bonds and savings accounts. Series are shared (like prices); holdings, rates and balances belong to
 the owner of their account."""
 import datetime as dt
+from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, Date, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -99,3 +100,18 @@ class SavingsBalance(Base):
     savings_account_id: Mapped[int] = mapped_column(ForeignKey("savings_accounts.id", ondelete="CASCADE"))
     as_of_date: Mapped[dt.date] = mapped_column(Date)
     balance: Mapped[Decimal] = mapped_column(MONEY)
+
+
+class SavingsFlow(Base):
+    """A deposit (+) or withdrawal (−) on a savings account, entered by its owner."""
+
+    __tablename__ = "savings_flows"
+    __table_args__ = (CheckConstraint("amount <> 0", name="amount_not_zero"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    savings_account_id: Mapped[int] = mapped_column(ForeignKey("savings_accounts.id", ondelete="CASCADE"),
+                                                    index=True)
+    date: Mapped[dt.date] = mapped_column(Date)
+    amount: Mapped[Decimal] = mapped_column(MONEY)
+    note: Mapped[str] = mapped_column(Text, server_default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -46,7 +46,10 @@ export function subtitleFor(p: Position): string {
 }
 
 export function positionLink(p: Position): string | undefined {
-  return p.kind === "instrument" && p.instrument_id !== null ? `/pozycje/${p.account_id}/${p.instrument_id}` : undefined;
+  if (p.kind === "instrument" && p.instrument_id !== null) return `/pozycje/${p.account_id}/${p.instrument_id}`;
+  if (p.kind === "bond" && p.bond_holding_id !== null) return `/pozycje/obligacje/${p.bond_holding_id}`;
+  if (p.kind === "savings") return `/pozycje/oszczednosci/${p.account_id}`;
+  return undefined;
 }
 
 const TRANSACTION_LABELS: Record<string, string> = {

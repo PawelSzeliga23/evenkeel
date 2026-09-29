@@ -1,0 +1,17 @@
+.form { display: grid; gap: 18px; max-width: 480px; }
+.field { display: grid; gap: 6px; font-size: 14px; color: var(--dim); }
+.field input, .field select {
+  min-height: 46px; padding: 0 14px; background: var(--slab); border: 1px solid var(--rule);
+  border-radius: var(--r-control); color: var(--ink); font-size: 16px; width: 100%;
+}
+.field input[aria-invalid="true"] { border-color: var(--loss); }
+.hint { font-size: 12.5px; }
+.error { color: var(--loss); font-size: 13.5px; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.success { display: grid; gap: 12px; justify-items: start; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.confirm { display: grid; gap: 10px; padding: 12px 14px; border: 1px solid var(--rule); border-radius: var(--r-control); background: var(--slab); }
+.danger, .cancel { min-height: 44px; padding: 0 16px; border-radius: var(--r-control); cursor: pointer; font-weight: 500; }
+.danger { background: none; border: 1px solid var(--loss); color: var(--loss); }
+.cancel { background: none; border: 1px solid var(--rule); color: var(--ink); }
+.link { background: none; border: 0; padding: 0; min-height: 44px; color: var(--amber); cursor: pointer; font-weight: 500; }

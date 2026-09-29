@@ -122,6 +122,7 @@ export interface Transaction {
   external_id: string;
   comment: string;
   transfer_pair_id: number | null;
+  manual: boolean;
 }
 
 export interface Reconciliation {
@@ -161,3 +162,92 @@ export interface ImportFile {
 }
 export interface ImportFileError { filename: string; code: string; message: string }
 export interface ImportResult { files: ImportFile[]; errors: ImportFileError[]; skipped: string[] }
+
+export interface AccountCreate { name: string; kind: Account["kind"]; wrapper?: Account["wrapper"] }
+
+export type CashOperationType = "deposit" | "withdrawal" | "interest" | "fee";
+export interface TransactionIn { account_id: number; type: CashOperationType; amount: Money; date: IsoDate; comment: string }
+
+export interface BondIn {
+  account_id: number;
+  bond_type: "EDO";
+  quantity: number;
+  purchase_date: IsoDate;
+  first_period_rate?: string;
+  margin?: string;
+}
+export interface BondOut {
+  id: number;
+  account_id: number;
+  account_name: string;
+  bond_type: string;
+  series: string;
+  quantity: number;
+  purchase_date: IsoDate;
+  redeemed_at: IsoDate | null;
+  maturity_date: IsoDate;
+  note: string;
+  status: "active" | "redeemed" | "matured";
+  value_pln: Money;
+  flags: string[];
+}
+
+export type Capitalization = "daily" | "monthly" | "quarterly";
+export interface SavingsAccountCreate {
+  name: string;
+  wrapper: Account["wrapper"];
+  capitalization: Capitalization;
+  annual_rate: string;
+  rate_valid_from: IsoDate;
+  first_deposit: { date: IsoDate; amount: Money; note: string };
+}
+export interface SavingsFlowOut { id: number; date: IsoDate; amount: Money; note: string }
+export interface SavingsSummary {
+  balance: Money;
+  deposits: Money;
+  interest_net: Money;
+  tax: Money;
+  accrued: Money;
+  current_rate: string | null;
+}
+export interface SavingsCapitalization { period_end: IsoDate; gross: Money; tax: Money; net: Money }
+export interface SavingsAccountOut {
+  account_id: number;
+  capitalization: Capitalization;
+  rates: { id: number; valid_from: IsoDate; annual_rate: string }[];
+  balances: { id: number; as_of_date: IsoDate; balance: Money }[];
+  flows: SavingsFlowOut[];
+  summary: SavingsSummary;
+  capitalizations: SavingsCapitalization[];
+}
+
+export interface BondPeriod { number: number; start: IsoDate; end: IsoDate; rate: string; estimated: boolean }
+export interface BondDetail {
+  bond: BondOut;
+  value_per_bond: Money;
+  redemption_today_pln: Money | null;
+  periods: BondPeriod[];
+}
+
+export type HistoryKind = "transaction" | "bond_purchase" | "bond_payout" | "savings_flow" | "savings_interest";
+export interface HistoryItem {
+  id: string;
+  kind: HistoryKind;
+  type: string;
+  date: IsoDate;
+  account_id: number;
+  account_name: string;
+  instrument_id: number | null;
+  ticker: string | null;
+  name: string | null;
+  quantity: Money | null;
+  price: Money | null;
+  amount: Money;
+  currency: string;
+  amount_pln: Money | null;
+  tax: Money | null;
+  note: string;
+  delete: { target: "transaction" | "bond" | "savings_flow"; id: number } | null;
+}
+export interface HistoryPage { items: HistoryItem[]; next_cursor: string | null }
+export interface HistoryFilters { account_id: number | null; type: string | null; from: IsoDate | null; to: IsoDate | null; q: string }

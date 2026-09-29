@@ -10,9 +10,7 @@ export function Nav() {
       <NavLink to="/dodaj" className={styles.item}>
         <span className={styles.plus}><AddIcon /></span>Dodaj
       </NavLink>
-      <span className={`${styles.item} ${styles.disabled}`} aria-disabled="true" title="Wkrótce">
-        <HistoryIcon />Historia<small className={styles.soon}>wkrótce</small>
-      </span>
+      <NavLink to="/historia" className={styles.item}><HistoryIcon />Historia</NavLink>
       <NavLink to="/wiecej" className={styles.item}><MoreIcon />Więcej</NavLink>
     </nav>
   );

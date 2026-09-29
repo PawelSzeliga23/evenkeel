@@ -30,6 +30,7 @@ class SavingsInput:
     taxed: bool
     balances: Sequence[tuple[dt.date, Decimal]]
     rates: Sequence[tuple[dt.date, Decimal]]
+    flows: Sequence[tuple[dt.date, Decimal]] = ()
 
 
 def payout_day(holding: Holding, schedule: Sequence[edo.Period]) -> dt.date:
@@ -80,7 +81,7 @@ def savings_rows(accounts: Iterable[SavingsInput], start: dt.date, end: dt.date)
     rows: list[Row] = []
     for account in accounts:
         invested = ZERO
-        for day in savings_days(account.balances, account.rates, account.capitalization, account.taxed, end):
+        for day in savings_days(account.balances, account.rates, account.capitalization, account.taxed, end, account.flows):
             invested += day.net_flow
             if day.day >= start:
                 rows.append(Row(account.account_id, None, day.day, day.balance, money(day.balance), money(invested),

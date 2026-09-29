@@ -70,7 +70,7 @@ export function DashboardScreen() {
         {recalculating ? <><Recalculating /><Skeleton chart rows={3} /></> : (
           <EmptyState
             title="Wgraj eksport z XTB, żeby zobaczyć swój portfel."
-            action={<Link className={ui.primaryButton} to="/dodaj">Wgraj pliki z XTB</Link>}
+            action={<Link className={ui.primaryButton} to="/dodaj/xtb">Wgraj pliki z XTB</Link>}
           />
         )}
       </div>

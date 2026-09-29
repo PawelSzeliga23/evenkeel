@@ -7,4 +7,7 @@ export const keys = {
   exposure: (accountId: number | null, day: string) => ["portfolio", "exposure", accountId, day] as const,
   positions: (accountId: number | null) => ["portfolio", "positions", accountId] as const,
   position: (accountId: number, instrumentId: number) => ["portfolio", "position", accountId, instrumentId] as const,
+  bond: (id: number) => ["portfolio", "bond", id] as const,
+  savings: (accountId: number) => ["portfolio", "savings", accountId] as const,
+  entries: (filters: object) => ["portfolio", "entries", filters] as const,
 };
