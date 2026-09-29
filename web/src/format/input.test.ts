@@ -5,7 +5,7 @@ describe("amount input", () => {
   it("reads Polish and plain amounts into API decimals", () => {
     expect(parseAmount("1 234,5")).toBe("1234.5");
     expect(parseAmount("1234.50")).toBe("1234.50");
-    expect(parseAmount(" 10 000 ")).toBe("10000");
+    expect(parseAmount(" 10 000 ")).toBe("10000");
     expect(parseAmount("0,05")).toBe("0.05");
     expect(parseAmount("007")).toBe("7");
     expect(parseAmount("5,1234", 4)).toBe("5.1234");
