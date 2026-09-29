@@ -1,0 +1,8 @@
+.bar { height: 8px; border-radius: 4px; background: var(--slab); border: 1px solid var(--rule); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--amber); border-radius: 4px; }
+.over i { background: var(--loss); }
+.item { display: grid; gap: 6px; }
+.years { list-style: none; margin: 0; padding: 0; }
+.years li { display: grid; grid-template-columns: auto 1fr; gap: 12px; padding: 10px 0; border-top: 1px solid var(--rule); }
+.years li:first-child { border-top: 0; }
+.years span:last-child { text-align: right; font-variant-numeric: tabular-nums; }

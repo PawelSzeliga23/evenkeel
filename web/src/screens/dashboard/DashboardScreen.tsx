@@ -8,6 +8,7 @@ import { ValueChart } from "../../charts/ValueChart";
 import { formatDayLong, formatPercent, pluralPl, signOf, sumMoney } from "../../format";
 import { AccountPicker } from "../../ui/AccountPicker";
 import { HeroAmount, Money } from "../../ui/Amount";
+import { LimitsCard } from "../limits/LimitsCard";
 import { ListRow } from "../../ui/ListRow";
 import { Segmented } from "../../ui/Segmented";
 import { EmptyState, ErrorState, Recalculating, Skeleton } from "../../ui/States";
@@ -143,6 +144,8 @@ export function DashboardScreen() {
               </>
             )}
       </section>
+
+      <LimitsCard />
 
       {movers.length > 0 && (
         <section className={ui.section} aria-labelledby="movers-title">

@@ -10,6 +10,7 @@ import { SavingsForm } from "./screens/add/SavingsForm";
 import { DashboardScreen } from "./screens/dashboard/DashboardScreen";
 import { HistoryScreen } from "./screens/history/HistoryScreen";
 import { ExposureScreen } from "./screens/exposure/ExposureScreen";
+import { LimitsScreen } from "./screens/limits/LimitsScreen";
 import { ImportScreen } from "./screens/import/ImportScreen";
 import { PositionDetailScreen } from "./screens/positions/PositionDetailScreen";
 import { PositionsScreen } from "./screens/positions/PositionsScreen";
@@ -40,6 +41,7 @@ export const appRoutes: RouteObject[] = [
           { path: "/pozycje/oszczednosci/:accountId", element: <SavingsDetailScreen /> },
           { path: "/pozycje/:accountId/:instrumentId", element: <PositionDetailScreen /> },
           { path: "/ekspozycja", element: <ExposureScreen /> },
+          { path: "/limity", element: <LimitsScreen /> },
           { path: "/historia", element: <HistoryScreen /> },
           { path: "/dodaj", element: <AddScreen /> },
           { path: "/dodaj/xtb", element: <ImportScreen /> },
