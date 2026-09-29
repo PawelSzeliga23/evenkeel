@@ -1,0 +1,36 @@
+.splash { min-height: 100dvh; background: var(--night); }
+.screen {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: calc(24px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom));
+}
+.form { width: min(100%, 380px); display: grid; gap: 16px; }
+.title { font-size: 30px; font-weight: 600; letter-spacing: -.02em; }
+.lead { color: var(--dim); margin-top: -8px; }
+.field { display: grid; gap: 6px; font-size: 14px; color: var(--dim); }
+.field input {
+  height: 46px;
+  padding: 0 14px;
+  background: var(--slab);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-control);
+  color: var(--ink);
+  font-size: 16px;
+}
+.hint { font-size: 12.5px; }
+.notice { color: var(--amber); font-size: 14px; }
+.error { color: var(--loss); font-size: 14px; }
+.primary {
+  height: 48px;
+  border: 0;
+  border-radius: var(--r-control);
+  background: var(--amber);
+  color: var(--night);
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+}
+.primary:disabled { opacity: .6; cursor: default; }
+.switch { color: var(--dim); font-size: 14px; }
+.switch a { color: var(--amber); }
