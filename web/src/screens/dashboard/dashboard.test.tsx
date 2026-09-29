@@ -63,9 +63,10 @@ describe("dashboard screen", () => {
   });
 
   it("hides the limits card without IKE or IKZE accounts", async () => {
-    mockFetch(routes({ limits: () => [] }));
+    const fetchMock = mockFetch(routes({ limits: () => [] }));
     renderApp("/");
     expect(await screen.findByText("Wartość portfela")).toBeInTheDocument();
+    await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => String(u).includes("/api/portfolio/limits"))).toBe(true));
     expect(screen.queryByRole("region", { name: "Limity IKE/IKZE" })).not.toBeInTheDocument();
   });
 

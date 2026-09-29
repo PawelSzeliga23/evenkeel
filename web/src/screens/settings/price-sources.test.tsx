@@ -56,6 +56,18 @@ describe("price sources", () => {
     expect(sent).toEqual([{ id: "12", body: { price_symbol: null } }]);
   });
 
+  it("shows the automatic symbol in the input after restoring it", async () => {
+    mockFetch(routes([], () => json(200, { ...MANUAL, price_symbol: "VIE.FR", price_symbol_overridden: false })));
+    const { user } = renderApp("/ustawienia/zrodla-cen");
+
+    await user.click(await screen.findByRole("button", { name: /VIE.FR/ }));
+    expect(screen.getByLabelText("Symbol w Yahoo")).toHaveValue("VIE.PA");
+    await user.click(screen.getByRole("button", { name: "Przywróć automatyczny" }));
+
+    await screen.findByText("Zapisano. Ceny pobiorę przy najbliższej aktualizacji.");
+    expect(screen.getByLabelText("Symbol w Yahoo")).toHaveValue("VIE.FR");
+  });
+
   it("checks the symbol before asking the API and shows the API's refusal in Polish", async () => {
     const sent: { id: string; body: unknown }[] = [];
     mockFetch(routes(sent, () => json(422, { code: "validation_error", message: "Nieprawidłowe dane.",

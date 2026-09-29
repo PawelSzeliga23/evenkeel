@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router";
 import { api } from "../../api/endpoints";
@@ -18,14 +18,16 @@ const NO_ERRORS: FormErrors = { fields: {}, general: null };
 function DeleteAccount({ account }: { account: Account }) {
   const navigate = useNavigate();
   const invalidate = useInvalidateAfterSave();
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState("");
   const usage = useQuery({ queryKey: keys.accountUsage(account.id), queryFn: () => api.accountUsage(account.id), enabled: open });
   const remove = useMutation({
     mutationFn: () => api.deleteAccount(account.id),
-    onSuccess: async () => {
-      await invalidate();
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: keys.accountUsage(account.id) });
       navigate("/ustawienia", { state: { notice: "Konto usunięte." } });
+      void invalidate();
     },
   });
 

@@ -40,7 +40,7 @@ export function ShareChart({ series, points }: { series: ShareSeries[]; points: 
           </>
         )}
       </div>
-      <svg className={styles.svg} viewBox={`0 0 ${W} ${H + 18}`} role="img"
+      <svg className={styles.svg} viewBox={`0 -8 ${W} ${H + 26}`} role="img"
         aria-label={`Udział walut w czasie, od ${formatDate(shown[0]!.date)} do ${formatDate(shown[last]!.date)}`}
         onPointerMove={track} onPointerDown={track} onPointerLeave={() => setActive(null)}>
         {paths.map((d, k) => (

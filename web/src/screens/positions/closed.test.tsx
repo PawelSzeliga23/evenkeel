@@ -37,6 +37,7 @@ describe("closed investments", () => {
     expect(rows.map((r) => r.textContent)).toEqual([
       expect.stringMatching(/Orlen.*XTB, sprzedane/), expect.stringMatching(/Orlen.*IKE, częściowo/),
     ]);
+    expect(within(rows[0]!).getByText(/PKN.PL/)).toBeInTheDocument();
     expect(within(rows[1]!).getByText(`${M}20,00${T}zł`)).toHaveClass("down");
   });
 

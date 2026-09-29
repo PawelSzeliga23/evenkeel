@@ -36,8 +36,9 @@ function Source({ instrument, open, onToggle }: { instrument: Instrument; open: 
   const [error, setError] = useState<string | null>(null);
   const save = useMutation({
     mutationFn: (value: string | null) => api.updateInstrument(instrument.id, value),
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       setError(null);
+      setSymbol(result.price_symbol ?? "");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: keys.instruments }),
         queryClient.invalidateQueries({ queryKey: keys.portfolio }),
@@ -71,7 +72,7 @@ function Source({ instrument, open, onToggle }: { instrument: Instrument; open: 
         <form className={styles.sourceEdit} onSubmit={submit} noValidate>
           <Field id={`symbol-${instrument.id}`} label="Symbol w Yahoo" error={error ?? undefined}
             hint="Np. EIMI.L dla Londynu, SXR8.DE dla Xetry, VIE.PA dla Paryża.">
-            <input id={`symbol-${instrument.id}`} value={symbol} onChange={(e) => { setSymbol(e.target.value); save.reset(); }}
+            <input id={`symbol-${instrument.id}`} value={symbol} onChange={(e) => { setSymbol(e.target.value); setError(null); save.reset(); }}
               aria-invalid={Boolean(error)} autoCapitalize="characters" />
           </Field>
           {save.isSuccess && <p role="status">{SAVED}</p>}

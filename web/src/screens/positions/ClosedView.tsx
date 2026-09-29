@@ -20,7 +20,7 @@ function Investment({ closed, investment }: { closed: Closed; investment: Closed
       <button type="button" className={styles.closedHead} aria-expanded={open} onClick={() => setOpen(!open)}>
         <span className={styles.entryName}>
           <b>{investment.name}</b>
-          <small>{`${investment.account_name}, ${STATUS_LABEL[investment.status]}, ${formatDate(investment.first_buy)} – ${formatDate(investment.last_sale)}`}</small>
+          <small>{`${investment.ticker} · ${investment.account_name}, ${STATUS_LABEL[investment.status]}, ${formatDate(investment.first_buy)} – ${formatDate(investment.last_sale)}`}</small>
         </span>
         <span className={styles.entryAmount}>
           <Money value={investment.total_pln} sign tone />
