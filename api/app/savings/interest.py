@@ -1,7 +1,9 @@
-"""A savings account between balances copied from the bank (pure functions). Interest accrues daily at the annual
-rate of the day (balance × rate / 100 / 365) and is credited on each capitalization day, rounded to the grosz,
-minus the 19 % tax (none on IKE / IKZE). A copied balance is the balance at the end of its day; its difference
-from the computed balance is the owner's deposit or withdrawal."""
+"""A savings account from its deposits and withdrawals (pure functions). Interest accrues daily at the annual rate
+of the day (balance × rate / 100 / 365) and is credited on each capitalization day, rounded to the grosz, minus the
+19 % tax (none on IKE / IKZE). On a day, interest comes first (from the balance at the end of the day before), then
+the day's deposits and withdrawals — money deposited earns from the next day. A balance copied from the bank is
+the balance at the end of its day; its difference from the computed balance counts as the owner's deposit or
+withdrawal (a correction)."""
 import bisect
 import calendar
 import datetime as dt
@@ -26,7 +28,10 @@ def _money(value: Decimal) -> Decimal:
 class SavingsDay:
     day: dt.date
     balance: Decimal  # at the end of the day
-    net_flow: Decimal  # the owner's deposit (+) or withdrawal (−) that day
+    net_flow: Decimal  # the owner's deposit (+) or withdrawal (−) that day, corrections included
+    credited: Decimal = ZERO  # gross interest credited that day
+    tax: Decimal = ZERO  # tax withheld from it
+    accrued: Decimal = ZERO  # interest accrued after the day and not credited yet (not rounded)
 
 
 def is_capitalization_day(day: dt.date, capitalization: str) -> bool:
@@ -36,31 +41,41 @@ def is_capitalization_day(day: dt.date, capitalization: str) -> bool:
     return month_end if capitalization == "monthly" else month_end and day.month in QUARTER_ENDS
 
 
+def rate_on(rates: Sequence[tuple[dt.date, Decimal]], day: dt.date) -> Decimal:
+    """The annual rate valid on `day` (rates sorted by their first day); 0 before the first one."""
+    starts = [start for start, _ in rates]
+    index = bisect.bisect_right(starts, day) - 1
+    return rates[index][1] if index >= 0 else ZERO
+
+
 def savings_days(
     balances: Sequence[tuple[dt.date, Decimal]], rates: Sequence[tuple[dt.date, Decimal]], capitalization: str,
-    taxed: bool, end: dt.date,
+    taxed: bool, end: dt.date, flows: Sequence[tuple[dt.date, Decimal]] = (),
 ) -> list[SavingsDay]:
-    """Every day from the first copied balance to `end`."""
-    if not balances:
-        return []
+    """Every day from the first entry (a deposit, a withdrawal or a copied balance) to `end`."""
     copied = dict(balances)
+    moves: dict[dt.date, Decimal] = {}
+    for day, amount in flows:
+        moves[day] = moves.get(day, ZERO) + amount
+    if not copied and not moves:
+        return []
     rate_days = sorted(rates)
-    starts = [start for start, _ in rate_days]
-    day = min(copied)
+    day = min([*copied, *moves])
     balance = accrued = ZERO
     result: list[SavingsDay] = []
     while day <= end:
-        index = bisect.bisect_right(starts, day) - 1
-        rate = rate_days[index][1] if index >= 0 else ZERO
-        accrued += balance * rate / HUNDRED / DAYS_IN_YEAR
+        accrued += balance * rate_on(rate_days, day) / HUNDRED / DAYS_IN_YEAR
+        credited = tax = ZERO
         if is_capitalization_day(day, capitalization):
-            gross = _money(accrued)
-            balance += gross - (_money(gross * TAX_RATE) if taxed else ZERO)
+            credited = _money(accrued)
+            tax = _money(credited * TAX_RATE) if taxed else ZERO
+            balance += credited - tax
             accrued = ZERO
-        flow = ZERO
+        flow = moves.get(day, ZERO)
+        balance += flow
         if day in copied:
-            flow = copied[day] - balance
+            flow += copied[day] - balance
             balance = copied[day]
-        result.append(SavingsDay(day, balance, flow))
+        result.append(SavingsDay(day, balance, flow, credited, tax, accrued))
         day += ONE_DAY
     return result
