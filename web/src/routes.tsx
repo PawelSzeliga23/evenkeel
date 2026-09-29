@@ -5,6 +5,7 @@ import { GuestOnly, RequireAuth } from "./auth/RequireAuth";
 import { AddScreen } from "./screens/add/AddScreen";
 import { BondForm } from "./screens/add/BondForm";
 import { CashForm } from "./screens/add/CashForm";
+import { SavingsForm } from "./screens/add/SavingsForm";
 import { DashboardScreen } from "./screens/dashboard/DashboardScreen";
 import { ImportScreen } from "./screens/import/ImportScreen";
 import { PositionDetailScreen } from "./screens/positions/PositionDetailScreen";
@@ -33,6 +34,7 @@ export const appRoutes: RouteObject[] = [
           { path: "/dodaj/xtb", element: <ImportScreen /> },
           { path: "/dodaj/obligacja", element: <BondForm /> },
           { path: "/dodaj/operacja", element: <CashForm /> },
+          { path: "/dodaj/konto-oszczednosciowe", element: <SavingsForm /> },
           { path: "/wiecej", element: <MoreScreen /> },
           { path: "*", element: <Navigate to="/" replace /> },
         ],
