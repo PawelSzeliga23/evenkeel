@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { RouterProvider, createMemoryRouter, type RouteObject } from "react-router";
 import { vi } from "vitest";
 import { AppProviders, createQueryClient } from "../providers";
+import { appRoutes } from "../routes";
 
 export interface MockRoute {
   method?: string;
@@ -52,4 +53,8 @@ export function renderRoutes(routes: RouteObject[], path = "/") {
     </AppProviders>,
   );
   return { user, router, client };
+}
+
+export function renderApp(path = "/") {
+  return renderRoutes(appRoutes, path);
 }
