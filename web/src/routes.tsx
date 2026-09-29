@@ -11,6 +11,7 @@ import { DashboardScreen } from "./screens/dashboard/DashboardScreen";
 import { ImportScreen } from "./screens/import/ImportScreen";
 import { PositionDetailScreen } from "./screens/positions/PositionDetailScreen";
 import { PositionsScreen } from "./screens/positions/PositionsScreen";
+import { SavingsDetailScreen } from "./screens/savings/SavingsDetailScreen";
 import { AppShell } from "./shell/AppShell";
 import { MoreScreen } from "./shell/MoreScreen";
 
@@ -31,6 +32,7 @@ export const appRoutes: RouteObject[] = [
           { path: "/", element: <DashboardScreen /> },
           { path: "/pozycje", element: <PositionsScreen /> },
           { path: "/pozycje/obligacje/:holdingId", element: <BondDetailScreen /> },
+          { path: "/pozycje/oszczednosci/:accountId", element: <SavingsDetailScreen /> },
           { path: "/pozycje/:accountId/:instrumentId", element: <PositionDetailScreen /> },
           { path: "/dodaj", element: <AddScreen /> },
           { path: "/dodaj/xtb", element: <ImportScreen /> },
