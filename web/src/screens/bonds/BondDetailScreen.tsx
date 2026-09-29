@@ -123,7 +123,8 @@ export function BondDetailScreen() {
   return (
     <div className={ui.page}>
       <Back />
-      {detail.isPending ? <Skeleton rows={6} />
+      {!Number.isInteger(id) ? <p role="alert">Nie znaleziono obligacji.</p>
+        : detail.isPending ? <Skeleton rows={6} />
         : detail.isError ? <ErrorState error={detail.error} onRetry={() => void detail.refetch()} />
           : <Detail detail={detail.data} />}
     </div>

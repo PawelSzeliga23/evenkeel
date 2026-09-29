@@ -85,4 +85,11 @@ describe("bond detail", () => {
     await user.click(screen.getByRole("button", { name: "Zapisz wykup" }));
     expect(await screen.findByText("Data wykupu jest przed datą zakupu.")).toBeInTheDocument();
   });
+
+  it("says the bond is not found for a non-numeric id", async () => {
+    mockFetch([...SIGNED_IN]);
+    renderApp("/pozycje/obligacje/abc");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Nie znaleziono obligacji.");
+  });
 });
