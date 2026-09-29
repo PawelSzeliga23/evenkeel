@@ -70,8 +70,8 @@ def test_everything_in_one_list_newest_first(client: TestClient, world: dict) ->
             by_type["bond_purchase"]["delete"]["target"]) == ("EDO0136", "-1000.00", "bond")
     assert (by_type["savings_deposit"]["amount"], by_type["savings_deposit"]["delete"]["target"]) == (
         "10000.0000", "savings_flow")
-    # February: 27 days × 10 000 × 5 % / 365 = 36.99 gross, 7.03 tax
-    assert (items[3]["amount"], items[3]["tax"], items[3]["delete"]) == ("29.96", "7.03", None)
+    # February: 28 days × 10 000 × 5 % / 365 = 38.36 gross, 7.29 tax
+    assert (items[3]["amount"], items[3]["tax"], items[3]["delete"]) == ("31.07", "7.29", None)
 
 
 def test_filters(client: TestClient, world: dict) -> None:

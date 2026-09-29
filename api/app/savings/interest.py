@@ -1,7 +1,8 @@
 """A savings account from its deposits and withdrawals (pure functions). Interest accrues daily at the annual rate
 of the day (balance × rate / 100 / 365) and is credited on each capitalization day, rounded to the grosz, minus the
-19 % tax (none on IKE / IKZE). On a day, interest comes first (from the balance at the end of the day before), then
-the day's deposits and withdrawals — money deposited earns from the next day. A balance copied from the bank is
+19 % tax (none on IKE / IKZE). On a day, the day's deposits and withdrawals come first, then that day's interest,
+from the balance at the end of the day, as banks count it: money deposited earns from its own day and money withdrawn
+stops earning on its day. A balance copied from the bank is
 the balance at the end of its day; its difference from the computed balance counts as the owner's deposit or
 withdrawal (a correction)."""
 import bisect
@@ -64,6 +65,8 @@ def savings_days(
     balance = accrued = ZERO
     result: list[SavingsDay] = []
     while day <= end:
+        flow = moves.get(day, ZERO)
+        balance += flow
         accrued += balance * rate_on(rate_days, day) / HUNDRED / DAYS_IN_YEAR
         credited = tax = ZERO
         if is_capitalization_day(day, capitalization):
@@ -71,8 +74,6 @@ def savings_days(
             tax = _money(credited * TAX_RATE) if taxed else ZERO
             balance += credited - tax
             accrued = ZERO
-        flow = moves.get(day, ZERO)
-        balance += flow
         if day in copied:
             flow += copied[day] - balance
             balance = copied[day]

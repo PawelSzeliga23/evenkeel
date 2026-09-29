@@ -15,7 +15,7 @@ class Summary:
     deposits: Decimal  # deposits minus withdrawals (corrections included)
     interest_net: Decimal  # credited interest after tax
     tax: Decimal
-    accrued: Decimal  # accrued since the last capitalization, not credited yet (gross)
+    accrued: Decimal  # accrued since the last capitalization over finished days, not credited yet (gross)
 
 
 @dataclass(frozen=True)
@@ -34,8 +34,16 @@ def summarize(days: Sequence[SavingsDay]) -> Summary:
         deposits=money(sum((d.net_flow for d in days), ZERO)),
         interest_net=money(sum((d.credited - d.tax for d in days), ZERO)),
         tax=money(sum((d.tax for d in days), ZERO)),
-        accrued=money(days[-1].accrued),
+        accrued=money(_accrued_for_finished_days(days)),
     )
+
+
+def _accrued_for_finished_days(days: Sequence[SavingsDay]) -> Decimal:
+    """Like the bank shows it: the last day is still running, so its interest is not counted yet. Nothing is
+    accrued right after a capitalization (the last day's `accrued` is then zero) or on the account's first day."""
+    if len(days) < 2 or days[-1].accrued == ZERO:
+        return ZERO
+    return days[-2].accrued
 
 
 def capitalizations(days: Sequence[SavingsDay]) -> list[Capitalization]:

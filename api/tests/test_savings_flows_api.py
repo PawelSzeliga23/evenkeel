@@ -31,10 +31,10 @@ def test_an_account_is_created_with_its_rate_and_first_deposit(client: TestClien
         ("Konto oszczędnościowe", "savings", "regular", "PLN")]
     assert (account["capitalization"], [r["annual_rate"] for r in account["rates"]]) == ("monthly", ["5.0000"])
     assert [(f["date"], f["amount"]) for f in account["flows"]] == [("2026-09-01", "10000.0000")]
-    assert account["summary"] == {"balance": "10032.18", "deposits": "10000.00", "interest_net": "32.18",
-                                  "tax": "7.55", "accrued": "0.00", "current_rate": "5.0000"}
+    assert account["summary"] == {"balance": "10033.29", "deposits": "10000.00", "interest_net": "33.29",
+                                  "tax": "7.81", "accrued": "0.00", "current_rate": "5.0000"}
     assert account["capitalizations"] == [
-        {"period_end": "2026-09-30", "gross": "39.73", "tax": "7.55", "net": "32.18"}]
+        {"period_end": "2026-09-30", "gross": "41.10", "tax": "7.81", "net": "33.29"}]
 
 
 def test_nothing_is_created_when_the_first_deposit_is_in_the_future(client: TestClient, anna: dict) -> None:
@@ -90,7 +90,7 @@ def test_flows_value_the_position_and_stay_private(client: TestClient, anna: dic
 
     (item,) = [p for p in positions if p["kind"] == "savings"]
     assert item["value_pln"] == "10000.00"  # valued from the deposit, before the first capitalization
-    assert (summary["balance"], summary["tax"]) == ("10039.73", "0.00")  # IKE: no tax
+    assert (summary["balance"], summary["tax"]) == ("10041.10", "0.00")  # IKE: no tax
     assert [(r.status_code, r.json()["code"]) for r in (foreign, foreign_delete)] == [
         (404, "not_found"), (404, "not_found")]
 

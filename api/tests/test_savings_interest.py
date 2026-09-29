@@ -60,34 +60,35 @@ def test_a_deposit_starts_the_account_like_a_first_balance() -> None:
     days = savings_days([], RATES, "monthly", taxed=True, end=OCT_31, flows=[(SEP_01, D("10000"))])
 
     assert (days[0].day, days[0].balance, days[0].net_flow) == (SEP_01, D("10000"), D("10000"))
-    assert (_on(days, SEP_30).balance, _on(days, OCT_31).balance) == (D("10032.18"), D("10066.69"))
+    assert (_on(days, SEP_30).balance, _on(days, OCT_31).balance) == (D("10033.29"), D("10067.80"))
 
 
-def test_a_withdrawal_lowers_the_balance_and_earns_nothing_from_the_next_day() -> None:
+def test_a_withdrawal_lowers_the_balance_and_earns_nothing_from_its_day() -> None:
     days = savings_days([], RATES, "monthly", taxed=True, end=OCT_31,
                         flows=[(SEP_01, D("10000")), (OCT_10, D("-1000"))])
 
-    assert (_on(days, OCT_10).balance, _on(days, OCT_10).net_flow) == (D("9032.18"), D("-1000"))
-    # 10 days × 10 032.18 + 21 days × 9 032.18, × 5 % / 365 = 39.73 gross, 7.55 tax
+    assert (_on(days, OCT_10).balance, _on(days, OCT_10).net_flow) == (D("9033.29"), D("-1000"))
+    # 9 days × 10 033.29 + 22 days × 9 033.29, × 5 % / 365 = 39.59 gross, 7.52 tax
     assert (_on(days, OCT_31).credited, _on(days, OCT_31).tax, _on(days, OCT_31).balance) == (
-        D("39.73"), D("7.55"), D("9064.36"))
+        D("39.59"), D("7.52"), D("9065.36"))
 
 
-def test_a_deposit_on_a_capitalization_day_earns_from_the_next_day() -> None:
+def test_a_deposit_on_a_capitalization_day_earns_for_that_day() -> None:
     days = savings_days([], RATES, "monthly", taxed=True, end=OCT_01,
                         flows=[(SEP_01, D("10000")), (SEP_30, D("5000"))])
 
-    assert _on(days, SEP_30).balance == D("15032.18")  # September interest on 10 000 only
-    assert _on(days, OCT_01).accrued == D("15032.18") * D("5") / 100 / 365
+    # 29 days × 10 000 + 1 day × 15 000, × 5 % / 365 = 41.78 gross, 7.94 tax
+    assert _on(days, SEP_30).balance == D("15033.84")
+    assert _on(days, OCT_01).accrued == D("15033.84") * D("5") / 100 / 365
 
 
 def test_a_rate_change_applies_from_its_day() -> None:
     rates = [(SEP_01, D("5")), (dt.date(2026, 9, 16), D("3"))]
     days = savings_days([], rates, "monthly", taxed=True, end=SEP_30, flows=[(SEP_01, D("10000"))])
 
-    # 14 days at 5 % + 15 days at 3 % = 31.51 gross, 5.99 tax
+    # 15 days at 5 % + 15 days at 3 % = 32.88 gross, 6.25 tax
     assert (_on(days, SEP_30).credited, _on(days, SEP_30).tax, _on(days, SEP_30).balance) == (
-        D("31.51"), D("5.99"), D("10025.52"))
+        D("32.88"), D("6.25"), D("10026.63"))
 
 
 def test_deposits_on_the_same_day_add_up_and_a_copied_balance_still_corrects() -> None:
@@ -95,9 +96,20 @@ def test_deposits_on_the_same_day_add_up_and_a_copied_balance_still_corrects() -
                         flows=[(SEP_01, D("6000")), (SEP_01, D("4000"))])
 
     assert _on(days, SEP_01).net_flow == D("10000")
-    assert (_on(days, OCT_10).balance, _on(days, OCT_10).net_flow) == (D("12000"), D("12000") - D("10032.18"))
+    assert (_on(days, OCT_10).balance, _on(days, OCT_10).net_flow) == (D("12000"), D("12000") - D("10033.29"))
 
 
 def test_the_rate_on_a_day() -> None:
     rates = [(SEP_01, D("5")), (OCT_10, D("4"))]
     assert [rate_on(rates, day) for day in (dt.date(2026, 8, 31), SEP_30, OCT_10)] == [D("0"), D("5"), D("4")]
+
+
+def test_money_earns_from_the_day_it_arrives_like_the_bank_counts_it() -> None:
+    """Trade Republic, August 2026: 6 %, 500 zł on the 26th and 9 500 zł on the 27th → 6.72 zł net on the 31st."""
+    aug_26, aug_27, aug_31 = dt.date(2026, 8, 26), dt.date(2026, 8, 27), dt.date(2026, 8, 31)
+    days = savings_days([], [(dt.date(2026, 8, 1), D("6"))], "monthly", taxed=True, end=aug_31,
+                        flows=[(aug_26, D("500")), (aug_27, D("4500")), (aug_27, D("5000"))])
+
+    # 6 days × 500 + 5 days × 9 500, × 6 % / 365 = 8.30 gross, 1.58 tax
+    assert (_on(days, aug_31).credited, _on(days, aug_31).tax, _on(days, aug_31).balance) == (
+        D("8.30"), D("1.58"), D("10006.72"))
