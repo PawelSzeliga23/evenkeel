@@ -1,4 +1,4 @@
-import type { Account, Exposure, History, Position, PositionDetail, Summary } from "../api/types";
+import type { Account, Exposure, History, ImportFile, ImportResult, Position, PositionDetail, Summary } from "../api/types";
 
 export const ACCOUNTS: Account[] = [
   { id: 1, name: "IKE", kind: "broker", wrapper: "ike", broker: "xtb", external_account_number: "56216965",
@@ -108,3 +108,13 @@ export const DETAIL: PositionDetail = {
   ],
   reconciliation: { status: "mismatch", taken_at: "2026-09-26T12:00:00", xtb_quantity: "50", calculated_quantity: "48" },
 };
+
+export const IMPORT_FILE: ImportFile = {
+  filename: "IKE_56216965_2006-01-01_2026-09-26.xlsx", account_number: "56216965", wrapper: "ike", currency: "PLN",
+  account_id: null, account_name: "IKE 56216965", new_account: true, report_from: "2006-01-01T00:00:00",
+  report_to: "2026-09-26T00:00:00", new_transactions: 42, duplicate_transactions: 3, unknown_transactions: 1,
+  open_lots: 5, closed_lots: 2, warnings: [{ code: "quantity_mismatch", message: "Ilość SXR8.DE różni się od XTB.", details: {} }],
+  import_id: null,
+};
+
+export const PREVIEW: ImportResult = { files: [IMPORT_FILE], errors: [], skipped: [] };

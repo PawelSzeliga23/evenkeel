@@ -1,0 +1,13 @@
+.drop {
+  position: relative; display: grid; justify-items: center; gap: 10px; padding: 28px 16px;
+  border: 1px dashed var(--rule); border-radius: var(--r-sheet); text-align: center; cursor: pointer;
+}
+.drop:focus-within { outline: 2px solid var(--amber); outline-offset: 2px; }
+.dragging { border-color: var(--amber); background: var(--amber-soft); }
+.input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.chosen { list-style: none; margin: 0; padding: 0; color: var(--dim); font-size: 13px; display: grid; gap: 4px; }
+.card { display: grid; gap: 8px; padding: 16px; border: 1px solid var(--rule); border-radius: var(--r-sheet); background: var(--slab); }
+.cardTitle { font-size: 15px; font-weight: 600; word-break: break-all; }
+.warnings { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.commit { display: grid; gap: 10px; justify-items: start; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
