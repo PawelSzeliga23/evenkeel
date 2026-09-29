@@ -85,6 +85,8 @@ describe("position detail", () => {
 
     expect(await screen.findByRole("heading", { name: "CD Projekt" })).toBeInTheDocument();
     expect(screen.getByText(`232,47${T}PLN`)).toBeInTheDocument();
+    expect(screen.getByText("Ilość").nextElementSibling).toHaveTextContent("48 szt.");
+    expect(screen.getByText("Ilość").nextElementSibling!.textContent).not.toContain("\\u00a0");
     expect(screen.getByText("Średnia cena").nextElementSibling).toHaveTextContent(`192,2338${T}PLN`);
     expect(screen.getByText("z XTB, 26.09.2026")).toBeInTheDocument();
 

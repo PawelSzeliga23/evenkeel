@@ -73,7 +73,7 @@ function Detail({ detail }: { detail: PositionDetail }) {
 
       <Section title="Podsumowanie">
         <dl className={ui.kv}>
-          <dt>Ilość</dt><dd>{formatDecimal(p.quantity, 8)}\u00a0szt.</dd>
+          <dt>Ilość</dt><dd>{`${formatDecimal(p.quantity, 8)}\u00a0szt.`}</dd>
           <dt>Cena</dt><dd>{price(p.price, p.price_currency)}</dd>
           {detail.average_price !== null && <><dt>Średnia cena</dt><dd>{price(detail.average_price, p.currency)}</dd></>}
           {p.price_date && <><dt>Źródło ceny</dt><dd>{`${source}, ${formatDate(p.price_date)}`}</dd></>}
