@@ -113,4 +113,34 @@ describe("refreshSession", () => {
     handler = () => Promise.reject(new TypeError("Failed to fetch"));
     await expect(refreshSession()).rejects.toMatchObject({ code: "network" });
   });
+
+  it("throws network error when refresh answers 503", async () => {
+    const expired = vi.fn();
+    setSessionExpiredHandler(expired);
+    handler = async (url) => {
+      if (url === "/api/auth/refresh") {
+        return new Response(null, { status: 503 });
+      }
+      return json(401, { code: "unauthorized", message: "x", details: {} });
+    };
+
+    await expect(request("/api/portfolio/summary")).rejects.toMatchObject({ code: "network", message: NETWORK_MESSAGE });
+    expect(expired).not.toHaveBeenCalled();
+    expect(getAccessToken()).toBe("old");
+  });
+
+  it("throws API error when refresh answers 500 with error JSON", async () => {
+    const expired = vi.fn();
+    setSessionExpiredHandler(expired);
+    handler = async (url) => {
+      if (url === "/api/auth/refresh") {
+        return json(500, { code: "server_error", message: "Wewnętrzny błąd serwera.", details: {} });
+      }
+      return json(401, { code: "unauthorized", message: "x", details: {} });
+    };
+
+    await expect(request("/api/portfolio/summary")).rejects.toMatchObject({ code: "server_error", message: "Wewnętrzny błąd serwera." });
+    expect(expired).not.toHaveBeenCalled();
+    expect(getAccessToken()).toBe("old");
+  });
 });

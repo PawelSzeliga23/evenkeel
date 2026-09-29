@@ -55,8 +55,14 @@ export function refreshSession(): Promise<boolean> {
         throw networkError();
       }
       if (!response.ok) {
-        accessToken = null;
-        return false;
+        if (response.status === 401 || response.status === 403) {
+          accessToken = null;
+          return false;
+        }
+        if (response.status === 502 || response.status === 503 || response.status === 504) {
+          throw networkError();
+        }
+        throw await toApiError(response);
       }
       accessToken = ((await response.json()) as { access_token: string }).access_token;
       return true;
