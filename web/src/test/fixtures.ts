@@ -1,4 +1,4 @@
-import type { Account, Exposure, History, Position, Summary } from "../api/types";
+import type { Account, Exposure, History, Position, PositionDetail, Summary } from "../api/types";
 
 export const ACCOUNTS: Account[] = [
   { id: 1, name: "IKE", kind: "broker", wrapper: "ike", broker: "xtb", external_account_number: "56216965",
@@ -82,3 +82,29 @@ export const POSITIONS: Position[] = [
     account_id: 2, account_name: "XTB", quantity: "4133.49", value_pln: "4133.49", cost_pln: "4133.49",
     unrealized_pln: "0.00", share_pct: "2.24" }),
 ];
+
+export const DETAIL: PositionDetail = {
+  position: position({ instrument_id: 12, ticker: "CDR.PL", name: "CD Projekt", currency: "PLN", quantity: "48",
+    price: "232.4700", price_source: "xtb", value_pln: "11158.56", cost_pln: "9227.52", unrealized_pln: "1931.04",
+    unrealized_pct: "20.93", price_effect_pln: "1931.04", fx_effect_pln: "0.00", dividends_net_pln: "48.60",
+    fees_pln: "-12.00", realized_pln: "215.30", share_pct: "6.05" }),
+  lots: [
+    { position_id: "777", opened_on: "2025-05-12", quantity: "30", open_price: "180.2000", cost_pln: "5406.00",
+      value_pln: "6974.10", gain_pln: "1568.10", price_effect_pln: "1568.10", fx_effect_pln: "0.00", holding_days: 502,
+      stop_loss: "150.0000", take_profit: null },
+    { position_id: "778", opened_on: "2026-02-03", quantity: "18", open_price: "212.2900", cost_pln: "3821.52",
+      value_pln: "4184.46", gain_pln: "362.94", price_effect_pln: "362.94", fx_effect_pln: "0.00", holding_days: 1,
+      stop_loss: null, take_profit: null },
+  ],
+  sales: [
+    { date: "2026-04-10", opened_on: "2025-05-12", holding_days: 333, quantity: "5", proceeds_pln: "1116.30",
+      cost_pln: "901.00", realized_pln: "215.30", price_effect_pln: "215.30", fx_effect_pln: "0.00", position_id: "777", matched: true },
+  ],
+  income: [{ date: "2026-06-20", type: "dividend", amount: "60.00", currency: "PLN", amount_pln: "60.00" }],
+  transactions: [
+    { id: 1, account_id: 2, ticker: "CDR.PL", type: "buy", xtb_type: "Stock purchase", occurred_at: "2025-05-12T09:30:00",
+      amount: "-5406.00", currency: "PLN", quantity: "30", price: "180.2", implied_fx_rate: null, xtb_position_id: "777",
+      external_id: "1", comment: "", transfer_pair_id: null },
+  ],
+  reconciliation: { status: "mismatch", taken_at: "2026-09-26T12:00:00", xtb_quantity: "50", calculated_quantity: "48" },
+};

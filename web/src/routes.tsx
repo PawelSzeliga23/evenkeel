@@ -3,6 +3,8 @@ import { LoginScreen } from "./auth/LoginScreen";
 import { RegisterScreen } from "./auth/RegisterScreen";
 import { GuestOnly, RequireAuth } from "./auth/RequireAuth";
 import { DashboardScreen } from "./screens/dashboard/DashboardScreen";
+import { PositionDetailScreen } from "./screens/positions/PositionDetailScreen";
+import { PositionsScreen } from "./screens/positions/PositionsScreen";
 import { AppShell } from "./shell/AppShell";
 import { MoreScreen } from "./shell/MoreScreen";
 
@@ -26,8 +28,8 @@ export const appRoutes: RouteObject[] = [
         element: <AppShell />,
         children: [
           { path: "/", element: <DashboardScreen /> },
-          { path: "/pozycje", element: <Placeholder title="Pozycje" /> },
-          { path: "/pozycje/:accountId/:instrumentId", element: <Placeholder title="Pozycja" /> },
+          { path: "/pozycje", element: <PositionsScreen /> },
+          { path: "/pozycje/:accountId/:instrumentId", element: <PositionDetailScreen /> },
           { path: "/dodaj", element: <Placeholder title="Dodaj" /> },
           { path: "/wiecej", element: <MoreScreen /> },
           { path: "*", element: <Navigate to="/" replace /> },
