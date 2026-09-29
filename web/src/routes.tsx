@@ -12,6 +12,7 @@ import { HistoryScreen } from "./screens/history/HistoryScreen";
 import { ImportScreen } from "./screens/import/ImportScreen";
 import { PositionDetailScreen } from "./screens/positions/PositionDetailScreen";
 import { PositionsScreen } from "./screens/positions/PositionsScreen";
+import { AccountScreen } from "./screens/settings/AccountScreen";
 import { PasswordScreen } from "./screens/settings/PasswordScreen";
 import { SettingsScreen } from "./screens/settings/SettingsScreen";
 import { SavingsDetailScreen } from "./screens/savings/SavingsDetailScreen";
@@ -44,6 +45,7 @@ export const appRoutes: RouteObject[] = [
           { path: "/dodaj/konto-oszczednosciowe", element: <SavingsForm /> },
           { path: "/ustawienia", element: <SettingsScreen /> },
           { path: "/ustawienia/haslo", element: <PasswordScreen /> },
+          { path: "/ustawienia/konta/:accountId", element: <AccountScreen /> },
           { path: "/wiecej", element: <Navigate to="/ustawienia" replace /> },
           { path: "*", element: <Navigate to="/" replace /> },
         ],
