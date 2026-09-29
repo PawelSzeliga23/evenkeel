@@ -51,7 +51,7 @@ export function HistoryScreen() {
   const filters: HistoryFilters = { account_id: accountId, type: type || null, from: from || null, to: to || null, q };
   const invalidate = useInvalidateAfterSave();
   const [deleting, setDeleting] = useState<HistoryItem | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ id: string; message: string } | null>(null);
 
   const entries = useInfiniteQuery({
     queryKey: keys.entries(filters),
@@ -62,9 +62,9 @@ export function HistoryScreen() {
   const remove = useMutation({
     mutationFn: deleteRequest,
     onSuccess: async () => { await invalidate(); setDeleting(null); },
-    onError: (err) => {
+    onError: (err, item) => {
       setDeleting(null);
-      setError(formErrors(err).general ?? "Nie udało się usunąć wpisu. Spróbuj ponownie.");
+      setError({ id: item.id, message: formErrors(err).general ?? "Nie udało się usunąć wpisu. Spróbuj ponownie." });
     },
   });
 
@@ -105,6 +105,7 @@ export function HistoryScreen() {
                 <ul className={styles.list}>
                   {day.items.map((item) => (
                     <li key={item.id} className={styles.item}>
+                      <div className={styles.row}>
                       <span className={styles.lead}>{entryLead(item)}</span>
                       <span className={styles.name}>
                         <b>{item.name ?? entryLabel(item)}</b>
@@ -116,19 +117,20 @@ export function HistoryScreen() {
                           <button type="button" className={forms.link} disabled={remove.isPending} onClick={() => askToDelete(item)}>Usuń</button>
                         )}
                       </span>
+                      </div>
+                      {deleting?.id === item.id && (
+                        <Confirm
+                          question={`Usunąć: ${entryLabel(item)} ${formatMoney(item.amount.replace("-", ""), { currency: item.currency === "PLN" ? "zł" : item.currency })} z ${formatDate(item.date)}?`}
+                          confirmLabel="Usuń" busy={remove.isPending} onConfirm={() => confirmDelete(item)} onCancel={cancelDelete}
+                        />
+                      )}
+                      {error?.id === item.id && <FormError message={error.message} />}
                     </li>
                   ))}
                 </ul>
               </section>
             ))}
 
-      {deleting && (
-        <Confirm
-          question={`Usunąć: ${entryLabel(deleting)} ${formatMoney(deleting.amount.replace("-", ""), { currency: deleting.currency === "PLN" ? "zł" : deleting.currency })} z ${formatDate(deleting.date)}?`}
-          confirmLabel="Usuń" busy={remove.isPending} onConfirm={() => confirmDelete(deleting)} onCancel={cancelDelete}
-        />
-      )}
-      <FormError message={error} />
       {entries.hasNextPage && (
         <button type="button" className={`${ui.secondary} ${styles.more}`} disabled={entries.isFetchingNextPage}
           onClick={() => void entries.fetchNextPage()}>
