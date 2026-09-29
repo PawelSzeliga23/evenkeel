@@ -104,6 +104,33 @@ describe("session", () => {
     await user.click(screen.getByRole("button", { name: "Zaloguj się" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(NETWORK_MESSAGE);
   });
+
+  it("tells a server error at startup apart from a missing connection and retries on demand", async () => {
+    mockFetch([{ method: "POST", path: "/api/auth/refresh", status: 500,
+      respond: () => ({ code: "internal_error", message: "Błąd serwera.", details: {} }) }]);
+    const { user } = renderRoutes(ROUTES, "/");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Serwer ma problem. Spróbuj ponownie za chwilę.");
+    expect(screen.queryByText(NETWORK_MESSAGE)).not.toBeInTheDocument();
+
+    mockFetch([...SIGNED_IN, SUMMARY]);
+    await user.click(screen.getByRole("button", { name: "Spróbuj ponownie" }));
+    expect(await screen.findByText(WELCOME)).toBeInTheDocument();
+  });
+
+  it("goes to the login screen when /me refuses the token right after a refresh", async () => {
+    let refreshes = 0;
+    mockFetch([
+      { method: "POST", path: "/api/auth/refresh", respond: () => (++refreshes === 1
+        ? { access_token: "token", token_type: "bearer" }
+        : json(401, { code: "invalid_refresh", message: "Zaloguj się ponownie.", details: {} })) },
+      { path: "/api/auth/me", status: 401, respond: () => ({ code: "invalid_token", message: "Zaloguj się ponownie.", details: {} }) },
+    ]);
+    renderRoutes(ROUTES, "/");
+
+    expect(await screen.findByLabelText("E-mail")).toBeInTheDocument();
+    expect(screen.queryByText(NETWORK_MESSAGE)).not.toBeInTheDocument();
+  });
 });
 
 describe("registration", () => {

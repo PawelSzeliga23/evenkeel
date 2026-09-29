@@ -1,12 +1,13 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { refreshSession, setAccessToken, setSessionExpiredHandler } from "../api/client";
+import { ApiError, refreshSession, setAccessToken, setSessionExpiredHandler } from "../api/client";
 import { api } from "../api/endpoints";
 import type { RegisterIn, UserOut } from "../api/types";
 
 export type SessionState =
   | { status: "loading" }
   | { status: "offline" }
+  | { status: "serverError" }
   | { status: "anonymous"; expired: boolean }
   | { status: "signedIn"; user: UserOut };
 
@@ -15,7 +16,7 @@ interface Session {
   signIn(email: string, password: string): Promise<void>;
   register(body: RegisterIn): Promise<void>;
   signOut(): Promise<void>;
-  /** runs the startup restore again after it failed for lack of a connection */
+  /** runs the startup restore again after it failed (no connection or a server error) */
   retry(): void;
 }
 
@@ -41,8 +42,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         } else if (!cancelled) {
           setState({ status: "anonymous", expired: false });
         }
-      } catch {
-        if (!cancelled) setState({ status: "offline" });
+      } catch (error) {
+        if (cancelled) return;
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+          setAccessToken(null);
+          setState({ status: "anonymous", expired: false });
+        } else if (error instanceof ApiError && error.status !== 0) {
+          setState({ status: "serverError" });
+        } else {
+          setState({ status: "offline" });
+        }
       }
     })();
     return () => {
