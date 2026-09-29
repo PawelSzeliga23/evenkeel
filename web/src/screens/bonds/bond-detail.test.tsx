@@ -25,7 +25,7 @@ describe("bond detail", () => {
     expect(within(periods).getByText("4,50 %, szacunkowa")).toBeInTheDocument();
   });
 
-  it("redeems early after a confirmation and deletes a purchase", async () => {
+  it("redeems early and deletes a purchase after a confirmation", async () => {
     const calls: { method: string; body?: unknown }[] = [];
     mockFetch([
       ...SIGNED_IN,
@@ -44,5 +44,45 @@ describe("bond detail", () => {
 
     await waitFor(() => expect(router.state.location.pathname).toBe("/pozycje"));
     expect(calls).toEqual([{ method: "PATCH", body: { redeemed_at: "2026-09-20" } }, { method: "DELETE" }]);
+  });
+
+  it("offers no redemption controls for a matured bond and shows a dash", async () => {
+    mockFetch([...SIGNED_IN, { path: "/api/bonds/7", respond: () => ({
+      ...DETAIL, redemption_today_pln: null, bond: { ...DETAIL.bond, status: "matured" } }) }]);
+    renderApp("/pozycje/obligacje/7");
+
+    expect(await screen.findByRole("heading", { name: "EDO0936" })).toBeInTheDocument();
+    expect(screen.getByText("Wartość przy wykupie dziś").nextElementSibling).toHaveTextContent("—");
+    expect(screen.queryByRole("button", { name: "Wykup przed terminem" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cofnij wykup" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Usuń zakup" })).toBeInTheDocument();
+  });
+
+  it("undoes an early redemption of a redeemed bond", async () => {
+    const bodies: unknown[] = [];
+    mockFetch([
+      ...SIGNED_IN,
+      { path: "/api/bonds/7", respond: () => ({ ...DETAIL, bond: { ...DETAIL.bond, status: "redeemed", redeemed_at: "2026-09-20" } }) },
+      { method: "PATCH", path: "/api/bonds/7", respond: (_u, init) => { bodies.push(JSON.parse(String(init.body))); return DETAIL.bond; } },
+    ]);
+    const { user } = renderApp("/pozycje/obligacje/7");
+
+    expect(await screen.findByRole("button", { name: "Cofnij wykup" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Wykup przed terminem" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cofnij wykup" }));
+    await waitFor(() => expect(bodies).toEqual([{ redeemed_at: null }]));
+  });
+
+  it("shows the API error when saving the redemption fails", async () => {
+    mockFetch([
+      ...SIGNED_IN,
+      { path: "/api/bonds/7", respond: () => DETAIL },
+      { method: "PATCH", path: "/api/bonds/7", respond: () => json(422, { code: "invalid_redemption", message: "Data wykupu jest przed datą zakupu.", details: {} }) },
+    ]);
+    const { user } = renderApp("/pozycje/obligacje/7");
+
+    await user.click(await screen.findByRole("button", { name: "Wykup przed terminem" }));
+    await user.click(screen.getByRole("button", { name: "Zapisz wykup" }));
+    expect(await screen.findByText("Data wykupu jest przed datą zakupu.")).toBeInTheDocument();
   });
 });

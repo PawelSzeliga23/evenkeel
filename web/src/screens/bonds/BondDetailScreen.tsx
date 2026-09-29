@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api } from "../../api/endpoints";
@@ -29,6 +29,7 @@ function Detail({ detail }: { detail: BondDetail }) {
   const { bond } = detail;
   const navigate = useNavigate();
   const invalidate = useInvalidateAfterSave();
+  const queryClient = useQueryClient();
   const [panel, setPanel] = useState<"none" | "redeem" | "delete">("none");
   const [day, setDay] = useState(todayIso());
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +41,11 @@ function Detail({ detail }: { detail: BondDetail }) {
   });
   const remove = useMutation({
     mutationFn: () => api.deleteBond(bond.id),
-    onSuccess: async () => { await invalidate(); navigate("/pozycje"); },
+    onSuccess: async () => {
+      queryClient.removeQueries({ queryKey: keys.bond(bond.id) });
+      navigate("/pozycje");
+      await invalidate();
+    },
     onError: (err) => setError(formErrors(err).general),
   });
 
@@ -84,7 +89,7 @@ function Detail({ detail }: { detail: BondDetail }) {
           <button type="button" className={ui.secondary} onClick={() => setPanel("redeem")}>Wykup przed terminem</button>
         )}
         {bond.status === "redeemed" && (
-          <button type="button" className={ui.secondary} onClick={() => redeem.mutate(null)}>Cofnij wykup</button>
+          <button type="button" className={ui.secondary} disabled={redeem.isPending} onClick={() => redeem.mutate(null)}>Cofnij wykup</button>
         )}
         <button type="button" className={forms.danger} onClick={() => setPanel("delete")}>Usuń zakup</button>
       </div>
