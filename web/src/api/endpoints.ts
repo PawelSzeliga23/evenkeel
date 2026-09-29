@@ -1,6 +1,6 @@
 import { request } from "./client";
 import type {
-  Account, AccountCreate, AccountUpdate, AccountUsage, Instrument, BondDetail, BondIn, BondOut, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Position, PositionDetail, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, TokenOut, Transaction, TransactionIn, UserOut,
+  Account, AccountCreate, AccountUpdate, AccountUsage, Instrument, BondDetail, BondIn, BondOut, Closed, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Limit, Position, PositionDetail, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, TokenOut, Transaction, TransactionIn, UserOut,
 } from "./types";
 
 function filesForm(files: File[]): FormData {
@@ -45,6 +45,10 @@ export const api = {
     request<History>("/api/portfolio/history", { query: { account_id: accountId, from } }),
   exposure: (accountId: number | null, day: IsoDate) =>
     request<Exposure>("/api/portfolio/exposure", { query: { account_id: accountId, from: day, to: day } }),
+  exposureHistory: (accountId: number | null, from: IsoDate | null) =>
+    request<Exposure>("/api/portfolio/exposure", { query: { account_id: accountId, from } }),
+  closed: (accountId: number | null) => request<Closed>("/api/portfolio/closed", { query: { account_id: accountId } }),
+  limits: () => request<Limit[]>("/api/portfolio/limits"),
   positions: (accountId: number | null) => request<Position[]>("/api/positions", { query: { account_id: accountId } }),
   position: (accountId: number, instrumentId: number) =>
     request<PositionDetail>(`/api/positions/${accountId}/${instrumentId}`),

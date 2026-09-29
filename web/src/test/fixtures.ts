@@ -1,4 +1,4 @@
-import type { Account, Exposure, History, Instrument, ImportFile, ImportResult, Position, PositionDetail, Summary } from "../api/types";
+import type { Account, Closed, Exposure, History, Instrument, ImportFile, ImportResult, Limit, Position, PositionDetail, Summary } from "../api/types";
 
 export const ACCOUNTS: Account[] = [
   { id: 1, name: "IKE", kind: "broker", wrapper: "ike", broker: "xtb", external_account_number: "56216965",
@@ -55,7 +55,7 @@ export const EXPOSURE: Exposure = {
 export function position(overrides: Partial<Position>): Position {
   return {
     kind: "instrument", account_id: 2, account_name: "XTB", instrument_id: 10, ticker: "SXR8.DE",
-    name: "Core S&P 500", category: "ETF", currency: "EUR", quantity: "42.00000000", price: "612.3400",
+    name: "Core S&P 500", category: "ETF", currency: "EUR", quantity: "42.00000000", price: "612.3400", price_currency: "EUR",
     price_date: "2026-09-26", price_source: "provider", value_pln: "1000.00", cost_pln: "900.00",
     unrealized_pln: "100.00", unrealized_pct: "11.11", price_effect_pln: "80.00", fx_effect_pln: "20.00",
     dividends_net_pln: "0.00", fees_pln: "0.00", realized_pln: "0.00", day_change_pln: "0.00", share_pct: "10.00",
@@ -85,7 +85,7 @@ export const POSITIONS: Position[] = [
 
 export const DETAIL: PositionDetail = {
   position: position({ instrument_id: 12, ticker: "CDR.PL", name: "CD Projekt", currency: "PLN", quantity: "48",
-    price: "232.4700", price_source: "xtb", value_pln: "11158.56", cost_pln: "9227.52", unrealized_pln: "1931.04",
+    price: "232.4700", price_currency: "PLN", price_source: "xtb", value_pln: "11158.56", cost_pln: "9227.52", unrealized_pln: "1931.04",
     unrealized_pct: "20.93", price_effect_pln: "1931.04", fx_effect_pln: "0.00", dividends_net_pln: "48.60",
     fees_pln: "-12.00", realized_pln: "215.30", share_pct: "6.05" }),
   lots: [
@@ -107,6 +107,7 @@ export const DETAIL: PositionDetail = {
       external_id: "1", comment: "", transfer_pair_id: null, manual: false },
   ],
   reconciliation: { status: "mismatch", taken_at: "2026-09-26T12:00:00", xtb_quantity: "50", calculated_quantity: "48" },
+  average_price: "192.2338",
 };
 
 export const IMPORT_FILE: ImportFile = {
@@ -131,3 +132,48 @@ export const BROKEN = instrument({
   id: 11, xtb_ticker: "EIMI.UK", name: "Core MSCI EM", price_symbol: "EIMI.UK", last_price: null,
   last_price_date: null, price_error: "Dostawca nie zna symbolu EIMI.UK.",
 });
+
+export const CLOSED: Closed = {
+  sales: [
+    { account_id: 2, account_name: "XTB", instrument_id: 13, ticker: "PKN.PL", name: "Orlen", opened_on: "2025-01-10",
+      closed_on: "2026-03-05", holding_days: 419, quantity: "20", cost_pln: "1200.00", proceeds_pln: "1500.00",
+      realized_pln: "300.00", price_effect_pln: "300.00", fx_effect_pln: "0.00", return_pct: "25.00", matched: true },
+    { account_id: 1, account_name: "IKE", instrument_id: 13, ticker: "PKN.PL", name: "Orlen", opened_on: "2025-02-01",
+      closed_on: "2026-04-01", holding_days: 424, quantity: "5", cost_pln: "300.00", proceeds_pln: "280.00",
+      realized_pln: "-20.00", price_effect_pln: "-20.00", fx_effect_pln: "0.00", return_pct: "-6.67", matched: true },
+  ],
+  investments: [
+    { account_id: 2, account_name: "XTB", instrument_id: 13, ticker: "PKN.PL", name: "Orlen", status: "closed",
+      first_buy: "2025-01-10", last_sale: "2026-03-05", sold_cost_pln: "1200.00", realized_pln: "300.00",
+      dividends_net_pln: "24.00", fees_pln: "-3.00", total_pln: "321.00", return_pct: "26.75" },
+    { account_id: 1, account_name: "IKE", instrument_id: 13, ticker: "PKN.PL", name: "Orlen", status: "partial",
+      first_buy: "2025-02-01", last_sale: "2026-04-01", sold_cost_pln: "300.00", realized_pln: "-20.00",
+      dividends_net_pln: "0.00", fees_pln: "0.00", total_pln: "-20.00", return_pct: "-6.67" },
+  ],
+  totals: { sold_cost_pln: "1500.00", realized_pln: "280.00", dividends_net_pln: "24.00", fees_pln: "-3.00",
+    total_pln: "301.00", return_pct: "20.07" },
+};
+
+export const LIMITS: Limit[] = [
+  { wrapper: "ike", year: 2026, paid_pln: "12000.00", limit_pln: "28260.00", remaining_pln: "16260.00", exceeded: false,
+    accounts: [{ account_id: 1, name: "IKE", paid_pln: "12000.00" }] },
+  { wrapper: "ike", year: 2025, paid_pln: "26019.00", limit_pln: "26019.00", remaining_pln: "0.00", exceeded: false,
+    accounts: [{ account_id: 1, name: "IKE", paid_pln: "26019.00" }] },
+  { wrapper: "ikze", year: 2026, paid_pln: "12000.00", limit_pln: "11304.00", remaining_pln: "0.00", exceeded: true,
+    accounts: [{ account_id: 5, name: "IKZE", paid_pln: "12000.00" }] },
+  { wrapper: "ikze", year: 2022, paid_pln: "1000.00", limit_pln: null, remaining_pln: null, exceeded: false,
+    accounts: [{ account_id: 5, name: "IKZE", paid_pln: "1000.00" }] },
+];
+
+export const EXPOSURE_HISTORY: Exposure = {
+  as_of: "2026-09-26",
+  current: [
+    { currency: "EUR", value_pln: "600.00", share_pct: "60.00" },
+    { currency: "PLN", value_pln: "400.00", share_pct: "40.00" },
+  ],
+  history: [
+    { date: "2026-09-24", values: { PLN: "1000.00" } },
+    { date: "2026-09-25", values: { PLN: "500.00", EUR: "500.00" } },
+    { date: "2026-09-26", values: { PLN: "400.00", EUR: "600.00", USD: "-5.00" } },
+  ],
+};

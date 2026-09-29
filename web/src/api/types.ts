@@ -57,6 +57,7 @@ export interface Position {
   currency: string | null;
   quantity: Money;
   price: Money | null;
+  price_currency: string | null;
   price_date: IsoDate | null;
   price_source: "provider" | "xtb" | null;
   value_pln: Money;
@@ -139,6 +140,7 @@ export interface PositionDetail {
   income: Income[];
   transactions: Transaction[];
   reconciliation: Reconciliation;
+  average_price: Money | null;
 }
 
 export interface ImportWarning { code: string; message: string; details: Record<string, unknown> }
@@ -266,3 +268,52 @@ export interface HistoryItem {
 }
 export interface HistoryPage { items: HistoryItem[]; next_cursor: string | null }
 export interface HistoryFilters { account_id: number | null; type: string | null; from: IsoDate | null; to: IsoDate | null; q: string }
+
+export interface ClosedTotals {
+  sold_cost_pln: Money;
+  realized_pln: Money;
+  dividends_net_pln: Money;
+  fees_pln: Money;
+  total_pln: Money;
+  return_pct: Money | null;
+}
+export interface ClosedInvestment extends ClosedTotals {
+  account_id: number;
+  account_name: string;
+  instrument_id: number;
+  ticker: string;
+  name: string;
+  status: "closed" | "partial";
+  first_buy: IsoDate;
+  last_sale: IsoDate;
+}
+export interface ClosedSale {
+  account_id: number;
+  account_name: string;
+  instrument_id: number;
+  ticker: string;
+  name: string;
+  opened_on: IsoDate;
+  closed_on: IsoDate;
+  holding_days: number;
+  quantity: Money;
+  cost_pln: Money;
+  proceeds_pln: Money;
+  realized_pln: Money;
+  price_effect_pln: Money;
+  fx_effect_pln: Money;
+  return_pct: Money | null;
+  matched: boolean;
+}
+export interface Closed { sales: ClosedSale[]; investments: ClosedInvestment[]; totals: ClosedTotals }
+
+export interface LimitAccount { account_id: number; name: string; paid_pln: Money }
+export interface Limit {
+  wrapper: "ike" | "ikze";
+  year: number;
+  paid_pln: Money;
+  limit_pln: Money | null;
+  remaining_pln: Money | null;
+  exceeded: boolean;
+  accounts: LimitAccount[];
+}

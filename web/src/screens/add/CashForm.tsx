@@ -24,6 +24,7 @@ export function CashForm() {
   const accounts = useQuery({ queryKey: keys.accounts, queryFn: api.accounts });
   const cash = (accounts.data ?? []).filter((a) => a.kind === "cash");
   const [account, setAccount] = useState("");
+  const currency = cash.find((a) => String(a.id) === account)?.currency ?? "PLN";
   const [newName, setNewName] = useState("");
   const [type, setType] = useState<CashOperationType>("deposit");
   const [amount, setAmount] = useState("");
@@ -78,7 +79,8 @@ export function CashForm() {
             <button type="button" className={ui.primaryButton} onClick={() => { save.reset(); setAmount(""); setComment(""); }}>
               Dodaj kolejną
             </button>
-            <Link className={ui.secondary} to="/pozycje">Zobacz pozycje</Link>
+            <Link className={ui.secondary} to="/dodaj">Wróć do Dodaj</Link>
+            <Link className={ui.secondary} to="/historia">Zobacz historię</Link>
           </div>
         </div>
       </div>
@@ -97,7 +99,7 @@ export function CashForm() {
         )}
         <Segmented label="Rodzaj operacji" options={TYPES} value={type} onChange={setType} />
         <div className={forms.row}>
-          <Field id="cash-amount" label="Kwota" error={errors.fields.amount} hint="W złotych, bez znaku minus.">
+          <Field id="cash-amount" label="Kwota" error={errors.fields.amount} hint={`W walucie konta (${currency}), bez znaku minus.`}>
             <input id="cash-amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)}
               aria-invalid={Boolean(errors.fields.amount)} />
           </Field>
