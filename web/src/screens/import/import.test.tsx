@@ -21,7 +21,7 @@ describe("import screen", () => {
         respond: (_u, init) => { sent.push(sentNames(init)); return json(201, { ...PREVIEW, files: [{ ...IMPORT_FILE, import_id: 9, account_id: 5 }] }); },
       },
     ]);
-    const { user } = renderApp("/dodaj");
+    const { user } = renderApp("/dodaj/xtb");
 
     await user.upload(await screen.findByLabelText("Wybierz pliki"), [xlsx(), xlsx("XTB_56204082.xlsx")]);
 
@@ -47,7 +47,7 @@ describe("import screen", () => {
         respond: () => ({ ...PREVIEW, errors: [{ filename: "zepsuty.xlsx", code: "bad_workbook", message: "Plik nie jest eksportem XTB." }], skipped: ["notatki.txt"] }),
       },
     ]);
-    const { user } = renderApp("/dodaj");
+    const { user } = renderApp("/dodaj/xtb");
 
     await user.upload(await screen.findByLabelText("Wybierz pliki"), [xlsx(), xlsx("zepsuty.xlsx")]);
 
@@ -63,7 +63,7 @@ describe("import screen", () => {
       ...SIGNED_IN,
       { method: "POST", path: "/api/imports/preview", respond: () => ({ ...PREVIEW, files: [{ ...IMPORT_FILE, new_account: false, account_id: 5, new_transactions: 0 }] }) },
     ]);
-    const { user } = renderApp("/dodaj");
+    const { user } = renderApp("/dodaj/xtb");
 
     await user.upload(await screen.findByLabelText("Wybierz pliki"), [xlsx()]);
 
@@ -78,7 +78,7 @@ describe("import screen", () => {
     const original = fetchMock.getMockImplementation()!;
     fetchMock.mockImplementation((input: string, init?: RequestInit) =>
       String(input) === "/api/imports/preview" && ++attempts === 1 ? Promise.reject(new TypeError("Failed to fetch")) : original(input, init));
-    const { user } = renderApp("/dodaj");
+    const { user } = renderApp("/dodaj/xtb");
 
     await user.upload(await screen.findByLabelText("Wybierz pliki"), [xlsx()]);
     expect(await screen.findByRole("alert")).toHaveTextContent(NETWORK_MESSAGE);

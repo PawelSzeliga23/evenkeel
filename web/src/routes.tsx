@@ -2,6 +2,8 @@ import { Navigate, type RouteObject } from "react-router";
 import { LoginScreen } from "./auth/LoginScreen";
 import { RegisterScreen } from "./auth/RegisterScreen";
 import { GuestOnly, RequireAuth } from "./auth/RequireAuth";
+import { AddScreen } from "./screens/add/AddScreen";
+import { CashForm } from "./screens/add/CashForm";
 import { DashboardScreen } from "./screens/dashboard/DashboardScreen";
 import { ImportScreen } from "./screens/import/ImportScreen";
 import { PositionDetailScreen } from "./screens/positions/PositionDetailScreen";
@@ -26,7 +28,9 @@ export const appRoutes: RouteObject[] = [
           { path: "/", element: <DashboardScreen /> },
           { path: "/pozycje", element: <PositionsScreen /> },
           { path: "/pozycje/:accountId/:instrumentId", element: <PositionDetailScreen /> },
-          { path: "/dodaj", element: <ImportScreen /> },
+          { path: "/dodaj", element: <AddScreen /> },
+          { path: "/dodaj/xtb", element: <ImportScreen /> },
+          { path: "/dodaj/operacja", element: <CashForm /> },
           { path: "/wiecej", element: <MoreScreen /> },
           { path: "*", element: <Navigate to="/" replace /> },
         ],

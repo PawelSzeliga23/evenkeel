@@ -25,7 +25,7 @@ export function PositionsScreen() {
           : positions.data.length === 0 ? (
             <EmptyState
               title="Nie masz jeszcze pozycji. Wgraj eksport z XTB, żeby je zobaczyć."
-              action={<Link className={ui.primaryButton} to="/dodaj">Wgraj pliki z XTB</Link>}
+              action={<Link className={ui.primaryButton} to="/dodaj/xtb">Wgraj pliki z XTB</Link>}
             />
           ) : groupPositions(positions.data).map((group) => (
             <section key={group.key} className={ui.section} aria-labelledby={`group-${group.key}`}>

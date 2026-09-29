@@ -76,7 +76,7 @@ describe("dashboard screen", () => {
     mockFetch(routes({ summary: () => ({ ...SUMMARY, as_of: null, by_kind: [], by_account: [] }) }));
     renderApp("/");
     expect(await screen.findByText("Wgraj eksport z XTB, żeby zobaczyć swój portfel.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Wgraj pliki z XTB" })).toHaveAttribute("href", "/dodaj");
+    expect(screen.getByRole("link", { name: "Wgraj pliki z XTB" })).toHaveAttribute("href", "/dodaj/xtb");
   });
 
   it("asks for one account and the currency allocation of the valuation day", async () => {
