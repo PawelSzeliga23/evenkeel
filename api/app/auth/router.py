@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auth.deps import get_current_user
-from app.auth.schemas import LoginIn, RegisterIn, TokenOut, UserOut
+from app.auth.schemas import LoginIn, PasswordChangeIn, RegisterIn, TokenOut, UserOut
 from app.auth.security import (
     create_access_token,
     hash_password,
@@ -117,6 +117,29 @@ def login(
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)) -> User:
     return user
+
+
+@router.post("/password", status_code=204)
+def change_password(
+    body: PasswordChangeIn,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    """Keeps the session of this request (its refresh cookie) and ends every other one; other devices' access
+    tokens are stateless and simply expire within `access_token_minutes`."""
+    if not request.app.state.login_limiter.hit(_client_key(request)):
+        raise _rate_limited()
+    if not verify_password(user.password_hash, body.current_password):
+        raise ApiError(400, "wrong_password", "Obecne hasło jest nieprawidłowe.")
+    user.password_hash = hash_password(body.new_password)
+    others = update(RefreshToken).where(RefreshToken.user_id == user.id, RefreshToken.revoked_at.is_(None))
+    raw = request.cookies.get(REFRESH_COOKIE)
+    if raw:
+        others = others.where(RefreshToken.token_hash != hash_refresh_token(raw))
+    db.execute(others.values(revoked_at=datetime.now(UTC)))
+    db.commit()
+    return Response(status_code=204)
 
 
 def _invalid_refresh() -> ApiError:
