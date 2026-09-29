@@ -15,8 +15,11 @@ from app.portfolio.schemas import (
 )
 from app.scoping import UserScope
 from app.transactions.schemas import TransactionOut
-from app.valuation.engine import ONE_DAY, ZERO, Book, PositionView, Row, last_session, money, previous_session, replay
+from app.valuation.engine import (
+    ONE_DAY, PRICE_PLACES, ZERO, Book, PositionView, Quote, Row, last_session, money, previous_session, replay,
+)
 from app.valuation.fixed_income import bond_rows, day_view, savings_rows
+from app.valuation.market_data import BASE_CURRENCY
 from app.valuation.returns import twr_index, twr_percent
 from app.valuation.service import Inputs, load_fixed_income, load_inputs, local_day
 
@@ -184,6 +187,23 @@ def portfolio_history(
     return HistoryOut(points=points, events=events)
 
 
+def _display_price(quote: Quote | None, instrument: Instrument) -> tuple[Decimal | None, str | None]:
+    """The provider close in the quote currency, or — valued from XTB figures — the PLN value of one unit."""
+    if quote is None:
+        return None, None
+    if quote.price is not None:
+        return quote.price, instrument.currency
+    return quote.unit_pln.quantize(PRICE_PLACES, rounding=ROUND_HALF_UP), BASE_CURRENCY
+
+
+def _average_price(lots: list[LotOut]) -> Decimal | None:
+    quantity = sum((lot.quantity for lot in lots), ZERO)
+    if not lots or not quantity or any(lot.open_price is None for lot in lots):
+        return None
+    total = sum((lot.open_price * lot.quantity for lot in lots if lot.open_price is not None), ZERO)
+    return (total / quantity).quantize(PRICE_PLACES, rounding=ROUND_HALF_UP)
+
+
 def _instrument_item(book: Book, account: Account, instrument: Instrument, view: PositionView | None,
                      day: dt.date) -> PositionOut:
     key = (account.id, instrument.id)
@@ -205,10 +225,10 @@ def _instrument_item(book: Book, account: Account, instrument: Instrument, view:
     quote = view.quote
     unrealized = view.value_pln - view.cost_pln
     session = last_session(day)
+    price, price_currency = _display_price(quote, instrument)
     return PositionOut(
-        **fields, quantity=view.quantity,
-        price=quote.price if quote else None, price_date=quote.price_date if quote else None,
-        price_source=quote.source if quote else None,
+        **fields, quantity=view.quantity, price=price, price_currency=price_currency,
+        price_date=quote.price_date if quote else None, price_source=quote.source if quote else None,
         value_pln=view.value_pln, cost_pln=view.cost_pln, unrealized_pln=unrealized,
         unrealized_pct=percent(unrealized, view.cost_pln),
         price_effect_pln=view.price_effect_pln, fx_effect_pln=view.fx_effect_pln,
@@ -334,8 +354,11 @@ def position_detail(scope: UserScope, account: Account, instrument: Instrument, 
     lots = []
     for lot in view.lots if view else ():
         stored = stops.get(lot.position_id) if lot.position_id else None
+        open_price = lot.open_price
+        if open_price is None and stored is not None and stored.quantity == lot.quantity:
+            open_price = stored.open_price  # XTB's own open price, quote currency; same units only (no split since)
         lots.append(LotOut(
-            position_id=lot.position_id, opened_on=lot.opened_on, quantity=lot.quantity, open_price=lot.open_price,
+            position_id=lot.position_id, opened_on=lot.opened_on, quantity=lot.quantity, open_price=open_price,
             cost_pln=lot.cost_pln, value_pln=lot.value_pln, gain_pln=lot.value_pln - lot.cost_pln,
             price_effect_pln=lot.price_effect_pln, fx_effect_pln=lot.fx_effect_pln,
             holding_days=(day - lot.opened_on).days,
@@ -359,5 +382,5 @@ def position_detail(scope: UserScope, account: Account, instrument: Instrument, 
     return PositionDetailOut(
         position=item, lots=lots, sales=sales, income=income,
         transactions=[TransactionOut.model_validate(t) for t in transactions],
-        reconciliation=_reconciliation(db, book, inputs, account, instrument),
+        reconciliation=_reconciliation(db, book, inputs, account, instrument), average_price=_average_price(lots),
     )

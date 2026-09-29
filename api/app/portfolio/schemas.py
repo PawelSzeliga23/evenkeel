@@ -63,6 +63,7 @@ class PositionOut(BaseModel):
     currency: str | None
     quantity: Decimal  # units of the valuation day; for cash the balance in the account currency
     price: Decimal | None
+    price_currency: str | None = None  # "PLN" when valued from XTB figures (price = PLN per unit)
     price_date: dt.date | None
     price_source: Literal["provider", "xtb"] | None
     value_pln: Decimal
@@ -132,6 +133,7 @@ class PositionDetailOut(BaseModel):
     income: list[IncomeOut]
     transactions: list[TransactionOut]
     reconciliation: ReconciliationOut
+    average_price: Decimal | None = None  # quantity-weighted lot open price, quote currency
 
 
 class ClosedSaleOut(BaseModel):
