@@ -42,7 +42,7 @@ function Entry({ title, subtitle, value, detail }: { title: ReactNode; subtitle?
 }
 
 const price = (value: string | null, currency: string | null) =>
-  value === null ? "—" : `${formatDecimal(value, 4)} ${currency ?? ""}`.trim();
+  value === null ? "—" : `${formatDecimal(value, 4)}${currency ? `\u00a0${currency}` : ""}`;
 
 function reconciliationText(r: Reconciliation): { title: string; subtitle: string; tone: string } {
   const when = r.taken_at ? `stan z ${formatDateTime(r.taken_at)}` : "";
@@ -50,7 +50,7 @@ function reconciliationText(r: Reconciliation): { title: string; subtitle: strin
   if (r.status === "mismatch") {
     const xtb = r.xtb_quantity === null ? "—" : formatDecimal(r.xtb_quantity, 8);
     const calculated = r.calculated_quantity === null ? "—" : formatDecimal(r.calculated_quantity, 8);
-    return { title: "Niezgodność z XTB", subtitle: `XTB: ${xtb} szt., wyliczone: ${calculated} szt., ${when}`, tone: "down" };
+    return { title: "Niezgodność z XTB", subtitle: `XTB: ${xtb}\u00a0szt., wyliczone: ${calculated}\u00a0szt., ${when}`, tone: "down" };
   }
   return { title: "Brak stanu z XTB do porównania", subtitle: "Wgraj eksport z zakładką Open Positions.", tone: "dim" };
 }
@@ -73,8 +73,9 @@ function Detail({ detail }: { detail: PositionDetail }) {
 
       <Section title="Podsumowanie">
         <dl className={ui.kv}>
-          <dt>Ilość</dt><dd>{formatDecimal(p.quantity, 8)} szt.</dd>
-          <dt>Cena</dt><dd>{price(p.price, p.currency)}</dd>
+          <dt>Ilość</dt><dd>{`${formatDecimal(p.quantity, 8)}\u00a0szt.`}</dd>
+          <dt>Cena</dt><dd>{price(p.price, p.price_currency)}</dd>
+          {detail.average_price !== null && <><dt>Średnia cena</dt><dd>{price(detail.average_price, p.currency)}</dd></>}
           {p.price_date && <><dt>Źródło ceny</dt><dd>{`${source}, ${formatDate(p.price_date)}`}</dd></>}
           <dt>Koszt</dt><dd><Money value={p.cost_pln} /></dd>
           {p.share_pct !== null && <><dt>Udział w portfelu</dt><dd>{formatPercent(p.share_pct, { sign: false, places: 1 })}</dd></>}
@@ -97,7 +98,9 @@ function Detail({ detail }: { detail: PositionDetail }) {
             <Entry
               key={lot.position_id ?? i}
               title={formatDate(lot.opened_on)}
-              subtitle={`${formatDecimal(lot.quantity, 8)} szt. po ${price(lot.open_price, p.currency)}`}
+              subtitle={lot.open_price === null
+                ? `${formatDecimal(lot.quantity, 8)}\u00a0szt.`
+                : `${formatDecimal(lot.quantity, 8)}\u00a0szt. po ${price(lot.open_price, p.currency)}`}
               value={<Money value={lot.gain_pln} sign tone />}
               detail={[
                 formatDays(lot.holding_days),
@@ -113,7 +116,7 @@ function Detail({ detail }: { detail: PositionDetail }) {
         <Section title="Sprzedaże">
           <ul className={styles.list}>
             {detail.sales.map((sale, i) => (
-              <Entry key={i} title={formatDate(sale.date)} subtitle={`${formatDecimal(sale.quantity, 8)} szt., ${formatDays(sale.holding_days)}`}
+              <Entry key={i} title={formatDate(sale.date)} subtitle={`${formatDecimal(sale.quantity, 8)}\u00a0szt., ${formatDays(sale.holding_days)}`}
                 value={<Money value={sale.realized_pln} sign tone />} detail={<Money value={sale.proceeds_pln} />} />
             ))}
           </ul>
@@ -136,7 +139,7 @@ function Detail({ detail }: { detail: PositionDetail }) {
           {detail.transactions.map((t) => (
             <Entry key={t.id} title={transactionLabel(t.type)} subtitle={formatDateTime(t.occurred_at)}
               value={<Money value={t.amount} sign currency={t.currency} />}
-              detail={t.quantity ? `${formatDecimal(t.quantity, 8)} szt.` : undefined} />
+              detail={t.quantity ? `${formatDecimal(t.quantity, 8)}\u00a0szt.` : undefined} />
           ))}
         </ul>
       </Section>

@@ -72,3 +72,5 @@ a.row:hover b { color: var(--amber); }
 .primaryButton { background: var(--amber); border: 0; color: var(--night); font-weight: 600; }
 .primaryButton:disabled { opacity: .5; cursor: default; }
 .recalculating { color: var(--dim); font-size: 13px; }
+.back { display: inline-flex; align-items: center; gap: 6px; color: var(--dim); font-size: 14px; min-height: 44px; justify-self: start; }
+.notice { color: var(--ink); background: var(--amber-soft); border-radius: var(--r-control); padding: 10px 14px; }

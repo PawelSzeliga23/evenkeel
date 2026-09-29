@@ -8,6 +8,7 @@ import { ValueChart } from "../../charts/ValueChart";
 import { formatDayLong, formatPercent, pluralPl, signOf, sumMoney } from "../../format";
 import { AccountPicker } from "../../ui/AccountPicker";
 import { HeroAmount, Money } from "../../ui/Amount";
+import { LimitsCard } from "../limits/LimitsCard";
 import { ListRow } from "../../ui/ListRow";
 import { Segmented } from "../../ui/Segmented";
 import { EmptyState, ErrorState, Recalculating, Skeleton } from "../../ui/States";
@@ -118,6 +119,7 @@ export function DashboardScreen() {
       <section className={ui.section} aria-labelledby="allocation-title">
         <div className={ui.sectionHead}>
           <h2 id="allocation-title" className={ui.sectionTitle}>Alokacja</h2>
+          {mode === "currency" && <Link className={ui.sectionMore} to="/ekspozycja">Zobacz w czasie</Link>}
         </div>
         <Segmented label="Alokacja według" options={ALLOCATION_MODES} value={mode} onChange={setMode} />
         {mode === "currency" && exposure.isPending ? <Skeleton rows={2} />
@@ -142,6 +144,8 @@ export function DashboardScreen() {
               </>
             )}
       </section>
+
+      <LimitsCard />
 
       {movers.length > 0 && (
         <section className={ui.section} aria-labelledby="movers-title">

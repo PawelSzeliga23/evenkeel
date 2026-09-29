@@ -14,3 +14,9 @@
 .entryName b { font-weight: 500; }
 .entryName small, .entryAmount small { color: var(--dim); font-size: 12.5px; }
 .entryAmount { display: grid; text-align: right; font-variant-numeric: tabular-nums; }
+.closedItem { border-top: 1px solid var(--rule); }
+.closedItem:first-child { border-top: 0; }
+.closedHead {
+  display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; width: 100%; min-height: 60px;
+  padding: 11px 0; background: none; border: 0; color: var(--ink); text-align: left; cursor: pointer; font: inherit;
+}

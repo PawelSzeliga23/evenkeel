@@ -9,12 +9,17 @@ import { CashForm } from "./screens/add/CashForm";
 import { SavingsForm } from "./screens/add/SavingsForm";
 import { DashboardScreen } from "./screens/dashboard/DashboardScreen";
 import { HistoryScreen } from "./screens/history/HistoryScreen";
+import { ExposureScreen } from "./screens/exposure/ExposureScreen";
+import { LimitsScreen } from "./screens/limits/LimitsScreen";
 import { ImportScreen } from "./screens/import/ImportScreen";
 import { PositionDetailScreen } from "./screens/positions/PositionDetailScreen";
 import { PositionsScreen } from "./screens/positions/PositionsScreen";
+import { AccountScreen } from "./screens/settings/AccountScreen";
+import { PasswordScreen } from "./screens/settings/PasswordScreen";
+import { PriceSourcesScreen } from "./screens/settings/PriceSourcesScreen";
+import { SettingsScreen } from "./screens/settings/SettingsScreen";
 import { SavingsDetailScreen } from "./screens/savings/SavingsDetailScreen";
 import { AppShell } from "./shell/AppShell";
-import { MoreScreen } from "./shell/MoreScreen";
 
 export const appRoutes: RouteObject[] = [
   {
@@ -35,13 +40,19 @@ export const appRoutes: RouteObject[] = [
           { path: "/pozycje/obligacje/:holdingId", element: <BondDetailScreen /> },
           { path: "/pozycje/oszczednosci/:accountId", element: <SavingsDetailScreen /> },
           { path: "/pozycje/:accountId/:instrumentId", element: <PositionDetailScreen /> },
+          { path: "/ekspozycja", element: <ExposureScreen /> },
+          { path: "/limity", element: <LimitsScreen /> },
           { path: "/historia", element: <HistoryScreen /> },
           { path: "/dodaj", element: <AddScreen /> },
           { path: "/dodaj/xtb", element: <ImportScreen /> },
           { path: "/dodaj/obligacja", element: <BondForm /> },
           { path: "/dodaj/operacja", element: <CashForm /> },
           { path: "/dodaj/konto-oszczednosciowe", element: <SavingsForm /> },
-          { path: "/wiecej", element: <MoreScreen /> },
+          { path: "/ustawienia", element: <SettingsScreen /> },
+          { path: "/ustawienia/haslo", element: <PasswordScreen /> },
+          { path: "/ustawienia/zrodla-cen", element: <PriceSourcesScreen /> },
+          { path: "/ustawienia/konta/:accountId", element: <AccountScreen /> },
+          { path: "/wiecej", element: <Navigate to="/ustawienia" replace /> },
           { path: "*", element: <Navigate to="/" replace /> },
         ],
       },

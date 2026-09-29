@@ -64,12 +64,30 @@ describe("positions screen", () => {
 });
 
 describe("position detail", () => {
+  it("shows the price in the currency the API gives and lots without an open price without 'po'", async () => {
+    const detail = {
+      ...DETAIL,
+      position: { ...DETAIL.position, currency: "EUR", price: "2152.1500", price_currency: "PLN" },
+      lots: [{ ...DETAIL.lots[0]!, open_price: null }],
+      average_price: null,
+    };
+    mockFetch([...SIGNED_IN, { path: "/api/positions/2/12", respond: () => detail }]);
+    renderApp("/pozycje/2/12");
+
+    expect(await screen.findByText(`2${T}152,15${T}PLN`)).toBeInTheDocument();
+    expect(screen.queryByText("Średnia cena")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Partie" })).getByText("30 szt.")).toBeInTheDocument();
+  });
+
   it("shows the summary, the gain breakdown, lots, sales, income, operations and the XTB check", async () => {
     mockFetch([...SIGNED_IN, { path: "/api/positions/2/12", respond: () => DETAIL }]);
     renderApp("/pozycje/2/12");
 
     expect(await screen.findByRole("heading", { name: "CD Projekt" })).toBeInTheDocument();
     expect(screen.getByText(`232,47${T}PLN`)).toBeInTheDocument();
+    expect(screen.getByText("Ilość").nextElementSibling).toHaveTextContent("48 szt.");
+    expect(screen.getByText("Ilość").nextElementSibling!.textContent).not.toContain("\\u00a0");
+    expect(screen.getByText("Średnia cena").nextElementSibling).toHaveTextContent(`192,2338${T}PLN`);
     expect(screen.getByText("z XTB, 26.09.2026")).toBeInTheDocument();
 
     const gain = screen.getByRole("region", { name: "Zysk" });

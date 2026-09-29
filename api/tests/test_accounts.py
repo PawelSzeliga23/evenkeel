@@ -1,7 +1,13 @@
+import datetime as dt
 from collections.abc import Callable
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import Engine, select
+from sqlalchemy.orm import Session
+
+import app.accounts.router as accounts_router
+from app.models import User
 
 LoginAs = Callable[[str], dict[str, str]]
 
@@ -197,3 +203,59 @@ def test_other_user_cannot_touch_account(client: TestClient, login_as: LoginAs, 
     assert foreign.status_code == 404
     assert foreign.json() == missing.json()
     assert client.get(f"/api/accounts/{account_id}", headers=anna).json()["name"] == "XTB IKE"
+
+
+def test_usage_counts_what_deleting_the_account_would_remove(
+    client: TestClient, login_as: LoginAs, engine: Engine
+) -> None:
+    from tests.valuation_seed import seed_holdings, seed_market, seed_snapshot
+
+    anna = login_as("anna@portfolio.dev")
+    with Session(engine) as db:
+        instrument_id = seed_market(db)
+        user_id = db.scalar(select(User.id).where(User.email == "anna@portfolio.dev"))
+        account_id = seed_holdings(db, user_id, instrument_id)
+        seed_snapshot(db, account_id, instrument_id, "2")
+
+    response = client.get(f"/api/accounts/{account_id}/usage", headers=anna)
+
+    assert response.status_code == 200
+    assert response.json() == {"transactions": 4, "imports": 1, "bond_holdings": 0, "savings_entries": 0}
+
+
+def test_usage_of_a_savings_account_counts_its_rates_and_flows(client: TestClient, login_as: LoginAs) -> None:
+    anna = login_as("anna@portfolio.dev")
+    created = client.post("/api/savings-accounts", headers=anna, json={
+        "name": "Konto oszczędnościowe", "wrapper": "regular", "capitalization": "monthly", "annual_rate": "5",
+        "rate_valid_from": "2026-09-01", "first_deposit": {"date": "2026-09-01", "amount": "10000"},
+    })
+    assert created.status_code == 201, created.json()
+
+    usage = client.get(f"/api/accounts/{created.json()['account_id']}/usage", headers=anna).json()
+
+    assert usage == {"transactions": 0, "imports": 0, "bond_holdings": 0, "savings_entries": 2}
+
+
+def test_usage_of_someone_elses_account_is_not_found(client: TestClient, login_as: LoginAs) -> None:
+    anna = login_as("anna@portfolio.dev")
+    bartek = login_as("bartek@portfolio.dev")
+    account_id = _create(client, anna)
+
+    response = client.get(f"/api/accounts/{account_id}/usage", headers=bartek)
+
+    assert (response.status_code, response.json()["code"]) == (404, "not_found")
+
+
+def test_deleting_an_account_recomputes_the_valuation(
+    client: TestClient, login_as: LoginAs, engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    anna = login_as("anna@portfolio.dev")
+    account_id = _create(client, anna)
+    recomputed: list[int] = []
+    monkeypatch.setattr(accounts_router, "recompute_in_background", lambda _sessions, user_id: recomputed.append(user_id))
+
+    assert client.delete(f"/api/accounts/{account_id}", headers=anna).status_code == 204
+
+    with Session(engine) as db:
+        user = db.scalar(select(User).where(User.email == "anna@portfolio.dev"))
+        assert (user.valuations_stale_from, recomputed) == (dt.date.min, [user.id])

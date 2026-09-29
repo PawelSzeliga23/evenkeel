@@ -20,10 +20,6 @@
   width: 42px; height: 30px; border-radius: 10px; background: var(--amber); color: var(--night);
   display: grid; place-items: center;
 }
-.signOut { justify-self: start; margin-top: 4px; }
-.coming { list-style: none; padding: 0; margin: 0; }
-.coming li { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--rule); }
-.coming li:first-child { border-top: 0; }
 
 @media (min-width: 900px) {
   .shell { display: grid; grid-template-columns: 220px 1fr; }

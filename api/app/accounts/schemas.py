@@ -61,3 +61,12 @@ class AccountOut(BaseModel):
     external_account_number: str | None
     currency: str
     created_at: datetime
+
+
+class AccountUsageOut(BaseModel):
+    """Records that deleting the account removes with it (cascade)."""
+
+    transactions: int
+    imports: int
+    bond_holdings: int
+    savings_entries: int  # deposits and withdrawals, bank balances and rates of its savings account

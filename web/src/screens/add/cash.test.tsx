@@ -102,4 +102,17 @@ describe("cash operation form", () => {
     expect(sent.filter((s) => s.path === "accounts")).toHaveLength(1);
     expect(sent.filter((s) => s.path === "transactions")).toHaveLength(2);
   });
+
+  it("names the account's currency in the amount hint and offers Dodaj and Historia after saving", async () => {
+    const sent: { path: string; body: unknown }[] = [];
+    mockFetch(routes([{ ...CASH, id: 5, name: "Gotówka EUR", currency: "EUR" }], sent));
+    const { user } = renderApp("/dodaj/operacja");
+
+    expect(await screen.findByText("W walucie konta (EUR), bez znaku minus.")).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Kwota"), "10");
+    await user.click(screen.getByRole("button", { name: "Zapisz operację" }));
+
+    expect(await screen.findByRole("link", { name: "Wróć do Dodaj" })).toHaveAttribute("href", "/dodaj");
+    expect(screen.getByRole("link", { name: "Zobacz historię" })).toHaveAttribute("href", "/historia");
+  });
 });

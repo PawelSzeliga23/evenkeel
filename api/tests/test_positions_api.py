@@ -4,10 +4,12 @@ from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, select
+from sqlalchemy import Engine, select, update
 from sqlalchemy.orm import Session
 
-from app.models import Account, BondSeries, CorporateAction, ImportRecord, Price, Transaction, User, XtbSnapshot
+from app.models import (
+    Account, BondSeries, CorporateAction, ImportRecord, Instrument, PositionLot, Price, Transaction, User, XtbSnapshot,
+)
 from tests.valuation_seed import seed_holdings, seed_market, seed_snapshot
 
 LoginAs = Callable[[str], dict[str, str]]
@@ -46,6 +48,7 @@ def test_positions_list_open_instruments_and_cash_with_the_profit_breakdown(clie
     assert (cash["kind"], cash["name"], cash["currency"], cash["value_pln"], cash["share_pct"]) == (
         "cash", "Gotówka", "PLN", "5729.70", "52.91")
     assert Decimal(cash["quantity"]) == Decimal("5729.70")
+    assert (instrument["price_currency"], cash["price_currency"]) == ("EUR", None)
 
 
 def test_position_without_provider_prices_is_valued_from_xtb(client: TestClient, world: dict, engine: Engine) -> None:
@@ -55,8 +58,9 @@ def test_position_without_provider_prices_is_valued_from_xtb(client: TestClient,
 
     instrument = client.get("/api/positions", params=ON, headers=world["anna"]).json()[0]
 
-    assert (instrument["price_source"], instrument["price"], instrument["price_date"], instrument["value_pln"],
-            instrument["flags"]) == ("xtb", None, "2026-03-02", "4304.30", ["xtb_price"])
+    assert (instrument["price_source"], instrument["price"], instrument["price_currency"], instrument["price_date"],
+            instrument["value_pln"], instrument["flags"]) == (
+        "xtb", "2152.1500", "PLN", "2026-03-02", "4304.30", ["xtb_price"])
 
 
 def test_positions_are_private_and_filterable_by_own_account(client: TestClient, world: dict) -> None:
@@ -220,3 +224,54 @@ def test_bonds_and_savings_accounts_are_positions(client: TestClient, login_as: 
         ("savings", "Konto", "savings", "9000.00", "9000.00", "0.00", "0.00", "89.99"),
     ]
     assert positions[0]["bond_holding_id"] is not None and positions[1]["savings_account_id"] is not None
+
+
+def test_detail_has_the_lot_open_price_and_the_average_price(client: TestClient, world: dict) -> None:
+    detail = _detail(client, world)
+
+    assert [Decimal(lot["open_price"]) for lot in detail["lots"]] == [Decimal("500.5")]
+    assert Decimal(detail["average_price"]) == Decimal("500.5")
+
+
+def _without_quote_currency(engine: Engine) -> None:
+    """Like an instrument the provider never quoted: no prices, so no known quote currency and no purchase rate."""
+    with Session(engine) as db:
+        db.query(Price).delete()
+        db.execute(update(Instrument).values(currency=None))
+        db.commit()
+
+
+def test_lot_without_a_purchase_rate_takes_the_xtb_open_price(client: TestClient, world: dict, engine: Engine) -> None:
+    _without_quote_currency(engine)
+
+    detail = _detail(client, world)
+
+    assert [Decimal(lot["open_price"]) for lot in detail["lots"]] == [Decimal("500.5")]
+    assert Decimal(detail["average_price"]) == Decimal("500.5")
+    assert (Decimal(detail["position"]["price"]), detail["position"]["price_currency"]) == (Decimal("2152.15"), "PLN")
+
+
+def test_xtb_open_price_of_a_different_quantity_is_not_used(client: TestClient, world: dict, engine: Engine) -> None:
+    _without_quote_currency(engine)
+    with Session(engine) as db:  # e.g. XTB's figures after a split the engine does not know about
+        db.execute(update(PositionLot).values(quantity=Decimal("4")))
+        db.commit()
+
+    detail = _detail(client, world)
+
+    assert ([lot["open_price"] for lot in detail["lots"]], detail["average_price"]) == ([None], None)
+
+
+def test_fully_sold_position_has_no_average_price(client: TestClient, world: dict, engine: Engine) -> None:
+    with Session(engine) as db:
+        db.add(Transaction(
+            account_id=world["account_id"], type="sell", xtb_type="sell",
+            occurred_at=dt.datetime(2026, 9, 25, 9, 0, tzinfo=dt.UTC), amount=Decimal("5100"), currency="PLN",
+            external_id="5", comment="", raw={}, instrument_id=world["instrument_id"], quantity=Decimal("2"),
+            price=Decimal("600"), xtb_position_id="777",
+        ))
+        db.commit()
+
+    detail = _detail(client, world)
+
+    assert (detail["lots"], detail["average_price"], detail["position"]["price_currency"]) == ([], None, None)

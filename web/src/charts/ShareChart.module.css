@@ -1,0 +1,14 @@
+.chart { display: grid; gap: 10px; margin: 0; }
+.readout { display: flex; flex-wrap: wrap; gap: 6px 14px; min-height: 22px; font-size: 13px; color: var(--dim); }
+.legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--dim); }
+.legend li { display: inline-flex; align-items: center; gap: 6px; }
+.swatch { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+.svg { width: 100%; height: auto; display: block; touch-action: pan-y; }
+.axis { fill: var(--dim); font-size: 10px; }
+.grid { stroke: var(--rule); stroke-width: 1; }
+.cursor { stroke: var(--ink); stroke-width: 1; opacity: .6; }
+.table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.table th, .table td { text-align: right; padding: 6px 0; border-top: 1px solid var(--rule); }
+.table th:first-child, .table td:first-child { text-align: left; }
+.note { color: var(--dim); }
+.chart summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; color: var(--amber); }
