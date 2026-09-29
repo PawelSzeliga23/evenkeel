@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   addMonths, formatDate, formatDateTime, formatDayLong, formatDays, formatDecimal, formatMoney, formatPercent,
-  fromCents, moneyParts, monthShort, signOf, sumMoney, toCents, todayIso,
+  fromCents, moneyParts, monthShort, signOf, sumMoney, toCents, todayIso, NBSP,
 } from ".";
 
-const S = " ";
+const S = " ";
 const M = "−";
 
 describe("decimal", () => {
@@ -33,6 +33,7 @@ describe("decimal", () => {
 
 describe("money", () => {
   it("writes Polish amounts with a space in every thousand", () => {
+    expect(NBSP).toBe(" ");
     expect(formatMoney("184302.17")).toBe(`184${S}302,17${S}zł`);
     expect(formatMoney("1204.5")).toBe(`1${S}204,50${S}zł`);
     expect(formatMoney("10000.0000")).toBe(`10${S}000,00${S}zł`);

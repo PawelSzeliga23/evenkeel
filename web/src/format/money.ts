@@ -1,6 +1,6 @@
 import { roundDigits } from "./decimal";
 
-export const NBSP = " ";
+export const NBSP = " ";
 export const MINUS = "−";
 
 type Sign = "" | "+" | "−";
