@@ -1,6 +1,6 @@
 import { request } from "./client";
 import type {
-  Account, Exposure, History, ImportResult, IsoDate, Position, PositionDetail, RegisterIn, Summary, TokenOut, UserOut,
+  Account, AccountCreate, BondIn, BondOut, Exposure, History, ImportResult, IsoDate, Position, PositionDetail, RegisterIn, SavingsAccountCreate, SavingsAccountOut, Summary, TokenOut, Transaction, TransactionIn, UserOut,
 } from "./types";
 
 function filesForm(files: File[]): FormData {
@@ -26,4 +26,9 @@ export const api = {
     request<PositionDetail>(`/api/positions/${accountId}/${instrumentId}`),
   previewImport: (files: File[]) => request<ImportResult>("/api/imports/preview", { method: "POST", form: filesForm(files) }),
   commitImport: (files: File[]) => request<ImportResult>("/api/imports", { method: "POST", form: filesForm(files) }),
+  createAccount: (body: AccountCreate) => request<Account>("/api/accounts", { method: "POST", json: body }),
+  addTransaction: (body: TransactionIn) => request<Transaction>("/api/transactions", { method: "POST", json: body }),
+  buyBonds: (body: BondIn) => request<BondOut>("/api/bonds", { method: "POST", json: body }),
+  createSavingsAccount: (body: SavingsAccountCreate) =>
+    request<SavingsAccountOut>("/api/savings-accounts", { method: "POST", json: body }),
 };

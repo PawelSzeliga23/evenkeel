@@ -104,7 +104,7 @@ export const DETAIL: PositionDetail = {
   transactions: [
     { id: 1, account_id: 2, ticker: "CDR.PL", type: "buy", xtb_type: "Stock purchase", occurred_at: "2025-05-12T09:30:00",
       amount: "-5406.00", currency: "PLN", quantity: "30", price: "180.2", implied_fx_rate: null, xtb_position_id: "777",
-      external_id: "1", comment: "", transfer_pair_id: null },
+      external_id: "1", comment: "", transfer_pair_id: null, manual: false },
   ],
   reconciliation: { status: "mismatch", taken_at: "2026-09-26T12:00:00", xtb_quantity: "50", calculated_quantity: "48" },
 };
