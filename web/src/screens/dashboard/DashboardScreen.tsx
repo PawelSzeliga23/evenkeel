@@ -118,6 +118,7 @@ export function DashboardScreen() {
       <section className={ui.section} aria-labelledby="allocation-title">
         <div className={ui.sectionHead}>
           <h2 id="allocation-title" className={ui.sectionTitle}>Alokacja</h2>
+          {mode === "currency" && <Link className={ui.sectionMore} to="/ekspozycja">Zobacz w czasie</Link>}
         </div>
         <Segmented label="Alokacja według" options={ALLOCATION_MODES} value={mode} onChange={setMode} />
         {mode === "currency" && exposure.isPending ? <Skeleton rows={2} />
