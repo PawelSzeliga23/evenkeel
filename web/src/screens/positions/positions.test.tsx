@@ -41,7 +41,10 @@ describe("positions screen", () => {
     expect(within(stocks).getByText("cena z XTB")).toBeInTheDocument();
     expect(within(stocks).getByText(`${M}612,50${T}zł`)).toHaveClass("down");
     const accounts = screen.getByRole("region", { name: "Konta i gotówka" });
-    expect(within(accounts).queryByRole("link")).not.toBeInTheDocument();
+    expect(within(accounts).getByRole("link", { name: /Konto oszczędnościowe/ })).toHaveAttribute("href", "/pozycje/oszczednosci/4");
+    expect(within(accounts).getAllByRole("link")).toHaveLength(1);
+    expect(within(screen.getByRole("region", { name: "Obligacje" })).getByRole("link", { name: /EDO0936/ }))
+      .toHaveAttribute("href", "/pozycje/obligacje/7");
     expect(within(accounts).getByText("Gotówka")).toBeInTheDocument();
   });
 

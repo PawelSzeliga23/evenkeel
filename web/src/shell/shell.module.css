@@ -16,8 +16,6 @@
   color: var(--dim); font-size: 11px; font-weight: 500;
 }
 .item[aria-current="page"] { color: var(--amber); }
-.disabled { opacity: .45; cursor: default; }
-.soon { font-size: 9px; font-weight: 400; color: var(--dim); line-height: 1; }
 .plus {
   width: 42px; height: 30px; border-radius: 10px; background: var(--amber); color: var(--night);
   display: grid; place-items: center;

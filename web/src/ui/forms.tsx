@@ -72,3 +72,18 @@ export function useInvalidateAfterSave(): () => Promise<void> {
     ]);
   };
 }
+
+/** An in-page confirmation (browser dialogs block the page): the question and two buttons. */
+export function Confirm({ question, confirmLabel, onConfirm, onCancel, busy = false }: {
+  question: string; confirmLabel: string; onConfirm: () => void; onCancel: () => void; busy?: boolean;
+}) {
+  return (
+    <div className={styles.confirm} role="group" aria-label="Potwierdzenie">
+      <p>{question}</p>
+      <div className={styles.actions}>
+        <button type="button" className={styles.danger} onClick={onConfirm} disabled={busy}>{confirmLabel}</button>
+        <button type="button" className={styles.cancel} onClick={onCancel}>Anuluj</button>
+      </div>
+    </div>
+  );
+}

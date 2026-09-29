@@ -220,3 +220,34 @@ export interface SavingsAccountOut {
   summary: SavingsSummary;
   capitalizations: SavingsCapitalization[];
 }
+
+export interface BondPeriod { number: number; start: IsoDate; end: IsoDate; rate: string; estimated: boolean }
+export interface BondDetail {
+  bond: BondOut;
+  value_per_bond: Money;
+  redemption_today_pln: Money | null;
+  periods: BondPeriod[];
+}
+
+export type HistoryKind = "transaction" | "bond_purchase" | "bond_payout" | "savings_flow" | "savings_interest";
+export interface HistoryItem {
+  id: string;
+  kind: HistoryKind;
+  type: string;
+  date: IsoDate;
+  account_id: number;
+  account_name: string;
+  instrument_id: number | null;
+  ticker: string | null;
+  name: string | null;
+  quantity: Money | null;
+  price: Money | null;
+  amount: Money;
+  currency: string;
+  amount_pln: Money | null;
+  tax: Money | null;
+  note: string;
+  delete: { target: "transaction" | "bond" | "savings_flow"; id: number } | null;
+}
+export interface HistoryPage { items: HistoryItem[]; next_cursor: string | null }
+export interface HistoryFilters { account_id: number | null; type: string | null; from: IsoDate | null; to: IsoDate | null; q: string }

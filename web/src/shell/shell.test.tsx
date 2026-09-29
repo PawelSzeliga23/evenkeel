@@ -10,9 +10,8 @@ describe("app shell", () => {
     const nav = await screen.findByRole("navigation", { name: "Główna" });
     expect(within(nav).getByRole("link", { name: "Więcej" })).toHaveAttribute("aria-current", "page");
     expect(within(nav).getByRole("link", { name: "Dodaj" })).toHaveAttribute("href", "/dodaj");
-    const history = within(nav).getByText("Historia", { exact: false }).closest("[aria-disabled]");
-    expect(history).toHaveAttribute("aria-disabled", "true");
-    expect(within(nav).getByText("wkrótce")).toBeVisible();
+    expect(within(nav).getByRole("link", { name: "Historia" })).toHaveAttribute("href", "/historia");
+    expect(within(nav).queryByText("wkrótce")).not.toBeInTheDocument();
   });
 
   it("shows who is signed in and signs out to the login screen", async () => {
@@ -21,6 +20,7 @@ describe("app shell", () => {
 
     expect(await screen.findByText(USER.email)).toBeInTheDocument();
     expect(screen.getByText("Zamknięte inwestycje")).toBeInTheDocument();
+    expect(screen.queryByText("Historia operacji")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Wyloguj" }));
     expect(await screen.findByRole("button", { name: "Zaloguj się" })).toBeInTheDocument();
   });

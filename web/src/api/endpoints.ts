@@ -1,6 +1,6 @@
 import { request } from "./client";
 import type {
-  Account, AccountCreate, BondIn, BondOut, Exposure, History, ImportResult, IsoDate, Position, PositionDetail, RegisterIn, SavingsAccountCreate, SavingsAccountOut, Summary, TokenOut, Transaction, TransactionIn, UserOut,
+  Account, AccountCreate, BondDetail, BondIn, BondOut, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Position, PositionDetail, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, TokenOut, Transaction, TransactionIn, UserOut,
 } from "./types";
 
 function filesForm(files: File[]): FormData {
@@ -10,6 +10,22 @@ function filesForm(files: File[]): FormData {
 }
 
 export const api = {
+  bond: (id: number) => request<BondDetail>(`/api/bonds/${id}`),
+  redeemBond: (id: number, redeemedAt: IsoDate | null) =>
+    request<BondOut>(`/api/bonds/${id}`, { method: "PATCH", json: { redeemed_at: redeemedAt } }),
+  deleteBond: (id: number) => request<void>(`/api/bonds/${id}`, { method: "DELETE" }),
+  savings: (accountId: number) => request<SavingsAccountOut>(`/api/savings-accounts/${accountId}`),
+  addSavingsFlow: (accountId: number, body: { date: IsoDate; amount: string; note: string }) =>
+    request<SavingsFlowOut>(`/api/savings-accounts/${accountId}/flows`, { method: "POST", json: body }),
+  deleteSavingsFlow: (accountId: number, id: number) =>
+    request<void>(`/api/savings-accounts/${accountId}/flows/${id}`, { method: "DELETE" }),
+  addSavingsRate: (accountId: number, body: { valid_from: IsoDate; annual_rate: string }) =>
+    request<unknown>(`/api/savings-accounts/${accountId}/rates`, { method: "POST", json: body }),
+  deleteTransaction: (id: number) => request<void>(`/api/transactions/${id}`, { method: "DELETE" }),
+  entries: (filters: HistoryFilters, cursor: string | null) =>
+    request<HistoryPage>("/api/history", {
+      query: { account_id: filters.account_id, type: filters.type, from: filters.from, to: filters.to, q: filters.q, cursor },
+    }),
   login: (email: string, password: string) =>
     request<TokenOut>("/api/auth/login", { method: "POST", json: { email, password }, auth: false }),
   register: (body: RegisterIn) => request<UserOut>("/api/auth/register", { method: "POST", json: body, auth: false }),

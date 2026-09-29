@@ -2,10 +2,7 @@ import { useSession } from "../auth/session";
 import ui from "../ui/ui.module.css";
 import styles from "./shell.module.css";
 
-const COMING = [
-  "Historia operacji", "Obligacje i konta oszczędnościowe", "Zamknięte inwestycje", "Ekspozycja walutowa",
-  "Limity IKE i IKZE", "Ustawienia kont i tickerów",
-];
+const COMING = ["Zamknięte inwestycje", "Ekspozycja walutowa", "Limity IKE i IKZE", "Ustawienia kont i tickerów"];
 
 export function MoreScreen() {
   const { state, signOut } = useSession();
