@@ -30,9 +30,9 @@ export function SavingsForm() {
 
   const save = useMutation({
     mutationFn: (body: SavingsAccountCreate) => api.createSavingsAccount(body),
-    onSuccess: async () => {
+    onSuccess: async (created) => {
       await invalidate();
-      navigate("/pozycje");
+      navigate(`/pozycje/oszczednosci/${created.account_id}`);
     },
     onError: (error) => setErrors(formErrors(error, { date_in_future: "date" })),
   });

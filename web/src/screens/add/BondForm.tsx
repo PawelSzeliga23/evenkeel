@@ -56,9 +56,9 @@ export function BondForm() {
       const body: BondIn = { account_id: accountId, bond_type: "EDO", quantity: count!, purchase_date: date, ...(rates ?? {}) };
       return api.buyBonds(body);
     },
-    onSuccess: async () => {
+    onSuccess: async (bond) => {
       await invalidate();
-      navigate("/pozycje");
+      navigate(`/pozycje/obligacje/${bond.id}`);
     },
     onError: (error) => {
       if (error instanceof ApiError && error.code === "series_unknown") {

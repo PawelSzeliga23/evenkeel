@@ -20,7 +20,7 @@ describe("new savings account form", () => {
     fireEvent.change(screen.getByLabelText("Data wpłaty"), { target: { value: "2026-09-02" } });
     await user.click(screen.getByRole("button", { name: "Załóż konto" }));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe("/pozycje"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/pozycje/oszczednosci/5"));
     expect(bodies).toEqual([{
       name: "Konto w banku", wrapper: "ike", capitalization: "daily", annual_rate: "5.5", rate_valid_from: "2026-09-01",
       first_deposit: { date: "2026-09-02", amount: "10000", note: "" },

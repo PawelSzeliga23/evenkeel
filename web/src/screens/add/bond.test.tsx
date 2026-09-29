@@ -35,7 +35,7 @@ describe("bond purchase form", () => {
     expect(screen.getByLabelText("Liczba obligacji")).toHaveValue("10");
     await user.click(screen.getByRole("button", { name: "Zapisz zakup" }));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe("/pozycje"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/pozycje/obligacje/7"));
     expect(bodies).toEqual([
       { account_id: 3, bond_type: "EDO", quantity: 10, purchase_date: "2026-01-15" },
       { account_id: 3, bond_type: "EDO", quantity: 10, purchase_date: "2026-01-15", first_period_rate: "6.00", margin: "2" },
@@ -74,7 +74,7 @@ describe("bond purchase form", () => {
     await user.type(screen.getByLabelText("Marża (p.p.)"), "2");
     await user.click(screen.getByRole("button", { name: "Zapisz zakup" }));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe("/pozycje"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/pozycje/obligacje/7"));
     expect(created).toHaveLength(1);
     expect(bondBodies.map((b) => b.account_id)).toEqual([9, 9]);
   });
