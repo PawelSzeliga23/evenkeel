@@ -1,0 +1,163 @@
+/** Response shapes of the API (api/app/<module>/schemas.py). Decimals arrive as strings and stay strings. */
+export type Money = string;
+export type IsoDate = string; // "2026-09-26"
+export type IsoDateTime = string; // "2026-03-02T09:30:00"
+
+export interface TokenOut { access_token: string; token_type: string }
+export interface UserOut { id: number; email: string; base_currency: string }
+export interface RegisterIn { email: string; password: string; invite_code?: string }
+
+export interface Account {
+  id: number;
+  name: string;
+  kind: "broker" | "bonds" | "savings" | "cash";
+  wrapper: "regular" | "ike" | "ikze";
+  broker: string | null;
+  external_account_number: string | null;
+  currency: string;
+  created_at: IsoDateTime;
+}
+
+export interface Allocation { key: string; name: string; value_pln: Money; share_pct: Money | null }
+
+export interface Summary {
+  as_of: IsoDate | null;
+  value_pln: Money;
+  cash_pln: Money;
+  invested_pln: Money;
+  total_gain_pln: Money;
+  total_gain_pct: Money | null;
+  day_change_pln: Money | null;
+  day_change_pct: Money | null;
+  twr_pct: Money | null;
+  dividends_net_pln: Money;
+  interest_net_pln: Money;
+  fees_pln: Money;
+  by_account: Allocation[];
+  by_kind: Allocation[];
+  approximate_positions: number;
+  recalculating: boolean;
+}
+
+export interface HistoryPoint { date: IsoDate; value_pln: Money; invested_pln: Money; net_flow_pln: Money; twr_pct: Money | null }
+export interface HistoryEvent { date: IsoDate; type: string; amount_pln: Money }
+export interface History { points: HistoryPoint[]; events: HistoryEvent[] }
+
+export interface ExposureItem { currency: string; value_pln: Money; share_pct: Money | null }
+export interface Exposure { as_of: IsoDate | null; current: ExposureItem[]; history: { date: IsoDate; values: Record<string, Money> }[] }
+
+export interface Position {
+  kind: "instrument" | "cash" | "bond" | "savings";
+  account_id: number;
+  account_name: string;
+  instrument_id: number | null;
+  ticker: string | null;
+  name: string;
+  category: string | null;
+  currency: string | null;
+  quantity: Money;
+  price: Money | null;
+  price_date: IsoDate | null;
+  price_source: "provider" | "xtb" | null;
+  value_pln: Money;
+  cost_pln: Money;
+  unrealized_pln: Money;
+  unrealized_pct: Money | null;
+  price_effect_pln: Money;
+  fx_effect_pln: Money;
+  dividends_net_pln: Money;
+  fees_pln: Money;
+  realized_pln: Money;
+  day_change_pln: Money;
+  share_pct: Money | null;
+  flags: string[];
+  bond_holding_id: number | null;
+  savings_account_id: number | null;
+}
+
+export interface Lot {
+  position_id: string | null;
+  opened_on: IsoDate;
+  quantity: Money;
+  open_price: Money | null;
+  cost_pln: Money;
+  value_pln: Money;
+  gain_pln: Money;
+  price_effect_pln: Money;
+  fx_effect_pln: Money;
+  holding_days: number;
+  stop_loss: Money | null;
+  take_profit: Money | null;
+}
+
+export interface Sale {
+  date: IsoDate;
+  opened_on: IsoDate;
+  holding_days: number;
+  quantity: Money;
+  proceeds_pln: Money;
+  cost_pln: Money;
+  realized_pln: Money;
+  price_effect_pln: Money;
+  fx_effect_pln: Money;
+  position_id: string | null;
+  matched: boolean;
+}
+
+export interface Income { date: IsoDate; type: string; amount: Money; currency: string; amount_pln: Money }
+
+export interface Transaction {
+  id: number;
+  account_id: number;
+  ticker: string | null;
+  type: string;
+  xtb_type: string;
+  occurred_at: IsoDateTime;
+  amount: Money;
+  currency: string;
+  quantity: Money | null;
+  price: Money | null;
+  implied_fx_rate: Money | null;
+  xtb_position_id: string | null;
+  external_id: string;
+  comment: string;
+  transfer_pair_id: number | null;
+}
+
+export interface Reconciliation {
+  status: "ok" | "mismatch" | "no_snapshot";
+  taken_at: IsoDateTime | null;
+  xtb_quantity: Money | null;
+  calculated_quantity: Money | null;
+}
+
+export interface PositionDetail {
+  position: Position;
+  lots: Lot[];
+  sales: Sale[];
+  income: Income[];
+  transactions: Transaction[];
+  reconciliation: Reconciliation;
+}
+
+export interface ImportWarning { code: string; message: string; details: Record<string, unknown> }
+export interface ImportFile {
+  filename: string;
+  account_number: string;
+  wrapper: string;
+  currency: string;
+  account_id: number | null;
+  account_name: string;
+  new_account: boolean;
+  report_from: IsoDateTime | null;
+  report_to: IsoDateTime | null;
+  new_transactions: number;
+  duplicate_transactions: number;
+  unknown_transactions: number;
+  open_lots: number;
+  closed_lots: number;
+  warnings: ImportWarning[];
+  import_id: number | null;
+}
+export interface ImportFileError { filename: string; code: string; message: string }
+export interface ImportResult { files: ImportFile[]; errors: ImportFileError[]; skipped: string[] }
