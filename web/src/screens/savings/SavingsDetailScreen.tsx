@@ -19,7 +19,11 @@ const WRAPPER = { regular: "zwykłe", ike: "IKE", ikze: "IKZE" } as const;
 const MONTHS = ["styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec", "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień"];
 const NO_ERRORS: FormErrors = { fields: {}, general: null };
 
-const monthName = (iso: string) => `${MONTHS[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}`;
+const QUARTERS = ["I", "II", "III", "IV"];
+const periodName = (iso: string, quarterly: boolean) => {
+  const month = Number(iso.slice(5, 7));
+  return quarterly ? `${QUARTERS[Math.ceil(month / 3) - 1]} kwartał ${iso.slice(0, 4)}` : `${MONTHS[month - 1]} ${iso.slice(0, 4)}`;
+};
 const flowLabel = (flow: SavingsFlowOut) => (toCents(flow.amount) > 0n ? "wpłatę" : "wypłatę");
 
 function FlowForm({ accountId, onDone }: { accountId: number; onDone: () => void }) {
@@ -105,7 +109,7 @@ function Detail({ account, savings }: { account: Account; savings: SavingsAccoun
   const [error, setError] = useState<string | null>(null);
   const remove = useMutation({
     mutationFn: (flow: SavingsFlowOut) => api.deleteSavingsFlow(account.id, flow.id),
-    onSuccess: async () => { setDeleting(null); setError(null); await invalidate(); },
+    onSuccess: async () => { setError(null); await invalidate(); setDeleting(null); },
     onError: (err) => { setDeleting(null); setError(formErrors(err).general); },
   });
   const { summary } = savings;
@@ -147,7 +151,7 @@ function Detail({ account, savings }: { account: Account; savings: SavingsAccoun
               </span>
               <span className={styles.entryAmount}>
                 <Money value={flow.amount} sign tone />
-                <button type="button" className={forms.link} onClick={() => setDeleting(flow)}>Usuń</button>
+                <button type="button" className={forms.link} onClick={() => { setError(null); setDeleting(flow); }}>Usuń</button>
               </span>
             </li>
           ))}
@@ -155,7 +159,7 @@ function Detail({ account, savings }: { account: Account; savings: SavingsAccoun
         {deleting && (
           <Confirm
             question={`Usunąć ${flowLabel(deleting)} ${formatMoney(deleting.amount.replace("-", ""))} z ${formatDate(deleting.date)}?`}
-            confirmLabel="Usuń" busy={remove.isPending} onConfirm={() => remove.mutate(deleting)} onCancel={() => setDeleting(null)}
+            confirmLabel="Usuń" busy={remove.isPending} onConfirm={() => { setError(null); remove.mutate(deleting); }} onCancel={() => { setError(null); setDeleting(null); }}
           />
         )}
         <FormError message={error} />
@@ -166,7 +170,7 @@ function Detail({ account, savings }: { account: Account; savings: SavingsAccoun
         <ul className={styles.list}>
           {[...savings.capitalizations].reverse().map((cap) => (
             <li key={cap.period_end} className={styles.entry}>
-              <span className={styles.entryName}><b>{monthName(cap.period_end)}</b><small className="num">{`podatek ${formatMoney(cap.tax)}`}</small></span>
+              <span className={styles.entryName}><b>{periodName(cap.period_end, savings.capitalization === "quarterly")}</b><small className="num">{`podatek ${formatMoney(cap.tax)}`}</small></span>
               <span className={styles.entryAmount}><Money value={cap.net} sign tone /></span>
             </li>
           ))}
@@ -193,11 +197,14 @@ export function SavingsDetailScreen() {
   const accounts = useQuery({ queryKey: keys.accounts, queryFn: api.accounts });
   const savings = useQuery({ queryKey: keys.savings(id), queryFn: () => api.savings(id), enabled: Number.isInteger(id) });
   const account = accounts.data?.find((a) => a.id === id);
+  const settled = !Number.isInteger(id) || savings.isError || savings.data !== undefined;
+  const notFound = settled && (!Number.isInteger(id) || (accounts.data !== undefined && !account));
   const failed = accounts.isError ? accounts : savings.isError ? savings : null;
   return (
     <div className={ui.page}>
       <Back />
-      {failed ? <ErrorState error={failed.error} onRetry={() => void failed.refetch()} />
+      {notFound ? <p role="alert">Nie znaleziono konta.</p>
+        : failed ? <ErrorState error={failed.error} onRetry={() => void failed.refetch()} />
         : !account || !savings.data ? <Skeleton rows={6} />
           : <Detail account={account} savings={savings.data} />}
     </div>

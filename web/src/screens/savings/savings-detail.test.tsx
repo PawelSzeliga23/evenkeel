@@ -73,4 +73,28 @@ describe("savings account detail", () => {
     expect(await screen.findByText("Bez tego wpisu saldo spadłoby poniżej zera.")).toBeInTheDocument();
     expect(calls.map((c) => c.path)).toEqual(["/api/savings-accounts/5/flows/11"]);
   });
+
+  it("clears a stale delete error when another confirmation opens", async () => {
+    mockFetch(routes([], () => json(409, { code: "flow_needed", message: "Bez tego wpisu saldo spadłoby poniżej zera.", details: {} })));
+    const { user } = renderApp("/pozycje/oszczednosci/5");
+
+    const flows = await screen.findByRole("region", { name: "Wpłaty i wypłaty" });
+    await user.click(within(flows).getAllByRole("button", { name: "Usuń" })[1]!);
+    await user.click(within(screen.getByRole("group", { name: "Potwierdzenie" })).getByRole("button", { name: "Usuń" }));
+    expect(await screen.findByText("Bez tego wpisu saldo spadłoby poniżej zera.")).toBeInTheDocument();
+    await user.click(within(flows).getAllByRole("button", { name: "Usuń" })[0]!);
+    expect(screen.queryByText("Bez tego wpisu saldo spadłoby poniżej zera.")).not.toBeInTheDocument();
+  });
+
+  it("says the account was not found for a non-numeric id", async () => {
+    mockFetch(routes([]));
+    renderApp("/pozycje/oszczednosci/abc");
+    expect(await screen.findByText("Nie znaleziono konta.")).toBeInTheDocument();
+  });
+
+  it("labels interest by quarter for a quarterly account", async () => {
+    mockFetch(routes([]).map((r) => (r.path === "/api/savings-accounts/5" ? { ...r, respond: () => ({ ...SAVINGS, capitalization: "quarterly" }) } : r)));
+    renderApp("/pozycje/oszczednosci/5");
+    expect(await screen.findByText("III kwartał 2026")).toBeInTheDocument();
+  });
 });
