@@ -68,5 +68,40 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  db-e2e:
+    image: postgres:16
+    profiles: ["e2e"]
+    environment:
+      POSTGRES_USER: portfolio
+      POSTGRES_PASSWORD: portfolio
+      POSTGRES_DB: portfolio_e2e
+    ports:
+      - "5434:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portfolio -d portfolio_e2e"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  api-e2e:
+    build: ./api
+    profiles: ["e2e"]
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://portfolio:portfolio@db-e2e:5432/portfolio_e2e
+      JWT_SECRET: e2e-secret-that-is-at-least-32-bytes-long
+      COOKIE_SECURE: "false"
+      REGISTRATION_MODE: open
+      PYTHONPATH: /app
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./api:/app
+    depends_on:
+      db-e2e:
+        condition: service_healthy
+
 volumes:
   pgdata:

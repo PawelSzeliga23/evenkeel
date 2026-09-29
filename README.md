@@ -22,6 +22,30 @@ Bez pliku `.env` z ustawionym `JWT_SECRET` (min. 32 znaki) `docker compose` odm�
 docker compose run --rm api pytest
 ```
 
+## Frontend (`web/`)
+
+Wymaga Node.js 22+ i działającego API (`docker compose up`).
+
+```bash
+cd web
+npm install
+npm run dev        # http://localhost:5173, /api przekierowane do API na :8000
+npm test           # testy Vitest
+npm run build      # wersja produkcyjna z PWA w web/dist
+```
+
+Test e2e (rejestracja → import → pulpit) na osobnej bazie i instancji API (`docker compose --profile e2e`, port 8001),
+bez dotykania twoich danych. Wymaga Dockera i pliku `.env`:
+
+```bash
+cd web
+npx playwright install chromium   # jednorazowo
+npm run e2e                       # zrzuty ekranów trafiają do web/e2e/screens/
+```
+
+Ikony PWA generuje `npm run icons` z `web/public/icon.svg`. Aplikację na iPhonie (ekran początkowy, service worker
+przez HTTPS) sprawdzimy osobno — patrz otwarty punkt w roadmapie.
+
 ## Baza danych
 
 ```bash
