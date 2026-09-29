@@ -2,6 +2,7 @@ import { Navigate, type RouteObject } from "react-router";
 import { LoginScreen } from "./auth/LoginScreen";
 import { RegisterScreen } from "./auth/RegisterScreen";
 import { GuestOnly, RequireAuth } from "./auth/RequireAuth";
+import { DashboardScreen } from "./screens/dashboard/DashboardScreen";
 import { AppShell } from "./shell/AppShell";
 import { MoreScreen } from "./shell/MoreScreen";
 
@@ -24,7 +25,7 @@ export const appRoutes: RouteObject[] = [
       {
         element: <AppShell />,
         children: [
-          { path: "/", element: <Placeholder title="Pulpit" /> },
+          { path: "/", element: <DashboardScreen /> },
           { path: "/pozycje", element: <Placeholder title="Pozycje" /> },
           { path: "/pozycje/:accountId/:instrumentId", element: <Placeholder title="Pozycja" /> },
           { path: "/dodaj", element: <Placeholder title="Dodaj" /> },
