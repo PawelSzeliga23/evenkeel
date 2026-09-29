@@ -107,3 +107,21 @@ def test_history_is_private(client: TestClient, world: dict) -> None:
     assert _items(client, bartek) == []
     assert [(r.status_code, r.json()["code"]) for r in (foreign, bad_cursor)] == [
         (404, "not_found"), (422, "bad_cursor")]
+
+
+def test_cursor_between_entries_of_the_same_day(client: TestClient, world: dict) -> None:
+    anna = world["anna"]
+    for amount in ("10", "20"):
+        client.post("/api/transactions", json={"account_id": world["cash"], "type": "deposit", "amount": amount,
+                                               "date": "2026-03-01", "comment": f"wpłata {amount}"}, headers=anna)
+    seen, cursor = [], None
+    for _ in range(20):
+        params = {"to": "2026-03-31", "limit": 1, **({"cursor": cursor} if cursor else {})}
+        page = client.get("/api/history", params=params, headers=anna).json()
+        seen += [i["id"] for i in page["items"]]
+        cursor = page["next_cursor"]
+        if cursor is None:
+            break
+
+    assert seen == [i["id"] for i in _items(client, anna)]
+    assert len(seen) == len(set(seen)) == 8
