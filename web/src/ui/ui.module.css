@@ -18,7 +18,7 @@
   background: var(--slab); border: 1px solid var(--rule); border-radius: var(--r-control); padding: 3px;
 }
 .segmented button {
-  min-height: 38px; background: none; border: 0; color: var(--dim);
+  min-height: 44px; background: none; border: 0; color: var(--dim);
   font-weight: 500; font-size: 13.5px; border-radius: 7px; cursor: pointer;
 }
 .segmented button[aria-pressed="true"] { background: var(--amber-soft); color: var(--amber); }
@@ -36,7 +36,7 @@
 
 .chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin-inline: -20px; padding-inline: 20px; }
 .chips button {
-  flex: none; min-height: 40px; background: var(--slab); border: 1px solid var(--rule); color: var(--dim);
+  flex: none; min-height: 44px; background: var(--slab); border: 1px solid var(--rule); color: var(--dim);
   font-weight: 500; font-size: 13.5px; padding: 0 14px; border-radius: 999px; cursor: pointer;
 }
 .chips button[aria-pressed="true"] { color: var(--amber); border-color: rgba(240, 164, 58, .45); background: var(--amber-soft); }
