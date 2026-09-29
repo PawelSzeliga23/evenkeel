@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from app.bonds.edo import Series as BondTerms
 from app.models import (
     Account, BondHolding, BondSeries, CorporateAction, Cpi, DailyValuation, FxRate, Instrument, Price, SavingsAccount,
-    SavingsBalance, SavingsRate, Transaction, User, XtbSnapshot,
+    SavingsBalance, SavingsFlow, SavingsRate, Transaction, User, XtbSnapshot,
 )
 from app.scoping import UserScope
 from app.valuation.actions import Action, action_of, resolve
@@ -157,8 +157,12 @@ def load_fixed_income(scope: UserScope) -> FixedIncome:
         rates = db.execute(select(SavingsRate.valid_from, SavingsRate.annual_rate)
                            .where(SavingsRate.savings_account_id == account.id)
                            .order_by(SavingsRate.valid_from)).all()
+        flows = db.execute(select(SavingsFlow.date, SavingsFlow.amount)
+                           .where(SavingsFlow.savings_account_id == account.id)
+                           .order_by(SavingsFlow.date, SavingsFlow.id)).all()
         savings.append(SavingsInput(account.id, account.account_id, account.capitalization, taxed[account.account_id],
-                                    [tuple(b) for b in balances], [tuple(r) for r in rates]))
+                                    [tuple(b) for b in balances], [tuple(r) for r in rates],
+                                    [tuple(f) for f in flows]))
     cpi = dict(db.execute(select(Cpi.year_month, Cpi.yoy)).all()) if holdings else {}
     return FixedIncome(holdings, savings, cpi)
 
