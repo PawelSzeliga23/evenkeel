@@ -7,14 +7,15 @@ const CASH = { id: 4, name: "Portfel domowy", kind: "cash", wrapper: "regular", 
   external_account_number: null, currency: "PLN", created_at: "2026-09-01T10:00:00" };
 
 function routes(accounts: unknown[], sent: { path: string; body: unknown }[], answer?: () => unknown): MockRoute[] {
+  const created: unknown[] = [];
   const record = (path: string) => (_url: URL, init: RequestInit) => {
     sent.push({ path, body: JSON.parse(String(init.body)) });
     return undefined;
   };
   return [
     ...SIGNED_IN,
-    { path: "/api/accounts", respond: () => accounts },
-    { method: "POST", path: "/api/accounts", respond: (u, i) => { record("accounts")(u, i); return json(201, { ...CASH, id: 9 }); } },
+    { path: "/api/accounts", respond: () => [...accounts, ...created] },
+    { method: "POST", path: "/api/accounts", respond: (u, i) => { record("accounts")(u, i); created.push({ ...CASH, id: 9 }); return json(201, { ...CASH, id: 9 }); } },
     { method: "POST", path: "/api/transactions", respond: (u, i) => { record("transactions")(u, i); return answer ? answer() : json(201, { id: 1 }); } },
   ];
 }
@@ -62,5 +63,43 @@ describe("cash operation form", () => {
     expect(await screen.findByText("Data operacji nie może być z przyszłości.")).toBeInTheDocument();
     expect(screen.getByLabelText("Kwota")).toHaveValue("50");
     expect(sent[0]).toMatchObject({ path: "transactions", body: { account_id: 4, date: "2026-09-01" } });
+  });
+
+  it("keeps saving on the account it just created", async () => {
+    const sent: { path: string; body: unknown }[] = [];
+    mockFetch(routes([], sent));
+    const { user } = renderApp("/dodaj/operacja");
+
+    await user.type(await screen.findByLabelText("Nazwa nowego konta"), "Portfel domowy");
+    await user.type(screen.getByLabelText("Kwota"), "10");
+    await user.click(screen.getByRole("button", { name: "Zapisz operację" }));
+    await user.click(await screen.findByRole("button", { name: "Dodaj kolejną" }));
+    await user.type(await screen.findByLabelText("Kwota"), "20");
+    await user.click(screen.getByRole("button", { name: "Zapisz operację" }));
+    expect(await screen.findByText("Operacja zapisana.")).toBeInTheDocument();
+
+    expect(sent.filter((s) => s.path === "accounts")).toHaveLength(1);
+    const transactions = sent.filter((s) => s.path === "transactions");
+    expect(transactions).toHaveLength(2);
+    expect(transactions.map((t) => (t.body as { account_id: number }).account_id)).toEqual([9, 9]);
+  });
+
+  it("does not create the account twice when the operation failed and is sent again", async () => {
+    const sent: { path: string; body: unknown }[] = [];
+    let calls = 0;
+    mockFetch(routes([], sent, () => (++calls === 1
+      ? json(422, { code: "date_in_future", message: "Data operacji nie może być z przyszłości.", details: {} })
+      : json(201, { id: 1 }))));
+    const { user } = renderApp("/dodaj/operacja");
+
+    await user.type(await screen.findByLabelText("Nazwa nowego konta"), "Portfel domowy");
+    await user.type(screen.getByLabelText("Kwota"), "10");
+    await user.click(screen.getByRole("button", { name: "Zapisz operację" }));
+    expect(await screen.findByText("Data operacji nie może być z przyszłości.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Zapisz operację" }));
+    expect(await screen.findByText("Operacja zapisana.")).toBeInTheDocument();
+
+    expect(sent.filter((s) => s.path === "accounts")).toHaveLength(1);
+    expect(sent.filter((s) => s.path === "transactions")).toHaveLength(2);
   });
 });

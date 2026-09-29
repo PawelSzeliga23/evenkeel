@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router";
 import { api } from "../../api/endpoints";
@@ -31,6 +31,7 @@ export function CashForm() {
   const [comment, setComment] = useState("");
   const [errors, setErrors] = useState<FormErrors>(NO_ERRORS);
   const invalidate = useInvalidateAfterSave();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (accounts.data && account === "") {
@@ -42,6 +43,12 @@ export function CashForm() {
   const save = useMutation({
     mutationFn: async (value: string) => {
       const accountId = await accountFor(account, { name: newName.trim(), kind: "cash", wrapper: "regular" });
+      if (account === NEW_ACCOUNT) {
+        // Keep a retry or "Dodaj kolejną" on the account just created instead of creating another one.
+        setAccount(String(accountId));
+        setNewName("");
+        await queryClient.invalidateQueries({ queryKey: keys.accounts });
+      }
       return api.addTransaction({ account_id: accountId, type, amount: value, date, comment: comment.trim() });
     },
     onSuccess: () => invalidate(),
