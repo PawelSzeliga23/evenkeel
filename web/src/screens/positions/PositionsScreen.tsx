@@ -1,26 +1,34 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { api } from "../../api/endpoints";
 import { keys } from "../../api/queryKeys";
 import { AccountChips } from "../../ui/AccountPicker";
 import { Money } from "../../ui/Amount";
 import { ListRow } from "../../ui/ListRow";
+import { Segmented } from "../../ui/Segmented";
 import { EmptyState, ErrorState, Skeleton } from "../../ui/States";
 import ui from "../../ui/ui.module.css";
+import { ClosedView } from "./ClosedView";
 import { flagLabel, groupPositions, leadFor, positionLink, subtitleFor } from "./model";
 import styles from "./Positions.module.css";
 
 export function PositionsScreen() {
   const [accountId, setAccountId] = useState<number | null>(null);
+  const [params, setParams] = useSearchParams();
+  const view = params.get("widok") === "zamkniete" ? "closed" : "open";
+  const setView = (next: "open" | "closed") => setParams(next === "closed" ? { widok: "zamkniete" } : {}, { replace: true });
   const accounts = useQuery({ queryKey: keys.accounts, queryFn: api.accounts });
-  const positions = useQuery({ queryKey: keys.positions(accountId), queryFn: () => api.positions(accountId) });
+  const positions = useQuery({ queryKey: keys.positions(accountId), queryFn: () => api.positions(accountId), enabled: view === "open" });
 
   return (
     <div className={ui.page}>
       <h1 className={ui.pageTitle}>Pozycje</h1>
       {(accounts.data?.length ?? 0) > 0 && <AccountChips accounts={accounts.data!} value={accountId} onChange={setAccountId} />}
-      {positions.isPending ? <Skeleton rows={6} />
+      <Segmented label="Widok pozycji" value={view} onChange={setView}
+        options={[{ value: "open", label: "Otwarte" }, { value: "closed", label: "Zamknięte" }]} />
+      {view === "closed" ? <ClosedView accountId={accountId} /> : (
+        positions.isPending ? <Skeleton rows={6} />
         : positions.isError ? <ErrorState error={positions.error} onRetry={() => void positions.refetch()} />
           : positions.data.length === 0 ? (
             <EmptyState
@@ -52,7 +60,8 @@ export function PositionsScreen() {
                 ))}
               </div>
             </section>
-          ))}
+          ))
+      )}
     </div>
   );
 }
