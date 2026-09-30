@@ -107,7 +107,7 @@ export function ValueChart({ points, view: requested, onViewChange, onReset }: {
         {s.ticks.map((tick) => (
           <g key={tick}>
             <line x1={frame.left} x2={plotRight} y1={s.y(tick)} y2={s.y(tick)} className={styles.grid} />
-            <text x={plotRight + 6} y={s.y(tick) + 4} className={styles.axis}>{axisLabel(tick)}</text>
+            <text x={plotRight + 6} y={s.y(tick) + 4} className={styles.axis}>{axisLabel(tick, s.ticks.length > 1 ? s.ticks[1]! - s.ticks[0]! : Infinity)}</text>
           </g>
         ))}
         {ticks.map((tick) => (

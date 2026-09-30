@@ -96,7 +96,9 @@ export function indexAt(px: number, view: ChartWindow, frame: Frame, count: numb
   return Math.min(Math.max(index, Math.ceil(view.from - 1e-9), 0), Math.floor(view.to + 1e-9), count - 1);
 }
 
-export function axisLabel(value: number): string {
+/** `step` is the distance between ticks; below 100 zł the thousands would repeat, so whole amounts are written. */
+export function axisLabel(value: number, step = Infinity): string {
+  if (Math.abs(value) >= 1_000 && step < 100) return String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g," ");
   const decimal = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace(".", ","));
   if (Math.abs(value) >= 1_000_000) return `${decimal(value / 1_000_000)} mln`;
   if (Math.abs(value) >= 1_000) return `${decimal(value / 1_000)} tys.`;

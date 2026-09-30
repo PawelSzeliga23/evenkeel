@@ -5,23 +5,25 @@ import type { ChartWindow } from "./viewport";
 
 export interface TimeTick { index: number; label: string; strong: boolean }
 
-const CHAR_PX = 6.5;
+/** Measured in the app's font at 11 px: about 6.6 px per character. */
+const CHAR_PX = 6.6;
 const GAP_PX = 8;
 /** Labels may run past the plot into the free space under the Y axis labels. */
 export const OVERHANG_PX = 40;
 const DAY_MS = 86_400_000;
 
 type Unit = "day" | "week" | "month" | "year";
+/** `chars`: a typical label of the step ("18", "kwi", "2026"); longer ones that would overlap are skipped. */
 interface Step { unit: Unit; every: number; minDays: number; chars: number }
 
 const STEPS: Step[] = [
-  { unit: "day", every: 1, minDays: 1, chars: 6 },
-  { unit: "day", every: 2, minDays: 2, chars: 6 },
-  { unit: "week", every: 1, minDays: 7, chars: 6 },
-  { unit: "month", every: 1, minDays: 28, chars: 8 },
-  { unit: "month", every: 2, minDays: 59, chars: 8 },
-  { unit: "month", every: 3, minDays: 90, chars: 8 },
-  { unit: "month", every: 6, minDays: 181, chars: 8 },
+  { unit: "day", every: 1, minDays: 1, chars: 2 },
+  { unit: "day", every: 2, minDays: 2, chars: 2 },
+  { unit: "week", every: 1, minDays: 7, chars: 2 },
+  { unit: "month", every: 1, minDays: 28, chars: 3 },
+  { unit: "month", every: 2, minDays: 59, chars: 3 },
+  { unit: "month", every: 3, minDays: 90, chars: 3 },
+  { unit: "month", every: 6, minDays: 181, chars: 3 },
   { unit: "year", every: 1, minDays: 365, chars: 4 },
   { unit: "year", every: 2, minDays: 730, chars: 4 },
   { unit: "year", every: 5, minDays: 1826, chars: 4 },
@@ -60,15 +62,19 @@ export function timeTicks(points: ChartPoint[], view: ChartWindow, plotWidth: nu
   const last = Math.min(Math.floor(view.to + 1e-9), points.length - 1);
   const ticks: TimeTick[] = [];
   let previous: string | null = null;
+  let free = -Infinity; // first x where the next label may start
   for (let i = first; i <= last; i++) {
     const date = points[i]!.date;
     const day = dayNumber(date);
     const before = i === 0 ? day - 1 : dayNumber(points[i - 1]!.date);
     if (periodKey(step, day) === periodKey(step, before)) continue;
     const text = labelFor(step, date, previous);
-    if ((i - view.from) * pxPerDay + 3 + text.label.length * CHAR_PX > plotWidth + OVERHANG_PX) continue;
+    const x = (i - view.from) * pxPerDay;
+    const width = text.label.length * CHAR_PX;
+    if (x < free || x + 3 + width > plotWidth + OVERHANG_PX) continue;
     ticks.push({ index: i, ...text });
     previous = date;
+    free = x + width + GAP_PX;
   }
   return ticks;
 }

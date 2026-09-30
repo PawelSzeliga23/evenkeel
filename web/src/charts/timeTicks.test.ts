@@ -31,11 +31,16 @@ describe("timeTicks", () => {
     expect(ticks.map((t) => t.index)).toEqual([6, 13, 20, 27]);
   });
 
-  it("labels quarters over a year, the new year in bold", () => {
+  it("labels every other month over a year on a phone, the new year in bold", () => {
     const points = daily("2025-07-01", "2026-06-30");
     const ticks = timeTicks(points, { from: 0, to: points.length - 1 }, 306);
-    expect(labels(ticks)).toEqual(["lip 2025", "paź", "2026", "kwi"]);
-    expect(ticks.map((t) => t.strong)).toEqual([false, false, true, false]);
+    expect(labels(ticks)).toEqual(["lip 2025", "lis", "2026", "mar", "maj"]);
+    expect(ticks.map((t) => t.strong)).toEqual([false, false, true, false, false]);
+  });
+
+  it("labels nearly every day of a week on a narrow phone, skipping one that would overlap", () => {
+    const points = daily("2026-09-01", "2026-09-30");
+    expect(labels(timeTicks(points, { from: 15, to: 21 }, 235))).toEqual(["16 wrz", "18", "19", "20", "21", "22"]);
   });
 
   it("labels only years over several years", () => {
@@ -43,9 +48,9 @@ describe("timeTicks", () => {
     expect(labels(timeTicks(points, { from: 0, to: points.length - 1 }, 306))).toEqual(["2022", "2023", "2024", "2025", "2026"]);
   });
 
-  it("takes a longer step when the chart is narrow", () => {
+  it("skips labels that would overlap on a narrow chart", () => {
     const points = daily("2026-09-01", "2026-09-30");
-    expect(labels(timeTicks(points, { from: 0, to: 29 }, 150))).toEqual(["wrz 2026"]);
+    expect(labels(timeTicks(points, { from: 0, to: 29 }, 150))).toEqual(["7 wrz", "21", "28"]);
   });
 
   it("gives more labels on a wide chart", () => {

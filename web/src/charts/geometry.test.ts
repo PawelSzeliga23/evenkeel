@@ -69,4 +69,9 @@ describe("marks and labels", () => {
     expect([axisLabel(150000), axisLabel(2500), axisLabel(800), axisLabel(1500000)])
       .toEqual(["150 tys.", "2,5 tys.", "800", "1,5 mln"]);
   });
+
+  it("writes whole amounts when the ticks are closer than 100 zł", () => {
+    expect([axisLabel(11020, 20), axisLabel(11040, 20), axisLabel(184300, 50), axisLabel(900, 20)])
+      .toEqual(["11 020", "11 040", "184 300", "900"]);
+  });
 });
