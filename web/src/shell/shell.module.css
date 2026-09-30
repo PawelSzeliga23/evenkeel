@@ -32,7 +32,7 @@
     grid-auto-flow: column; justify-content: start; justify-items: start; align-items: center;
     gap: 12px; font-size: 14px; padding: 0 10px; border-radius: var(--r-control);
   }
-  .item > svg, .item > .plus { display: block; flex: none; }
+  .item > svg { display: block; flex: none; }
   .item[aria-current="page"] { background: var(--amber-soft); }
   .plus { width: 30px; height: 26px; }
   .main { padding-top: 32px; padding-bottom: 48px; }
