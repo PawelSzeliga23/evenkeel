@@ -33,7 +33,7 @@ describe("closed investments", () => {
     const totals = await screen.findByRole("region", { name: "Wynik zamkniętych" });
     expect(within(totals).getByText("Razem").nextElementSibling).toHaveTextContent(`+301,00${T}zł`);
     expect(within(totals).getByText(/20,1/)).toBeInTheDocument();
-    const rows = screen.getAllByRole("button", { expanded: false });
+    const rows = screen.getAllByRole("button", { expanded: false }).filter((b) => !b.getAttribute("aria-label")?.startsWith("Konta:"));
     expect(rows.map((r) => r.textContent)).toEqual([
       expect.stringMatching(/Orlen.*XTB, sprzedane/), expect.stringMatching(/Orlen.*IKE, częściowo/),
     ]);
@@ -69,7 +69,8 @@ describe("closed investments", () => {
 
     const totals = await screen.findByRole("region", { name: "Wynik zamkniętych" });
     expect(within(totals).getByText("Razem").nextElementSibling).toHaveTextContent(`+301,00${T}zł`);
-    await user.click(screen.getByRole("button", { name: "IKE" }));
+    await user.click(screen.getByRole("button", { name: "Konta: Cały portfel" }));
+    await user.click(screen.getByRole("checkbox", { name: "IKE" }));
 
     // the previous answer stays on screen until the new one arrives
     expect(within(screen.getByRole("region", { name: "Wynik zamkniętych" })).getByText("Razem")).toBeInTheDocument();

@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
 import type { Account } from "../api/types";
-import { AccountChips, AccountPicker, AccountSelect } from "./AccountPicker";
+import { AccountSelect } from "./AccountPicker";
 import { HeroAmount, Money } from "./Amount";
 import { ListRow } from "./ListRow";
 import { Segmented } from "./Segmented";
@@ -12,7 +12,6 @@ import { ErrorState } from "./States";
 
 const S = "\u00a0";
 const T = " "; // Testing Library normalizes NBSP to a plain space in text matchers
-const ACCOUNTS = [{ id: 1, name: "IKE" }, { id: 2, name: "XTB" }] as Account[];
 const THREE = [{ id: 1, name: "IKE" }, { id: 2, name: "XTB" }, { id: 4, name: "Oszcz\u0119dno\u015bci" }] as Account[];
 
 describe("amounts", () => {
@@ -38,22 +37,6 @@ describe("controls", () => {
     expect(screen.getByRole("button", { name: "1R" })).toHaveAttribute("aria-pressed", "true");
     await userEvent.click(screen.getByRole("button", { name: "1M" }));
     expect(onChange).toHaveBeenCalledWith("1M");
-  });
-
-  it("chooses the whole portfolio or one account", async () => {
-    const onChange = vi.fn();
-    render(<AccountPicker accounts={ACCOUNTS} value={null} onChange={onChange} />);
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Konto" }), "2");
-    expect(onChange).toHaveBeenLastCalledWith(2);
-    expect(screen.getByRole("option", { name: "Cały portfel" })).toBeInTheDocument();
-  });
-
-  it("filters by account with chips", async () => {
-    const onChange = vi.fn();
-    render(<AccountChips accounts={ACCOUNTS} value={1} onChange={onChange} />);
-    expect(screen.getByRole("button", { name: "IKE" })).toHaveAttribute("aria-pressed", "true");
-    await userEvent.click(screen.getByRole("button", { name: "Wszystkie" }));
-    expect(onChange).toHaveBeenCalledWith(null);
   });
 
   it("shows the choice on a button and opens checkboxes for the accounts", async () => {

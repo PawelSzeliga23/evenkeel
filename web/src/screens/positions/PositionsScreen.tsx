@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
+import { useAccountSelection } from "../../accounts/AccountSelection";
 import { api } from "../../api/endpoints";
 import { keys } from "../../api/queryKeys";
-import { AccountChips } from "../../ui/AccountPicker";
+import { AccountSelect } from "../../ui/AccountPicker";
 import { Money } from "../../ui/Amount";
 import { ListRow } from "../../ui/ListRow";
 import { Segmented } from "../../ui/Segmented";
@@ -14,20 +14,20 @@ import { flagLabel, groupPositions, leadFor, positionLink, subtitleFor } from ".
 import styles from "./Positions.module.css";
 
 export function PositionsScreen() {
-  const [accountId, setAccountId] = useState<number | null>(null);
+  const [accountIds, setAccountIds, ready] = useAccountSelection();
   const [params, setParams] = useSearchParams();
   const view = params.get("widok") === "zamkniete" ? "closed" : "open";
   const setView = (next: "open" | "closed") => setParams(next === "closed" ? { widok: "zamkniete" } : {}, { replace: true });
   const accounts = useQuery({ queryKey: keys.accounts, queryFn: api.accounts });
-  const positions = useQuery({ queryKey: keys.positions(accountId), queryFn: () => api.positions(accountId), enabled: view === "open" });
+  const positions = useQuery({ queryKey: keys.positions(accountIds), queryFn: () => api.positions(accountIds), enabled: ready && view === "open" });
 
   return (
     <div className={ui.page}>
       <h1 className={ui.pageTitle}>Pozycje</h1>
-      {(accounts.data?.length ?? 0) > 0 && <AccountChips accounts={accounts.data!} value={accountId} onChange={setAccountId} />}
+      {(accounts.data?.length ?? 0) > 0 && <AccountSelect accounts={accounts.data!} value={accountIds} onChange={setAccountIds} />}
       <Segmented label="Widok pozycji" value={view} onChange={setView}
         options={[{ value: "open", label: "Otwarte" }, { value: "closed", label: "Zamknięte" }]} />
-      {view === "closed" ? <ClosedView accountId={accountId} /> : (
+      {view === "closed" ? <ClosedView accountIds={accountIds} ready={ready} /> : (
         positions.isPending ? <Skeleton rows={6} />
         : positions.isError ? <ErrorState error={positions.error} onRetry={() => void positions.refetch()} />
           : positions.data.length === 0 ? (

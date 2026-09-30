@@ -12,7 +12,7 @@ import { useSession } from "./session";
 
 function Protected() {
   const { state } = useSession();
-  const summary = useQuery({ queryKey: ["summary"], queryFn: () => api.summary(null) });
+  const summary = useQuery({ queryKey: ["summary"], queryFn: () => api.summary([]) });
   return <p>Witaj {state.status === "signedIn" ? state.user.email : ""} {summary.data ? "z danymi" : ""}</p>;
 }
 

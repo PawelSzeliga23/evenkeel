@@ -1,10 +1,11 @@
 import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { useAccountSelection } from "../../accounts/AccountSelection";
 import { api } from "../../api/endpoints";
 import { keys } from "../../api/queryKeys";
 import type { HistoryFilters, HistoryItem } from "../../api/types";
 import { formatDate, formatDayLong, formatDecimal, formatMoney } from "../../format";
-import { AccountChips } from "../../ui/AccountPicker";
+import { AccountSelect } from "../../ui/AccountPicker";
 import { Money } from "../../ui/Amount";
 import { Confirm, Field, FormError, formErrors, useInvalidateAfterSave } from "../../ui/forms";
 import forms from "../../ui/forms.module.css";
@@ -43,13 +44,13 @@ function deleteRequest(item: HistoryItem): Promise<void> {
 
 export function HistoryScreen() {
   const accounts = useQuery({ queryKey: keys.accounts, queryFn: api.accounts });
-  const [accountId, setAccountId] = useState<number | null>(null);
+  const [accountIds, setAccountIds, ready] = useAccountSelection();
   const [type, setType] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [search, setSearch] = useState("");
   const q = useDebounced(search.trim());
-  const filters: HistoryFilters = { account_id: accountId, type: type || null, from: from || null, to: to || null, q };
+  const filters: HistoryFilters = { account_ids: accountIds, type: type || null, from: from || null, to: to || null, q };
   const invalidate = useInvalidateAfterSave();
   const [deleting, setDeleting] = useState<HistoryItem | null>(null);
   const [error, setError] = useState<{ id: string; message: string } | null>(null);
@@ -59,6 +60,7 @@ export function HistoryScreen() {
     queryFn: ({ pageParam }) => api.entries(filters, pageParam),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.next_cursor,
+    enabled: ready,
   });
   const remove = useMutation({
     mutationFn: deleteRequest,
@@ -79,7 +81,7 @@ export function HistoryScreen() {
     <div className={ui.page}>
       <h1 className={ui.pageTitle}>Historia</h1>
       <div className={styles.filters}>
-        {(accounts.data?.length ?? 0) > 0 && <AccountChips accounts={accounts.data!} value={accountId} onChange={setAccountId} />}
+        {(accounts.data?.length ?? 0) > 0 && <AccountSelect accounts={accounts.data!} value={accountIds} onChange={setAccountIds} />}
         <div className={`${styles.filterRow} ${forms.form}`}>
           <Field id="history-type" label="Rodzaj">
             <select id="history-type" value={type} onChange={(e) => setType(e.target.value)}>

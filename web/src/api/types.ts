@@ -278,7 +278,7 @@ export interface HistoryItem {
   delete: { target: "transaction" | "bond" | "savings_flow"; id: number } | null;
 }
 export interface HistoryPage { items: HistoryItem[]; next_cursor: string | null }
-export interface HistoryFilters { account_id: number | null; type: string | null; from: IsoDate | null; to: IsoDate | null; q: string }
+export interface HistoryFilters { account_ids: number[]; type: string | null; from: IsoDate | null; to: IsoDate | null; q: string }
 
 export interface ClosedTotals {
   sold_cost_pln: Money;

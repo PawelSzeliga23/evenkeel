@@ -23,17 +23,6 @@
 }
 .segmented button[aria-pressed="true"] { background: var(--amber-soft); color: var(--amber); }
 
-.picker {
-  position: relative; display: inline-flex; align-items: center;
-  background: var(--slab); border: 1px solid var(--rule); border-radius: 999px;
-}
-.picker select {
-  appearance: none; background: none; border: 0; color: var(--ink);
-  font-weight: 500; font-size: 14px; padding: 0 32px 0 14px; min-height: 44px; cursor: pointer;
-}
-.picker select option { background: var(--slab); }
-.picker svg { position: absolute; right: 12px; width: 12px; height: 12px; pointer-events: none; }
-
 .select { position: relative; display: inline-flex; max-width: 100%; }
 .selectButton {
   display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-height: 44px; padding: 0 14px;
@@ -54,13 +43,6 @@
 }
 .selectOption:hover { background: var(--amber-soft); }
 .selectOption input { width: 18px; height: 18px; margin: 0; accent-color: var(--amber); }
-
-.chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin-inline: -20px; padding-inline: 20px; }
-.chips button {
-  flex: none; min-height: 44px; background: var(--slab); border: 1px solid var(--rule); color: var(--dim);
-  font-weight: 500; font-size: 13.5px; padding: 0 14px; border-radius: 999px; cursor: pointer;
-}
-.chips button[aria-pressed="true"] { color: var(--amber); border-color: rgba(240, 164, 58, .45); background: var(--amber-soft); }
 
 .row {
   display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px;
