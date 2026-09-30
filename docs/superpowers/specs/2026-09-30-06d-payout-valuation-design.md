@@ -25,11 +25,10 @@ odejmuje). Przy okazji: trzy poprawki wyglądu zgłoszone przez właściciela i 
 
 ## Podział na plany
 
-Trzy plany na jednej gałęzi `feature/plan-6d`, wykonywane po kolei:
+Dwa plany na jednej gałęzi `feature/plan-6d`, wykonywane po kolei (właściciel zgodził się na mniej planów, 2026-09-30):
 
 - `6d-backend`: migracja, silnik wyceny, API, blokada wypłat z konta oszczędnościowego.
-- `6d-frontend-1`: Pulpit, Pozycje, szczegóły pozycji, spread w Ustawieniach.
-- `6d-frontend-2`: pozostałe drobiazgi, test e2e, roadmapa.
+- `6d-frontend`: Pulpit, Pozycje, szczegóły pozycji, spread w Ustawieniach, drobiazgi, test e2e, roadmapa.
 
 ## 1. Backend
 
