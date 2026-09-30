@@ -32,7 +32,7 @@ describe("session", () => {
   it("sends a visitor without a session to the login screen", async () => {
     mockFetch([NO_SESSION]);
     renderRoutes(ROUTES, "/");
-    expect(await screen.findByRole("heading", { name: "Portfel" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Evenkeel" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Zaloguj się" })).toBeInTheDocument();
   });
 

@@ -6,8 +6,8 @@ export const pwaOptions: Partial<VitePWAOptions> = {
   injectRegister: "auto",
   includeAssets: ["favicon.ico", "apple-touch-icon-180x180.png", "icon.svg"],
   manifest: {
-    name: "Portfel",
-    short_name: "Portfel",
+    name: "Evenkeel",
+    short_name: "Evenkeel",
     description: "Cały portfel inwestycyjny w jednym miejscu.",
     lang: "pl",
     start_url: "/",

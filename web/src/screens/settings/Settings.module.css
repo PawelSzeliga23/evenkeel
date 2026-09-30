@@ -14,3 +14,4 @@
 .problem { color: var(--loss); }
 .sourceEdit { display: grid; gap: 12px; padding: 0 0 14px; }
 .start { justify-self: start; }
+.about { display: grid; justify-items: center; gap: 8px; padding: 28px 0 8px; border-top: 1px solid var(--rule); }

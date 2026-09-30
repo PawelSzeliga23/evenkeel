@@ -7,7 +7,8 @@ export default defineConfig({
   preset: {
     ...preset,
     maskable: { ...preset.maskable, resizeOptions: background },
-    apple: { ...preset.apple, resizeOptions: background },
+    // iOS rounds the icon itself: the tile fills it, with no second, smaller tile inside
+    apple: { ...preset.apple, padding: 0, resizeOptions: background },
   },
   images: ["public/icon.svg"],
 });

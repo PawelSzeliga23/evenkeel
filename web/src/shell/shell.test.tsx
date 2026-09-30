@@ -9,6 +9,7 @@ describe("app shell", () => {
 
     const nav = await screen.findByRole("navigation", { name: "Główna" });
     expect(within(nav).getByRole("link", { name: "Ustawienia" })).toHaveAttribute("aria-current", "page");
+    expect(within(nav).getByRole("img", { name: "Evenkeel", hidden: true })).toBeInTheDocument(); // shown from 900 px
     expect(within(nav).getByRole("link", { name: "Dodaj" })).toHaveAttribute("href", "/dodaj");
     expect(within(nav).getByRole("link", { name: "Historia" })).toHaveAttribute("href", "/historia");
     expect(within(nav).queryByRole("link", { name: "Więcej" })).not.toBeInTheDocument();
