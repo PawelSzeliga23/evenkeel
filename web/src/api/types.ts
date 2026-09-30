@@ -22,7 +22,9 @@ export interface Allocation { key: string; name: string; value_pln: Money; share
 
 export interface Summary {
   as_of: IsoDate | null;
-  value_pln: Money;
+  value_pln: Money; // payout value: market value − exit costs
+  market_value_pln: Money;
+  exit_cost_pln: Money;
   cash_pln: Money;
   invested_pln: Money;
   total_gain_pln: Money;
@@ -60,7 +62,11 @@ export interface Position {
   price_currency: string | null;
   price_date: IsoDate | null;
   price_source: "provider" | "xtb" | null;
-  value_pln: Money;
+  value_pln: Money; // market value
+  exit_fx_pln: Money; // XTB conversion fee on a sale
+  exit_spread_pln: Money; // manual half-spread
+  exit_cost_pln: Money;
+  payout_pln: Money; // value − exit costs; gain, share and day change are from this
   cost_pln: Money;
   unrealized_pln: Money;
   unrealized_pct: Money | null;
@@ -72,6 +78,7 @@ export interface Position {
   day_change_pln: Money;
   share_pct: Money | null;
   flags: string[];
+  spread_pct: Money | null;
   bond_holding_id: number | null;
   savings_account_id: number | null;
 }
@@ -83,6 +90,7 @@ export interface Lot {
   open_price: Money | null;
   cost_pln: Money;
   value_pln: Money;
+  exit_cost_pln: Money;
   gain_pln: Money;
   price_effect_pln: Money;
   fx_effect_pln: Money;
@@ -180,6 +188,7 @@ export interface Instrument {
   price_error: string | null;
   last_price: Money | null;
   last_price_date: IsoDate | null;
+  spread_pct: Money | null;
 }
 
 export type CashOperationType = "deposit" | "withdrawal" | "interest" | "fee";

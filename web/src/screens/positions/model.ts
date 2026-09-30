@@ -13,7 +13,7 @@ export interface PositionGroup { key: (typeof GROUPS)[number]["key"]; title: str
 export function groupPositions(positions: Position[]): PositionGroup[] {
   return GROUPS.flatMap((group) => {
     const items = positions.filter((p) => (group.kinds as readonly string[]).includes(p.kind));
-    return items.length ? [{ key: group.key, title: group.title, total: sumMoney(items.map((p) => p.value_pln)), items }] : [];
+    return items.length ? [{ key: group.key, title: group.title, total: sumMoney(items.map((p) => p.payout_pln)), items }] : [];
   });
 }
 

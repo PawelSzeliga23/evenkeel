@@ -2,11 +2,12 @@ import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NETWORK_MESSAGE } from "../../api/client";
 import { pluralPl } from "../../format";
-import { ACCOUNTS, EXPOSURE, HISTORY, LIMITS, POSITIONS, SUMMARY } from "../../test/fixtures";
+import { ACCOUNTS, EXPOSURE, HISTORY, LIMITS, POSITIONS, SUMMARY, position } from "../../test/fixtures";
 import { SIGNED_IN, mockFetch, renderApp, type MockRoute } from "../../test/render";
 import { allocationRows, dayMovers, rangeFrom } from "./model";
 
 // Testing Library normalizes NBSP to a plain space in text matchers.
+const M = "−";
 const T = " ";
 
 function routes(overrides: Partial<Record<string, MockRoute["respond"]>> = {}): MockRoute[] {
@@ -48,6 +49,11 @@ describe("dashboard model", () => {
   it("writes Polish plurals", () => {
     const f = (n: number) => pluralPl(n, "pozycja", "pozycje", "pozycji");
     expect([f(1), f(2), f(4), f(5), f(12), f(22), f(25)]).toEqual(["pozycja", "pozycje", "pozycje", "pozycji", "pozycji", "pozycje", "pozycji"]);
+  });
+
+  it("computes the day's percent from the payout value", () => {
+    const p = position({ value_pln: "1005.00", payout_pln: "1000.00", day_change_pln: "100.00" });
+    expect(dayMovers([p])[0]!.pct).toBe("11.1111"); // 100 / (1000 − 100)
   });
 });
 
@@ -143,5 +149,20 @@ describe("dashboard screen", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(NETWORK_MESSAGE);
     await user.click(screen.getByRole("button", { name: "Spróbuj ponownie" }));
     expect(await screen.findByText("Wartość portfela")).toBeInTheDocument();
+  });
+
+  it("shows the market value and the exit costs under the payout value", async () => {
+    mockFetch(routes());
+    renderApp("/");
+
+    expect(await screen.findByText(`Wartość rynkowa 184${T}327,67${T}zł · koszty wyjścia ${M}25,50${T}zł`)).toBeInTheDocument();
+  });
+
+  it("hides the exit costs line when there are none", async () => {
+    mockFetch(routes({ summary: () => ({ ...SUMMARY, market_value_pln: SUMMARY.value_pln, exit_cost_pln: "0.00" }) }));
+    renderApp("/");
+
+    expect(await screen.findByText("Wartość portfela")).toBeInTheDocument();
+    expect(screen.queryByText(/koszty wyjścia/)).not.toBeInTheDocument();
   });
 });

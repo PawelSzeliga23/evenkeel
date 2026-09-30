@@ -1,6 +1,6 @@
 import { screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { ACCOUNTS, DETAIL, POSITIONS } from "../../test/fixtures";
+import { ACCOUNTS, DETAIL, POSITIONS, position } from "../../test/fixtures";
 import { SIGNED_IN, json, mockFetch, renderApp, type MockRoute } from "../../test/render";
 import { groupPositions, subtitleFor } from "./model";
 
@@ -27,6 +27,14 @@ describe("positions model", () => {
       `IKE, 42 szt., udział 35,8${S}%`, `XTB, 42 szt., udział 17,1${S}%`, `XTB, 48 szt., udział 6,1${S}%`,
       `XTB, 110 szt., udział 3,9${S}%`, "Obligacje, 100 szt.", "Konto oszczędnościowe", "XTB, PLN",
     ]);
+  });
+
+  it("totals and lists the payout value, not the market value", () => {
+    const groups = groupPositions([
+      position({ value_pln: "1000.00", exit_cost_pln: "5.00", payout_pln: "995.00" }),
+      position({ instrument_id: 11, value_pln: "500.00", payout_pln: "500.00" }),
+    ]);
+    expect(groups[0]!.total).toBe("1495.00");
   });
 });
 
@@ -60,6 +68,16 @@ describe("positions screen", () => {
     mockFetch([...SIGNED_IN, { path: "/api/accounts", respond: () => [] }, { path: "/api/positions", respond: () => [] }]);
     renderApp("/pozycje");
     expect(await screen.findByText("Nie masz jeszcze pozycji. Wgraj eksport z XTB, żeby je zobaczyć.")).toBeInTheDocument();
+  });
+
+  it("shows each row's payout value", async () => {
+    mockFetch([...SIGNED_IN, { path: "/api/accounts", respond: () => ACCOUNTS },
+      { path: "/api/positions", respond: () => [position({ value_pln: "1000.00", exit_cost_pln: "5.00", payout_pln: "995.00" })] }]);
+    renderApp("/pozycje");
+
+    const group = await screen.findByRole("region", { name: "Akcje i ETF-y" });
+    expect(within(group).getAllByText(`995,00${T}zł`).length).toBe(2); // the group total and the row
+    expect(within(group).queryByText(`1${T}000,00${T}zł`)).not.toBeInTheDocument();
   });
 });
 

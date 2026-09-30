@@ -5,7 +5,7 @@ import { api } from "../../api/endpoints";
 import { keys } from "../../api/queryKeys";
 import type { Summary } from "../../api/types";
 import { ValueChart } from "../../charts/ValueChart";
-import { formatDayLong, formatPercent, pluralPl, signOf, sumMoney } from "../../format";
+import { formatDayLong, formatMoney, formatPercent, pluralPl, signOf, sumMoney } from "../../format";
 import { AccountPicker } from "../../ui/AccountPicker";
 import { HeroAmount, Money } from "../../ui/Amount";
 import { LimitsCard } from "../limits/LimitsCard";
@@ -88,6 +88,11 @@ export function DashboardScreen() {
       <section className={styles.hero} aria-label="Podsumowanie">
         <span className="dim">Wartość portfela</span>
         <HeroAmount value={data.value_pln} />
+        {signOf(data.exit_cost_pln) > 0 && (
+          <p className="dim num">
+            {`Wartość rynkowa ${formatMoney(data.market_value_pln)} · koszty wyjścia ${formatMoney(`-${data.exit_cost_pln}`)}`}
+          </p>
+        )}
         {data.day_change_pln !== null && (
           <p className={styles.today}>
             <Money value={data.day_change_pln} sign tone />{" "}
