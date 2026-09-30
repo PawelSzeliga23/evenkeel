@@ -1,0 +1,26 @@
+.splash {
+  position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: var(--night);
+  transition: opacity .5s ease .9s;
+}
+.leaving { opacity: 0; pointer-events: none; }
+.stack { display: grid; justify-items: center; gap: 18px; }
+.mark {
+  position: relative; width: 84px; height: 84px; border-radius: 20px; overflow: hidden;
+  background: linear-gradient(135deg, #1C2129, #0E1116); border: 1px solid #242A33;
+}
+.bars { position: absolute; left: 11px; width: 62px; bottom: 15px; height: 50px; overflow: hidden; }
+.bar {
+  position: absolute; bottom: 0; width: 10px; border-radius: 2px 2px 0 0;
+  background: linear-gradient(0deg, #8A5A1C, #FFC266);
+  animation: rise 1.2s cubic-bezier(.45, 0, .2, 1) both;
+  transition: height 1.2s cubic-bezier(.45, 0, .2, 1), left 1.2s cubic-bezier(.45, 0, .2, 1), transform 1.2s cubic-bezier(.45, 0, .2, 1);
+}
+.gone, .leaving .bar { animation: none; transform: translateY(105%); }
+.leaving .bar { transition-duration: .9s; }
+.base { position: absolute; left: 9px; right: 9px; bottom: 14px; height: 1px; background: #3A424E; }
+.stack .word { font-size: 24px; }
+@keyframes rise { from { transform: translateY(105%); } to { transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .bar { animation: none; transition: none; }
+  .splash { transition: opacity .5s ease; }
+}
