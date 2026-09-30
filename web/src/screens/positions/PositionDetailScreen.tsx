@@ -42,7 +42,10 @@ function Entry({ title, subtitle, value, detail }: { title: ReactNode; subtitle?
 }
 
 const price = (value: string | null, currency: string | null) =>
-  value === null ? "—" : `${formatDecimal(value, 4)}${currency ? `\u00a0${currency}` : ""}`;
+  value === null ? "—" : `${formatDecimal(value, 4)}${currency ? `\u00a0${currency}` : " w walucie instrumentu"}`;
+
+/** An exit cost (a positive amount) shown as money taken away. */
+const minus = (value: string) => (signOf(value) > 0 ? `-${value}` : value);
 
 function reconciliationText(r: Reconciliation): { title: string; subtitle: string; tone: string } {
   const when = r.taken_at ? `stan z ${formatDateTime(r.taken_at)}` : "";
@@ -65,7 +68,7 @@ function Detail({ detail }: { detail: PositionDetail }) {
       <section className={styles.head} aria-label="Podsumowanie pozycji">
         <span className="dim">{[p.ticker, p.account_name].filter(Boolean).join(", ")}</span>
         <h1 className={styles.name}>{p.name}</h1>
-        <HeroAmount value={p.value_pln} size="m" />
+        <HeroAmount value={p.payout_pln} size="m" />
         <p className={`num ${gainTone}`}>
           <Money value={p.unrealized_pln} sign /> ({formatPercent(p.unrealized_pct)})
         </p>
@@ -82,10 +85,24 @@ function Detail({ detail }: { detail: PositionDetail }) {
         </dl>
       </Section>
 
+      {signOf(p.exit_cost_pln) > 0 && (
+        <Section title="Do wypłaty">
+          <dl className={ui.kv}>
+            <dt>Wartość rynkowa</dt><dd><Money value={p.value_pln} /></dd>
+            {signOf(p.exit_fx_pln) > 0 && <><dt>Przewalutowanie XTB 0,5 %</dt><dd><Money value={minus(p.exit_fx_pln)} /></dd></>}
+            {signOf(p.exit_spread_pln) > 0 && (
+              <><dt>{`Spread (ręczny ${formatDecimal(p.spread_pct ?? "0", 4)} %)`}</dt><dd><Money value={minus(p.exit_spread_pln)} /></dd></>
+            )}
+            <dt>Do wypłaty</dt><dd><Money value={p.payout_pln} /></dd>
+          </dl>
+        </Section>
+      )}
+
       <Section title="Zysk">
         <dl className={ui.kv}>
           <dt>Zmiana ceny</dt><dd><Money value={p.price_effect_pln} sign tone /></dd>
           <dt>Kurs waluty</dt><dd><Money value={p.fx_effect_pln} sign tone /></dd>
+          {signOf(p.exit_cost_pln) > 0 && <><dt>Koszty wyjścia</dt><dd><Money value={minus(p.exit_cost_pln)} sign tone /></dd></>}
           <dt>Dywidendy</dt><dd><Money value={p.dividends_net_pln} sign tone /></dd>
           <dt>Koszty</dt><dd><Money value={p.fees_pln} sign tone /></dd>
           <dt>Zrealizowany</dt><dd><Money value={p.realized_pln} sign tone /></dd>

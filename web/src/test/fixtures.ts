@@ -10,6 +10,8 @@ export const ACCOUNTS: Account[] = [
 export const SUMMARY: Summary = {
   as_of: "2026-09-26",
   value_pln: "184302.17",
+  market_value_pln: "184327.67",
+  exit_cost_pln: "25.50",
   cash_pln: "4133.49",
   invested_pln: "161183.77",
   total_gain_pln: "23118.40",
@@ -53,13 +55,15 @@ export const EXPOSURE: Exposure = {
 };
 
 export function position(overrides: Partial<Position>): Position {
+  const value = overrides.value_pln ?? "1000.00";
   return {
     kind: "instrument", account_id: 2, account_name: "XTB", instrument_id: 10, ticker: "SXR8.DE",
     name: "Core S&P 500", category: "ETF", currency: "EUR", quantity: "42.00000000", price: "612.3400", price_currency: "EUR",
-    price_date: "2026-09-26", price_source: "provider", value_pln: "1000.00", cost_pln: "900.00",
+    price_date: "2026-09-26", price_source: "provider", value_pln: value, exit_fx_pln: "0.00", exit_spread_pln: "0.00",
+    exit_cost_pln: "0.00", payout_pln: value, cost_pln: "900.00",
     unrealized_pln: "100.00", unrealized_pct: "11.11", price_effect_pln: "80.00", fx_effect_pln: "20.00",
     dividends_net_pln: "0.00", fees_pln: "0.00", realized_pln: "0.00", day_change_pln: "0.00", share_pct: "10.00",
-    flags: [], bond_holding_id: null, savings_account_id: null,
+    flags: [], spread_pct: null, bond_holding_id: null, savings_account_id: null,
     ...overrides,
   };
 }
@@ -90,10 +94,10 @@ export const DETAIL: PositionDetail = {
     fees_pln: "-12.00", realized_pln: "215.30", share_pct: "6.05" }),
   lots: [
     { position_id: "777", opened_on: "2025-05-12", quantity: "30", open_price: "180.2000", cost_pln: "5406.00",
-      value_pln: "6974.10", gain_pln: "1568.10", price_effect_pln: "1568.10", fx_effect_pln: "0.00", holding_days: 502,
+      value_pln: "6974.10", exit_cost_pln: "0.00", gain_pln: "1568.10", price_effect_pln: "1568.10", fx_effect_pln: "0.00", holding_days: 502,
       stop_loss: "150.0000", take_profit: null },
     { position_id: "778", opened_on: "2026-02-03", quantity: "18", open_price: "212.2900", cost_pln: "3821.52",
-      value_pln: "4184.46", gain_pln: "362.94", price_effect_pln: "362.94", fx_effect_pln: "0.00", holding_days: 1,
+      value_pln: "4184.46", exit_cost_pln: "0.00", gain_pln: "362.94", price_effect_pln: "362.94", fx_effect_pln: "0.00", holding_days: 1,
       stop_loss: null, take_profit: null },
   ],
   sales: [
@@ -124,6 +128,7 @@ export function instrument(overrides: Partial<Instrument>): Instrument {
   return {
     id: 10, xtb_ticker: "SXR8.DE", name: "Core S&P 500", category: "ETF", currency: "EUR", price_symbol: "SXR8.DE",
     price_symbol_overridden: false, price_error: null, last_price: "612.3400", last_price_date: "2026-09-26",
+    spread_pct: null,
     ...overrides,
   };
 }

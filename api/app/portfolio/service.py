@@ -39,6 +39,7 @@ KIND_NAMES = {
     BOND_KIND: "Obligacje", SAVINGS_KIND: "Konta oszczędnościowe",
 }
 CASH_NAME = "Gotówka"
+PAYOUT = DailyValuation.value_pln - DailyValuation.exit_cost_pln  # what the holdings would pay out in PLN
 
 
 def percent(part: Decimal, whole: Decimal) -> Decimal | None:
@@ -71,7 +72,7 @@ def _daily_totals(scope: UserScope, account_id: int | None) -> list[tuple[dt.dat
     """(day, value, net external flow) of the portfolio or one account, in date order."""
     return [tuple(row) for row in scope.db.execute(
         _valuations(scope, account_id)
-        .with_only_columns(DailyValuation.date, func.sum(DailyValuation.value_pln), func.sum(DailyValuation.net_flow_pln))
+        .with_only_columns(DailyValuation.date, func.sum(PAYOUT), func.sum(DailyValuation.net_flow_pln))
         .group_by(DailyValuation.date)
         .order_by(DailyValuation.date)
     )]
@@ -106,7 +107,7 @@ def portfolio_summary(scope: UserScope, account_id: int | None) -> SummaryOut:
     latest = db.scalar(rows.with_only_columns(func.max(DailyValuation.date)))
     if latest is None:
         return SummaryOut(
-            as_of=None, value_pln=money(ZERO), cash_pln=money(ZERO), invested_pln=money(ZERO),
+            as_of=None, value_pln=money(ZERO), market_value_pln=money(ZERO), exit_cost_pln=money(ZERO), cash_pln=money(ZERO), invested_pln=money(ZERO),
             total_gain_pln=money(ZERO), total_gain_pct=None, day_change_pln=None, day_change_pct=None,
             dividends_net_pln=money(dividends), interest_net_pln=money(interest), fees_pln=money(fees),
             twr_pct=None, by_account=[], by_kind=[], approximate_positions=0, recalculating=recalculating,
@@ -114,7 +115,7 @@ def portfolio_summary(scope: UserScope, account_id: int | None) -> SummaryOut:
     session = last_session(latest)
     previous = previous_session(session)
     totals: dict[dt.date, Decimal] = dict(db.execute(
-        rows.with_only_columns(DailyValuation.date, func.sum(DailyValuation.value_pln))
+        rows.with_only_columns(DailyValuation.date, func.sum(PAYOUT))
         .where(DailyValuation.date.in_([latest, session, previous]))
         .group_by(DailyValuation.date)
     ).all())
@@ -129,7 +130,8 @@ def portfolio_summary(scope: UserScope, account_id: int | None) -> SummaryOut:
     names = {account.id: account.name for account in db.scalars(scope.accounts())}
     latest_rows = db.execute(
         rows.with_only_columns(DailyValuation.account_id, DailyValuation.instrument_id, DailyValuation.bond_holding_id,
-                               DailyValuation.savings_account_id, DailyValuation.value_pln, DailyValuation.flags)
+                               DailyValuation.savings_account_id, PAYOUT.label("payout_pln"), DailyValuation.exit_cost_pln,
+                               DailyValuation.flags)
         .where(DailyValuation.date == latest)
     ).all()
     instrument_ids = {row.instrument_id for row in latest_rows if row.instrument_id is not None}
@@ -138,20 +140,22 @@ def portfolio_summary(scope: UserScope, account_id: int | None) -> SummaryOut:
     ).all()) if instrument_ids else {}
     by_account: dict[str, tuple[str, Decimal]] = {}
     by_kind: dict[str, tuple[str, Decimal]] = {}
-    cash, approximate = ZERO, 0
+    cash, approximate, exit_cost = ZERO, 0, ZERO
     for row in latest_rows:
         account_key = str(row.account_id)
-        by_account[account_key] = (names[row.account_id], by_account.get(account_key, ("", ZERO))[1] + row.value_pln)
+        by_account[account_key] = (names[row.account_id], by_account.get(account_key, ("", ZERO))[1] + row.payout_pln)
         kind = _kind(row, categories)
-        by_kind[kind] = (KIND_NAMES.get(kind, kind), by_kind.get(kind, ("", ZERO))[1] + row.value_pln)
+        by_kind[kind] = (KIND_NAMES.get(kind, kind), by_kind.get(kind, ("", ZERO))[1] + row.payout_pln)
+        exit_cost += row.exit_cost_pln
         if kind == CASH_KIND:
-            cash += row.value_pln
+            cash += row.payout_pln
         elif row.flags:
             approximate += 1
     gain = value - invested
     index = twr_index(_daily_totals(scope, account_id))
     return SummaryOut(
-        as_of=latest, value_pln=money(value), cash_pln=money(cash), invested_pln=money(invested),
+        as_of=latest, value_pln=money(value), market_value_pln=money(value + exit_cost),
+        exit_cost_pln=money(exit_cost), cash_pln=money(cash), invested_pln=money(invested),
         total_gain_pln=money(gain), total_gain_pct=percent(gain, invested) if invested > 0 else None,
         day_change_pln=day_change, day_change_pct=day_change_pct,
         dividends_net_pln=money(dividends), interest_net_pln=money(interest), fees_pln=money(fees),
@@ -219,21 +223,23 @@ def _instrument_item(book: Book, account: Account, instrument: Instrument, view:
     if view is None:  # fully sold: only realized gain and income remain
         return PositionOut(
             **fields, quantity=ZERO, price=None, price_date=None, price_source=None, value_pln=zero, cost_pln=zero,
-            unrealized_pln=zero, unrealized_pct=None, price_effect_pln=zero, fx_effect_pln=zero, day_change_pln=zero,
+            exit_fx_pln=zero, exit_spread_pln=zero, exit_cost_pln=zero, payout_pln=zero, unrealized_pln=zero, unrealized_pct=None, price_effect_pln=zero, fx_effect_pln=zero, day_change_pln=zero,
             flags=[],
         )
     quote = view.quote
-    unrealized = view.value_pln - view.cost_pln
+    payout = view.value_pln - view.exit_cost_pln
+    unrealized = payout - view.cost_pln
     session = last_session(day)
     price, price_currency = _display_price(quote, instrument)
     return PositionOut(
         **fields, quantity=view.quantity, price=price, price_currency=price_currency,
         price_date=quote.price_date if quote else None, price_source=quote.source if quote else None,
-        value_pln=view.value_pln, cost_pln=view.cost_pln, unrealized_pln=unrealized,
+        value_pln=view.value_pln, exit_fx_pln=view.exit_fx_pln, exit_spread_pln=view.exit_spread_pln,
+        exit_cost_pln=view.exit_cost_pln, payout_pln=payout, cost_pln=view.cost_pln, unrealized_pln=unrealized,
         unrealized_pct=percent(unrealized, view.cost_pln),
         price_effect_pln=view.price_effect_pln, fx_effect_pln=view.fx_effect_pln,
         day_change_pln=book.day_change(account.id, instrument.id, session, previous_session(session)),
-        flags=list(view.flags),
+        flags=list(view.flags), spread_pct=book.exit_rules.spreads.get(instrument.id),
     )
 
 
@@ -243,7 +249,9 @@ def _cash_item(book: Book, account: Account, day: dt.date) -> PositionOut:
     return PositionOut(
         kind="cash", account_id=account.id, account_name=account.name, instrument_id=None, ticker=None, name=CASH_NAME,
         category=None, currency=book.account_currency[account.id], quantity=row.quantity or ZERO, price=None,
-        price_date=None, price_source=None, value_pln=row.value_pln, cost_pln=row.value_pln, unrealized_pln=zero,
+        price_date=None, price_source=None, value_pln=row.value_pln, exit_fx_pln=row.exit_cost_pln, exit_spread_pln=zero,
+        exit_cost_pln=row.exit_cost_pln, payout_pln=row.value_pln - row.exit_cost_pln, cost_pln=row.value_pln,
+        unrealized_pln=zero,
         unrealized_pct=None, price_effect_pln=zero, fx_effect_pln=zero, dividends_net_pln=zero, fees_pln=zero,
         realized_pln=zero, day_change_pln=zero, flags=list(row.flags),
     )
@@ -255,7 +263,8 @@ def _fixed_item(row: Row, change: Decimal, account: Account, kind: str, name: st
     return PositionOut(
         kind=kind, account_id=account.id, account_name=account.name, instrument_id=None, ticker=None, name=name,
         category=BOND_KIND if kind == "bond" else SAVINGS_KIND, currency=account.currency,
-        quantity=row.quantity or ZERO, price=None, price_date=None, price_source=None, value_pln=value, cost_pln=cost,
+        quantity=row.quantity or ZERO, price=None, price_date=None, price_source=None, value_pln=value,
+        exit_fx_pln=zero, exit_spread_pln=zero, exit_cost_pln=zero, payout_pln=value, cost_pln=cost,
         unrealized_pln=value - cost, unrealized_pct=percent(value - cost, cost), price_effect_pln=value - cost,
         fx_effect_pln=zero, dividends_net_pln=zero, fees_pln=zero, realized_pln=zero, day_change_pln=money(change),
         flags=list(row.flags), bond_holding_id=row.bond_holding_id, savings_account_id=row.savings_account_id,
@@ -284,7 +293,8 @@ def build_positions(
 ) -> tuple[Book, list[PositionOut]]:
     """Open positions, each account's cash, then bonds and savings accounts, valued on `day`; shares of the total."""
     db = scope.db
-    book = replay(inputs.entries, inputs.splits, inputs.market, day, conversions=inputs.conversions)
+    book = replay(inputs.entries, inputs.splits, inputs.market, day, conversions=inputs.conversions,
+                  exit_rules=inputs.exit_rules)
     accounts = {account.id: account for account in db.scalars(scope.accounts())}
     instruments = {instrument.id: instrument for instrument in db.scalars(scope.instruments())}
     items: list[PositionOut] = []
@@ -298,9 +308,9 @@ def build_positions(
         if account_id is None or owner == account_id:
             items.append(_cash_item(book, accounts[owner], day))
     items += _fixed_items(scope, accounts, day, account_id)
-    total = sum((item.value_pln for item in items), ZERO)
+    total = sum((item.payout_pln for item in items), ZERO)
     for item in items:
-        item.share_pct = percent(item.value_pln, total)
+        item.share_pct = percent(item.payout_pln, total)
     return book, items
 
 
@@ -359,7 +369,8 @@ def position_detail(scope: UserScope, account: Account, instrument: Instrument, 
             open_price = stored.open_price  # XTB's own open price, quote currency; same units only (no split since)
         lots.append(LotOut(
             position_id=lot.position_id, opened_on=lot.opened_on, quantity=lot.quantity, open_price=open_price,
-            cost_pln=lot.cost_pln, value_pln=lot.value_pln, gain_pln=lot.value_pln - lot.cost_pln,
+            cost_pln=lot.cost_pln, value_pln=lot.value_pln, exit_cost_pln=lot.exit_cost_pln,
+            gain_pln=lot.value_pln - lot.exit_cost_pln - lot.cost_pln,
             price_effect_pln=lot.price_effect_pln, fx_effect_pln=lot.fx_effect_pln,
             holding_days=(day - lot.opened_on).days,
             stop_loss=stored.stop_loss if stored else None, take_profit=stored.take_profit if stored else None,

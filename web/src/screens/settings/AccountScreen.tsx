@@ -76,7 +76,11 @@ function EditAccount({ account }: { account: Account }) {
     if (name.trim() !== account.name) body.name = name.trim();
     if (wrapper !== account.wrapper) body.wrapper = wrapper;
     setErrors(name.trim() ? NO_ERRORS : { fields: { name: "Podaj nazwę konta." }, general: null });
-    if (name.trim() && Object.keys(body).length > 0) save.mutate(body);
+    if (name.trim() && Object.keys(body).length === 0) {
+      setErrors({ fields: {}, general: "Brak zmian do zapisania." });
+      return;
+    }
+    if (name.trim()) save.mutate(body);
   }
 
   return (

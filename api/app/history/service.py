@@ -34,6 +34,7 @@ def history_items(scope: UserScope, today: dt.date) -> list[HistoryItem]:
             id=f"tx:{tx.id}", kind="transaction", type=tx.type, date=local_day(tx.occurred_at),
             account_id=account.id, account_name=account.name, instrument_id=tx.instrument_id, ticker=tx.ticker,
             name=tx.instrument.name if tx.instrument else None, quantity=tx.quantity, price=tx.price,
+            price_currency=tx.instrument.currency if tx.instrument else None,
             amount=tx.amount, currency=tx.currency, amount_pln=_pln(tx.amount, tx.currency), note=tx.comment,
             delete=DeleteTarget(target="transaction", id=tx.id) if tx.xtb_type == MANUAL else None,
         ))

@@ -63,8 +63,9 @@ def test_everything_in_one_list_newest_first(client: TestClient, world: dict) ->
         ("2026-01-15", "bond_purchase", "bond_purchase"),
     ]
     by_type = {i["type"]: i for i in items}
-    assert (by_type["buy"]["name"], by_type["buy"]["ticker"], by_type["buy"]["amount"], by_type["buy"]["delete"]) == (
-        "CD Projekt", "CDR.PL", "-500.0000", None)
+    assert (by_type["buy"]["name"], by_type["buy"]["ticker"], by_type["buy"]["amount"], by_type["buy"]["delete"],
+            by_type["buy"]["price"], by_type["buy"]["price_currency"]) == (
+        "CD Projekt", "CDR.PL", "-500.0000", None, "250.00000000", "PLN")
     assert (by_type["deposit"]["note"], by_type["deposit"]["delete"]["target"]) == ("pensja", "transaction")
     assert (by_type["bond_purchase"]["name"], by_type["bond_purchase"]["amount"],
             by_type["bond_purchase"]["delete"]["target"]) == ("EDO0136", "-1000.00", "bond")

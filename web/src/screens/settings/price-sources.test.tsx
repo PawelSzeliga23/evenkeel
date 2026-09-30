@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { SIGNED_IN, json, mockFetch, renderApp, type MockRoute } from "../../test/render";
 import { BROKEN, instrument } from "../../test/fixtures";
@@ -84,5 +84,46 @@ describe("price sources", () => {
     await user.type(input, "EIMI L");
     await user.click(screen.getByRole("button", { name: "Zapisz symbol" }));
     expect(await screen.findByText("Symbol może zawierać litery, cyfry i znaki . - ^ =.")).toBeInTheDocument();
+  });
+
+  it("saves a manual spread, clears it with an empty field and checks the range first", async () => {
+    const sent: { id: string; body: unknown }[] = [];
+    mockFetch(routes(sent));
+    const { user } = renderApp("/ustawienia/zrodla-cen");
+
+    await user.click(await screen.findByRole("button", { name: /SXR8\.DE/ }));
+    const field = screen.getByLabelText("Spread (%)");
+    await user.type(field, "6");
+    await user.click(screen.getByRole("button", { name: "Zapisz spread" }));
+    expect(screen.getByText("Podaj spread od 0 do 5 %.")).toBeInTheDocument();
+
+    await user.clear(field);
+    await user.type(field, "0,1");
+    await user.click(screen.getByRole("button", { name: "Zapisz spread" }));
+    expect(await screen.findByText("Zapisano. Wycena przeliczy się w tle.")).toBeInTheDocument();
+
+    await user.clear(field);
+    await user.click(screen.getByRole("button", { name: "Zapisz spread" }));
+
+    await waitFor(() => expect(sent).toEqual([
+      { id: "10", body: { spread_pct: "0.1" } },
+      { id: "10", body: { spread_pct: null } },
+    ]));
+  });
+
+  it("shows a set spread in the instrument's line", async () => {
+    mockFetch([...SIGNED_IN, { path: "/api/instruments", respond: () => [instrument({ id: 10, spread_pct: "0.2000" })] }]);
+    renderApp("/ustawienia/zrodla-cen");
+
+    expect(await screen.findByText(/spread 0,2 %/)).toBeInTheDocument();
+  });
+
+  it("treats a zero spread as none: no spread text and an empty field", async () => {
+    mockFetch([...SIGNED_IN, { path: "/api/instruments", respond: () => [instrument({ id: 10, spread_pct: "0.0000" })] }]);
+    const { user } = renderApp("/ustawienia/zrodla-cen");
+
+    await user.click(await screen.findByRole("button", { name: /SXR8\.DE/ }));
+    expect(screen.queryByText(/spread \d/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Spread (%)")).toHaveValue("");
   });
 });

@@ -54,7 +54,7 @@ export function PositionsScreen() {
                         {p.flags.length > 0 && <span className={`flag ${styles.flags}`}>{p.flags.map(flagLabel).join(", ")}</span>}
                       </>
                     }
-                    value={<Money value={p.value_pln} />}
+                    value={<Money value={p.payout_pln} />}
                     detail={p.kind === "cash" ? <span className="dim">—</span> : <Money value={p.unrealized_pln} sign tone />}
                   />
                 ))}

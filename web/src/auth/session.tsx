@@ -8,7 +8,7 @@ export type SessionState =
   | { status: "loading" }
   | { status: "offline" }
   | { status: "serverError" }
-  | { status: "anonymous"; expired: boolean }
+  | { status: "anonymous"; expired: boolean; offlineLogout?: boolean }
   | { status: "signedIn"; user: UserOut };
 
 interface Session {
@@ -18,6 +18,15 @@ interface Session {
   signOut(): Promise<void>;
   /** runs the startup restore again after it failed (no connection or a server error) */
   retry(): void;
+}
+
+export const SESSION_CHANNEL = "portfolio-session";
+
+function announceSignOut() {
+  if (typeof BroadcastChannel === "undefined") return;
+  const channel = new BroadcastChannel(SESSION_CHANNEL);
+  channel.postMessage("signed-out");
+  channel.close();
 }
 
 const SessionContext = createContext<Session | null>(null);
@@ -59,6 +68,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     };
   }, [queryClient, attempt]);
 
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const channel = new BroadcastChannel(SESSION_CHANNEL);
+    channel.onmessage = (event) => {
+      if (event.data !== "signed-out") return;
+      setAccessToken(null);
+      queryClient.clear();
+      // the tab that signed out also hears its own message: keep its state (expired / offlineLogout notices)
+      setState((current) => (current.status === "anonymous" ? current : { status: "anonymous", expired: false }));
+    };
+    return () => channel.close();
+  }, [queryClient]);
+
   const retry = useCallback(() => {
     setState({ status: "loading" });
     setAttempt((n) => n + 1);
@@ -83,13 +105,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [signIn]);
 
   const signOut = useCallback(async () => {
+    let offline = false;
     try {
       await api.logout();
-    } finally {
-      setAccessToken(null);
-      queryClient.clear();
-      setState({ status: "anonymous", expired: false });
+    } catch {
+      offline = true; // the refresh cookie stays valid on the server until it expires
     }
+    setAccessToken(null);
+    queryClient.clear();
+    announceSignOut();
+    setState({ status: "anonymous", expired: false, offlineLogout: offline });
   }, [queryClient]);
 
   const value = useMemo(() => ({ state, signIn, register, signOut, retry }), [state, signIn, register, signOut, retry]);

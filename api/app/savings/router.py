@@ -20,7 +20,7 @@ from app.savings.schemas import (
 )
 from app.savings.summary import capitalizations, summarize
 from app.scoping import DbId, UserScope, get_scope, not_found
-from app.valuation.service import local_today, mark_stale, recompute_in_background
+from app.valuation.service import local_today, lock_user, mark_stale, recompute_in_background
 
 router = APIRouter(prefix="/api/savings-accounts/{account_id}", tags=["savings"])
 create_router = APIRouter(prefix="/api/savings-accounts", tags=["savings"])
@@ -46,7 +46,9 @@ def account_days(db: Session, settings: SavingsAccount, account: Account, end: d
 
 
 def _check_balance(scope: UserScope, settings: SavingsAccount, status: int, code: str, message: str) -> None:
-    """After a change is flushed: the balance may never drop below zero."""
+    """After a change is flushed: the balance may never drop below zero. The user's lock makes a concurrent
+    change wait until this one is committed, so two withdrawals cannot both pass on the same balance."""
+    lock_user(scope.db, scope.user.id)
     account = scope.get_account(settings.account_id)
     low = next((d for d in account_days(scope.db, settings, account, local_today()) if d.balance < 0), None)
     if low is not None:

@@ -16,7 +16,9 @@ class AllocationOut(BaseModel):
 
 class SummaryOut(BaseModel):
     as_of: dt.date | None
-    value_pln: Decimal
+    value_pln: Decimal  # payout value: market value − exit costs
+    market_value_pln: Decimal
+    exit_cost_pln: Decimal
     cash_pln: Decimal
     invested_pln: Decimal
     total_gain_pln: Decimal
@@ -66,7 +68,11 @@ class PositionOut(BaseModel):
     price_currency: str | None = None  # "PLN" when valued from XTB figures (price = PLN per unit)
     price_date: dt.date | None
     price_source: Literal["provider", "xtb"] | None
-    value_pln: Decimal
+    value_pln: Decimal  # market value
+    exit_fx_pln: Decimal  # XTB currency conversion fee on a sale
+    exit_spread_pln: Decimal  # manual half-spread
+    exit_cost_pln: Decimal
+    payout_pln: Decimal  # value − exit costs; gain, share and day change are from this
     cost_pln: Decimal
     unrealized_pln: Decimal
     unrealized_pct: Decimal | None
@@ -78,6 +84,7 @@ class PositionOut(BaseModel):
     day_change_pln: Decimal
     share_pct: Decimal | None = None
     flags: list[str]
+    spread_pct: Decimal | None = None  # the instrument's manual half-spread, percent
     bond_holding_id: int | None = None
     savings_account_id: int | None = None
 
@@ -89,6 +96,7 @@ class LotOut(BaseModel):
     open_price: Decimal | None
     cost_pln: Decimal
     value_pln: Decimal
+    exit_cost_pln: Decimal
     gain_pln: Decimal
     price_effect_pln: Decimal
     fx_effect_pln: Decimal

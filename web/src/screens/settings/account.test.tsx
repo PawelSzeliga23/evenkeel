@@ -34,6 +34,17 @@ describe("account settings", () => {
     expect(calls).toEqual([{ method: "PATCH", body: { name: "XTB IKE", wrapper: "ikze" } }]);
   });
 
+  it("says there is nothing to save when nothing changed", async () => {
+    const calls: { method: string; body?: unknown }[] = [];
+    mockFetch(routes(calls));
+    const { user } = renderApp("/ustawienia/konta/1");
+
+    await user.click(await screen.findByRole("button", { name: "Zapisz zmiany" }));
+
+    expect(screen.getByText("Brak zmian do zapisania.")).toBeInTheDocument();
+    expect(calls).toEqual([]);
+  });
+
   it("deletes only after the account's name is typed, and says what goes with it", async () => {
     const calls: { method: string; body?: unknown }[] = [];
     mockFetch(routes(calls));

@@ -1,6 +1,6 @@
 import { request } from "./client";
 import type {
-  Account, AccountCreate, AccountUpdate, AccountUsage, Instrument, BondDetail, BondIn, BondOut, Closed, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Limit, Position, PositionDetail, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, TokenOut, Transaction, TransactionIn, UserOut,
+  Account, AccountCreate, AccountUpdate, AccountUsage, Instrument, InstrumentUpdate, BondDetail, BondIn, BondOut, Closed, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Limit, Position, PositionDetail, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, TokenOut, Transaction, TransactionIn, UserOut,
 } from "./types";
 
 function filesForm(files: File[]): FormData {
@@ -38,8 +38,8 @@ export const api = {
   deleteAccount: (id: number) => request<void>(`/api/accounts/${id}`, { method: "DELETE" }),
   accountUsage: (id: number) => request<AccountUsage>(`/api/accounts/${id}/usage`),
   instruments: () => request<Instrument[]>("/api/instruments"),
-  updateInstrument: (id: number, priceSymbol: string | null) =>
-    request<Instrument>(`/api/instruments/${id}`, { method: "PATCH", json: { price_symbol: priceSymbol } }),
+  updateInstrument: (id: number, body: InstrumentUpdate) =>
+    request<Instrument>(`/api/instruments/${id}`, { method: "PATCH", json: body }),
   summary: (accountId: number | null) => request<Summary>("/api/portfolio/summary", { query: { account_id: accountId } }),
   history: (accountId: number | null, from: IsoDate | null) =>
     request<History>("/api/portfolio/history", { query: { account_id: accountId, from } }),

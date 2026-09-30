@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import Engine, func, select, update
 from sqlalchemy.orm import Session
 
-from app.models import CorporateAction, DailyValuation, FxRate, Instrument, Price, Transaction, User
+from app.models import Account, CorporateAction, DailyValuation, FxRate, Instrument, Price, Transaction, User
 from app.scoping import UserScope
 from app.valuation import service
 from app.valuation.engine import FLAG_XTB_PRICE, Conversion, Split
@@ -335,3 +335,43 @@ def test_conversion_target_is_visible_to_its_author_only_and_makes_them_a_holder
 
     assert (tickers(anna), tickers(bartek)) == (["CSPX.UK", "SXR8.DE"], ["SXR8.DE"])
     assert holders(db, [target_id]) == [anna]
+
+
+def test_recompute_stores_the_exit_costs(db: Session) -> None:
+    user_id = seed_user(db)
+    seed_holdings(db, user_id, seed_market(db))  # an XTB account in PLN holding SXR8.DE (EUR)
+
+    valuate(db, user_id)
+
+    rows = _rows(db, user_id, SAT)
+    position = next(row for key, row in rows.items() if key is not None)
+    assert (position.value_pln, position.exit_cost_pln) == (Decimal("5100.00"), Decimal("25.50"))  # 0.5 %
+    assert rows[None].exit_cost_pln == Decimal("0.00")  # PLN cash
+
+
+def test_a_manual_spread_is_part_of_the_stored_exit_cost(db: Session) -> None:
+    instrument_id = seed_market(db)
+    db.execute(update(Instrument).where(Instrument.id == instrument_id).values(spread_pct=Decimal("0.10")))
+    db.commit()
+    user_id = seed_user(db)
+    seed_holdings(db, user_id, instrument_id)
+
+    inputs = load_inputs(UserScope(db, db.get(User, user_id)))
+    valuate(db, user_id)
+
+    assert inputs.exit_rules.spreads == {instrument_id: Decimal("0.1000")}
+    position = next(row for key, row in _rows(db, user_id, SAT).items() if key is not None)
+    assert position.exit_cost_pln == Decimal("30.60")  # 25.50 conversion + 5.10 spread
+
+
+def test_accounts_outside_xtb_pay_no_conversion_fee(db: Session) -> None:
+    user_id = seed_user(db)
+    account_id = seed_holdings(db, user_id, seed_market(db))
+    db.execute(update(Account).where(Account.id == account_id).values(broker=None))
+    db.commit()
+
+    valuate(db, user_id)
+
+    assert load_inputs(UserScope(db, db.get(User, user_id))).exit_rules.fee_accounts == frozenset()
+    position = next(row for key, row in _rows(db, user_id, SAT).items() if key is not None)
+    assert position.exit_cost_pln == Decimal("0.00")

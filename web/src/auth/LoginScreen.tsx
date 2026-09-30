@@ -8,6 +8,7 @@ export function LoginScreen() {
   const { signIn } = useSession();
   const location = useLocation();
   const expired = (location.state as { expired?: boolean } | null)?.expired === true;
+  const offlineLogout = (location.state as { offlineLogout?: boolean } | null)?.offlineLogout === true;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -31,6 +32,11 @@ export function LoginScreen() {
         <h1 className={styles.title}>Portfel</h1>
         <p className={styles.lead}>Zaloguj się, żeby zobaczyć swój portfel.</p>
         {expired && <p className={styles.notice} role="status">Sesja wygasła, zaloguj się ponownie.</p>}
+        {offlineLogout && (
+          <p className={styles.notice} role="status">
+            Wylogowano na tym urządzeniu. Serwer był niedostępny, więc sesja na serwerze wygaśnie sama.
+          </p>
+        )}
         <div className={styles.field}>
           <label htmlFor="login-email">E-mail</label>
           <input id="login-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />

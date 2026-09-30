@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { screen, waitFor } from "@testing-library/react";
 import type { RouteObject } from "react-router";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { NETWORK_MESSAGE } from "../api/client";
 import { api } from "../api/endpoints";
-import { SIGNED_IN, USER, json, mockFetch, renderRoutes, type MockRoute } from "../test/render";
+import { SIGNED_IN, USER, json, mockFetch, renderApp, renderRoutes, type MockRoute } from "../test/render";
 import { LoginScreen } from "./LoginScreen";
 import { RegisterScreen } from "./RegisterScreen";
 import { GuestOnly, RequireAuth } from "./RequireAuth";
@@ -178,5 +178,36 @@ describe("registration", () => {
     expect(await screen.findByText(WELCOME)).toBeInTheDocument();
     await waitFor(() => expect(bodies.at(-1)).toMatchObject({ email: USER.email, invite_code: "ZAPROSZENIE" }));
     expect(bodies[0]).not.toHaveProperty("invite_code");
+  });
+});
+
+describe("sign-out", () => {
+  it("signs out even when the server is down and says the server session will expire", async () => {
+    mockFetch([...SIGNED_IN, { method: "POST", path: "/api/auth/logout", respond: () => { throw new TypeError("Failed to fetch"); } },
+      { path: "/api/accounts", respond: () => [] }, { path: "/api/instruments", respond: () => [] }]);
+    const { user } = renderApp("/ustawienia");
+
+    await user.click(await screen.findByRole("button", { name: "Wyloguj" }));
+
+    expect(await screen.findByText(
+      "Wylogowano na tym urządzeniu. Serwer był niedostępny, więc sesja na serwerze wygaśnie sama.",
+    )).toBeInTheDocument();
+  });
+
+  it("signs out when another tab signs out", async () => {
+    if (typeof BroadcastChannel === "undefined") {
+      const { BroadcastChannel: NodeChannel } = await import("node:worker_threads");
+      vi.stubGlobal("BroadcastChannel", NodeChannel);
+    }
+    mockFetch([...SIGNED_IN, { path: "/api/accounts", respond: () => [] }, { path: "/api/instruments", respond: () => [] }]);
+    renderApp("/ustawienia");
+    expect(await screen.findByRole("button", { name: "Wyloguj" })).toBeInTheDocument();
+
+    const other = new BroadcastChannel("portfolio-session");
+    other.postMessage("signed-out");
+    other.close();
+
+    expect(await screen.findByRole("button", { name: "Zaloguj się" })).toBeInTheDocument();
+    vi.unstubAllGlobals();
   });
 });

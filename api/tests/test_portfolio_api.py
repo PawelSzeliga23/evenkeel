@@ -32,20 +32,22 @@ def test_summary_shows_value_gain_day_change_income_and_allocation(client: TestC
     body = client.get("/api/portfolio/summary", headers=world["anna"]).json()
 
     assert {key: body[key] for key in (
-        "as_of", "value_pln", "cash_pln", "invested_pln", "total_gain_pln", "total_gain_pct",
-        "day_change_pln", "day_change_pct", "dividends_net_pln", "interest_net_pln", "approximate_positions",
-        "recalculating",
+        "as_of", "value_pln", "market_value_pln", "exit_cost_pln", "cash_pln", "invested_pln", "total_gain_pln",
+        "total_gain_pct", "day_change_pln", "day_change_pct", "dividends_net_pln", "interest_net_pln",
+        "approximate_positions", "recalculating",
     )} == {
-        "as_of": "2026-09-26", "value_pln": "10829.70", "cash_pln": "5729.70", "invested_pln": "10000.00",
-        "total_gain_pln": "829.70", "total_gain_pct": "8.30", "day_change_pln": "800.00", "day_change_pct": "7.98",
+        "as_of": "2026-09-26", "value_pln": "10804.20", "market_value_pln": "10829.70", "exit_cost_pln": "25.50",
+        "cash_pln": "5729.70", "invested_pln": "10000.00", "total_gain_pln": "804.20", "total_gain_pct": "8.04",
+        # Friday 10 804.20 − Thursday 10 008.20 (4 300.00 − 21.50 + 5 729.70)
+        "day_change_pln": "796.00", "day_change_pct": "7.95",
         "dividends_net_pln": "34.00", "interest_net_pln": "0.00", "approximate_positions": 0, "recalculating": False,
     }
     assert body["by_kind"] == [
-        {"key": "cash", "name": "Gotówka", "value_pln": "5729.70", "share_pct": "52.91"},
-        {"key": "etf", "name": "ETF", "value_pln": "5100.00", "share_pct": "47.09"},
+        {"key": "cash", "name": "Gotówka", "value_pln": "5729.70", "share_pct": "53.03"},
+        {"key": "etf", "name": "ETF", "value_pln": "5074.50", "share_pct": "46.97"},
     ]
     assert body["by_account"] == [
-        {"key": str(world["account_id"]), "name": "XTB IKE", "value_pln": "10829.70", "share_pct": "100.00"},
+        {"key": str(world["account_id"]), "name": "XTB IKE", "value_pln": "10804.20", "share_pct": "100.00"},
     ]
 
 
@@ -53,7 +55,7 @@ def test_summary_filtered_by_own_account_and_foreign_account_is_404(client: Test
     own = client.get("/api/portfolio/summary", params={"account_id": world["account_id"]}, headers=world["anna"])
     foreign = client.get("/api/portfolio/summary", params={"account_id": world["account_id"]}, headers=world["bartek"])
 
-    assert own.json()["value_pln"] == "10829.70"
+    assert own.json()["value_pln"] == "10804.20"
     assert (foreign.status_code, foreign.json()["code"]) == (404, "not_found")
 
 
@@ -61,6 +63,7 @@ def test_user_without_data_gets_an_empty_summary(client: TestClient, world: dict
     body = client.get("/api/portfolio/summary", headers=world["bartek"]).json()
     assert (body["as_of"], body["value_pln"], body["by_kind"], body["day_change_pln"], body["recalculating"]) == (
         None, "0.00", [], None, False)
+    assert (body["market_value_pln"], body["exit_cost_pln"]) == ("0.00", "0.00")
 
 
 def test_summary_says_when_a_recompute_is_pending(client: TestClient, world: dict, engine: Engine) -> None:
@@ -75,12 +78,12 @@ def test_history_in_a_range(client: TestClient, world: dict) -> None:
                       headers=world["anna"]).json()
 
     assert body["points"] == [
-        {"date": "2026-09-24", "value_pln": "10029.70", "invested_pln": "10000.00", "net_flow_pln": "0.00",
-         "twr_pct": "0.30"},
-        {"date": "2026-09-25", "value_pln": "10829.70", "invested_pln": "10000.00", "net_flow_pln": "0.00",
-         "twr_pct": "8.30"},
-        {"date": "2026-09-26", "value_pln": "10829.70", "invested_pln": "10000.00", "net_flow_pln": "0.00",
-         "twr_pct": "8.30"},
+        {"date": "2026-09-24", "value_pln": "10008.20", "invested_pln": "10000.00", "net_flow_pln": "0.00",
+         "twr_pct": "0.08"},
+        {"date": "2026-09-25", "value_pln": "10804.20", "invested_pln": "10000.00", "net_flow_pln": "0.00",
+         "twr_pct": "8.04"},
+        {"date": "2026-09-26", "value_pln": "10804.20", "invested_pln": "10000.00", "net_flow_pln": "0.00",
+         "twr_pct": "8.04"},
     ]
     assert body["events"] == []
 
@@ -117,4 +120,4 @@ def test_summary_shows_the_time_weighted_return(client: TestClient, world: dict)
     anna = client.get("/api/portfolio/summary", headers=world["anna"]).json()
     bartek = client.get("/api/portfolio/summary", headers=world["bartek"]).json()
 
-    assert (anna["twr_pct"], bartek["twr_pct"]) == ("8.30", None)
+    assert (anna["twr_pct"], bartek["twr_pct"]) == ("8.04", None)

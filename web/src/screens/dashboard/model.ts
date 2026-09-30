@@ -42,7 +42,7 @@ export function dayMovers(positions: Position[], count = 3): { position: Positio
   return positions
     .filter((p) => p.kind === "instrument" && toCents(p.day_change_pln) !== 0n)
     .flatMap((p) => {
-      const before = Number(p.value_pln) - Number(p.day_change_pln);
+      const before = Number(p.payout_pln) - Number(p.day_change_pln);
       return before > 0 ? [{ position: p, pct: ((Number(p.day_change_pln) / before) * 100).toFixed(4) }] : [];
     })
     .sort((a, b) => Math.abs(Number(b.pct)) - Math.abs(Number(a.pct)))
