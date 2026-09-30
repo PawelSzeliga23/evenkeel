@@ -31,14 +31,14 @@ beforeEach(() => { vi.useFakeTimers({ shouldAdvanceTime: true }); });
 afterEach(() => { vi.useRealTimers(); window.history.replaceState(null, "", "/"); });
 
 describe("startup splash", () => {
-  it("stays at least two seconds even when everything is ready at once, then leaves", async () => {
+  it("stays at least three seconds even when everything is ready at once, then leaves", async () => {
     mockFetch([...SIGNED_IN, SUMMARY]);
     renderSplash("/");
-    await advance(1900);
+    await advance(2900);
     expect(splash()).toHaveAttribute("data-phase", "loading");
     await advance(200);
     expect(splash()).toHaveAttribute("data-phase", "leaving");
-    await advance(1500);
+    await advance(900);
     expect(splash()).not.toBeInTheDocument();
   });
 
@@ -56,21 +56,21 @@ describe("startup splash", () => {
   it("needs only the session on other screens", async () => {
     mockFetch(SIGNED_IN);
     renderSplash("/pozycje", false);
-    await advance(2100);
+    await advance(3100);
     expect(splash()).toHaveAttribute("data-phase", "leaving");
   });
 
   it("leaves for a signed-out visitor", async () => {
     mockFetch([NO_SESSION]);
     renderSplash("/");
-    await advance(2100);
+    await advance(3100);
     expect(splash()).toHaveAttribute("data-phase", "leaving");
   });
 
   it("leaves when the portfolio value cannot be loaded", async () => {
     mockFetch([...SIGNED_IN, { path: "/api/portfolio/summary", status: 500, respond: () => ({ code: "x", message: "y", details: {} }) }]);
     renderSplash("/");
-    await advance(2100);
+    await advance(3100);
     expect(splash()).toHaveAttribute("data-phase", "leaving");
   });
 
@@ -78,7 +78,7 @@ describe("startup splash", () => {
     const fetchMock = mockFetch([]);
     fetchMock.mockImplementation(() => Promise.reject(new TypeError("Failed to fetch")));
     renderSplash("/");
-    await advance(2100);
+    await advance(3100);
     expect(splash()).toHaveAttribute("data-phase", "leaving");
   });
 
@@ -86,7 +86,7 @@ describe("startup splash", () => {
     mockFetch([NO_SESSION]);
     renderSplash("/");
     expect(splash()).toHaveAttribute("aria-busy", "true");
-    await advance(2100);
+    await advance(3100);
     expect(splash()!.className).toMatch(/leaving/);
     expect(splash()).toHaveAttribute("aria-busy", "false");
   });
@@ -105,9 +105,9 @@ describe("startup splash", () => {
     mockFetch([...SIGNED_IN, { path: "/api/portfolio/summary", respond: () => new Promise(() => {}) }]);
     renderSplash("/");
     const first = document.querySelector("[data-splash-bar]");
-    await advance(2300);
+    await advance(1500);
     expect(document.querySelectorAll("[data-splash-bar]").length).toBe(5); // four + the one leaving
-    await advance(1400);
+    await advance(1100);
     expect(document.querySelectorAll("[data-splash-bar]").length).toBe(4);
     expect(document.contains(first)).toBe(false);
   });

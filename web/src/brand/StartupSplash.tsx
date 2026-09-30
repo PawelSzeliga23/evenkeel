@@ -8,8 +8,8 @@ import styles from "./splash.module.css";
 const SUMMARY = ["portfolio", "summary"];
 const SLOT = 16; // px between bar starts
 const TOP = 46; // px height of the newest bar
-const STEP_MS = 2200;
-const LEAVE_MS = 1300; // a leaving bar is removed once it has sunk under the base
+const STEP_MS = 1400;
+const LEAVE_MS = 950; // a leaving bar is removed once it has sunk under the base
 
 function prefersReducedMotion(): boolean {
   return typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -51,7 +51,7 @@ function Bars({ still }: { still: boolean }) {
 }
 
 /** The animated Evenkeel screen shown once at start-up, until the first screen has something to show. */
-export function StartupSplash({ minMs = 2000 }: { minMs?: number }) {
+export function StartupSplash({ minMs = 3000 }: { minMs?: number }) {
   const { state } = useSession();
   const [startPath] = useState(() => window.location.pathname);
   const [still] = useState(prefersReducedMotion);
@@ -72,7 +72,7 @@ export function StartupSplash({ minMs = 2000 }: { minMs?: number }) {
   }, [ready, phase]);
   useEffect(() => {
     if (phase !== "leaving") return;
-    const timer = setTimeout(() => setPhase("gone"), still ? 500 : 1400);
+    const timer = setTimeout(() => setPhase("gone"), still ? 500 : 800);
     return () => clearTimeout(timer);
   }, [phase, still]);
 

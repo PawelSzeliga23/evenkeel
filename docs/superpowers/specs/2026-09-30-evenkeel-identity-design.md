@@ -17,7 +17,7 @@ angielska. To raczej nie będzie produkt, więc znaki towarowe nie mają znaczen
 4. Ekran ładowania: znak z napisem pod nim, na środku ekranu (telefon i komputer). Słupki zawsze rosną i się
    przesuwają.
    - Znika po zalogowaniu i po pobraniu wartości portfela.
-   - Przy każdym uruchomieniu jest widoczny co najmniej 2 sekundy.
+   - Przy każdym uruchomieniu jest widoczny co najmniej 3 sekundy (zmiana z 2 s, 2026-09-30). Przy wejściu logo się powiększa, jakby się wchodziło do aplikacji.
 5. Logo w aplikacji: na ekranie logowania i rejestracji, w pasku bocznym na komputerze i w stopce „O aplikacji” na
    dole Ustawień (telefon i komputer). Stopkę łatwo usunąć, jeśli się nie spodoba.
 
@@ -61,24 +61,24 @@ angielska. To raczej nie będzie produkt, więc znaki towarowe nie mają znaczen
   - Widoczne są 4 słupki, każdy wyższy od poprzedniego. Kroki są nierówne: następna wartość to poprzednia × (1,12 do
     1,45, losowo).
   - Wysokości przelicza się względem najwyższego (najnowszego) słupka i płynnie przechodzą do nowych wartości.
-  - Co ok. 2,2 s nowy słupek wysuwa się spod linii podstawy po prawej. Najstarszy chowa się pod nią po lewej, a reszta
+  - Co ok. 1,4 s nowy słupek wysuwa się spod linii podstawy po prawej. Najstarszy chowa się pod nią po lewej, a reszta
     przesuwa się o jedno miejsce.
-  - Ruch trwa ok. 1,2 s z łagodnym przyspieszeniem i hamowaniem.
+  - Ruch trwa ok. 0,9 s z łagodnym przyspieszeniem i hamowaniem.
 - Kiedy znika: po spełnieniu wszystkich warunków naraz.
-  - Od startu minęły co najmniej **2 s**.
+  - Od startu minęły co najmniej **3 s**.
   - Sesja jest rozstrzygnięta (zalogowany, niezalogowany, brak połączenia albo błąd serwera).
   - Jeśli użytkownik jest zalogowany i aplikacja startuje na Pulpicie (`/`), pierwsze zapytanie o podsumowanie
     portfela (`["portfolio", "summary", …]`) zakończyło się sukcesem albo błędem. Na innych ekranach wystarczy sesja.
-- Znikanie: słupki zjeżdżają pod podstawę (ok. 0,9 s), potem cały ekran gaśnie (ok. 0,5 s). Potem komponent znika z
-  drzewa.
+- Znikanie: znak z napisem powiększa się (ok. 7×, ok. 0,75 s) i gaśnie, a tło gaśnie razem z nim, odsłaniając
+  aplikację. Potem komponent znika z drzewa.
 - Pod spodem aplikacja działa normalnie: logowanie, komunikat o braku połączenia i Pulpit ze szkieletami. Dzisiejszy
   prosty `Splash` w `RequireAuth.tsx` zostaje tylko jako ciemne tło.
-- „Ogranicz ruch” (`prefers-reduced-motion: reduce`): znak stoi nieruchomo, a znikanie to samo zgaszenie. Warunki
-  i minimum 2 s obowiązują tak samo.
+- „Ogranicz ruch” (`prefers-reduced-motion: reduce`): znak stoi nieruchomo, a znikanie to samo zgaszenie, bez powiększania. Warunki
+  i minimum 3 s obowiązują tak samo.
 - Dostępność: w czasie ładowania `aria-busy="true"` i etykieta „Wczytuję Evenkeel”. Znikający ekran nie przechwytuje
   kliknięć.
 - Testowalność:
-  - Minimalny czas i takty animacji są parametrami komponentu (domyślnie 2000 ms).
+  - Minimalny czas i takty animacji są parametrami komponentu (domyślnie 3000 ms).
   - `StartupSplash` jest montowany w `App.tsx`, więc testy ekranów (`renderApp`) go nie widzą i nie zwalniają.
 
 ## 4. Logo w aplikacji
@@ -93,7 +93,7 @@ angielska. To raczej nie będzie produkt, więc znaki towarowe nie mają znaczen
 
 - `Mark` i `Logo`: dostępna nazwa „Evenkeel”; układy `stacked` i `inline`.
 - `StartupSplash`:
-  - trzyma się co najmniej 2 s, nawet gdy sesja i podsumowanie przychodzą od razu (fałszywe zegary);
+  - trzyma się co najmniej 3 s, nawet gdy sesja i podsumowanie przychodzą od razu (fałszywe zegary);
   - czeka na podsumowanie, gdy start jest na `/` i użytkownik jest zalogowany;
   - na innych ekranach i dla niezalogowanego wystarczy sesja;
   - znika też po błędzie podsumowania albo braku połączenia;
