@@ -141,7 +141,7 @@ describe("position detail", () => {
     expect(within(payout).getByText("Wartość rynkowa").nextElementSibling).toHaveTextContent(`1${T}000,00${T}zł`);
     expect(within(payout).getByText("Przewalutowanie XTB 0,5 %").nextElementSibling).toHaveTextContent(`${M}5,00${T}zł`);
     expect(within(payout).getByText(`Spread (ręczny 0,1${T}%)`).nextElementSibling).toHaveTextContent(`${M}1,00${T}zł`);
-    expect(within(payout).getByText("Do wypłaty").nextElementSibling).toHaveTextContent(`994,00${T}zł`);
+    expect(within(payout).getByText("Do wypłaty", { selector: "dt" }).nextElementSibling).toHaveTextContent(`994,00${T}zł`);
     const gain = screen.getByRole("region", { name: "Zysk" });
     expect(within(gain).getByText("Koszty wyjścia").nextElementSibling).toHaveTextContent(`${M}6,00${T}zł`);
   });
