@@ -190,6 +190,7 @@ export interface Instrument {
   last_price_date: IsoDate | null;
   spread_pct: Money | null;
 }
+export interface InstrumentUpdate { price_symbol?: string | null; spread_pct?: string | null }
 
 export type CashOperationType = "deposit" | "withdrawal" | "interest" | "fee";
 export interface TransactionIn { account_id: number; type: CashOperationType; amount: Money; date: IsoDate; comment: string }

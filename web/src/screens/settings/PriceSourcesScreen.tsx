@@ -5,7 +5,7 @@ import { api } from "../../api/endpoints";
 import { errorMessage } from "../../api/messages";
 import { keys } from "../../api/queryKeys";
 import type { Instrument } from "../../api/types";
-import { formatDate } from "../../format";
+import { formatDate, formatDecimal, parseAmount } from "../../format";
 import { BackLink } from "../../ui/BackLink";
 import { Field } from "../../ui/forms";
 import forms from "../../ui/forms.module.css";
@@ -15,13 +15,16 @@ import { hasPriceProblem, problemsFirst } from "./model";
 import styles from "./Settings.module.css";
 
 const SAVED = "Zapisano. Ceny pobiorę przy najbliższej aktualizacji.";
+const SPREAD_SAVED = "Zapisano. Wycena przeliczy się w tle.";
+const SPREAD_RANGE = "Podaj spread od 0 do 5 %.";
 
 function symbolLine(instrument: Instrument): string {
   const symbol = instrument.price_symbol
     ? `Yahoo: ${instrument.price_symbol}${instrument.price_symbol_overridden ? " (ręczny)" : ""}`
     : "Brak symbolu w Yahoo";
-  if (instrument.price_error) return symbol;
-  return instrument.last_price_date ? `${symbol} · ostatnia cena ${formatDate(instrument.last_price_date)}` : `${symbol} · jeszcze bez cen`;
+  const spread = instrument.spread_pct ? ` · spread ${formatDecimal(instrument.spread_pct, 4)} %` : "";
+  if (instrument.price_error) return symbol + spread;
+  return (instrument.last_price_date ? `${symbol} · ostatnia cena ${formatDate(instrument.last_price_date)}` : `${symbol} · jeszcze bez cen`) + spread;
 }
 
 function symbolError(error: unknown): string {
@@ -30,12 +33,57 @@ function symbolError(error: unknown): string {
     : errorMessage(error);
 }
 
+function SpreadForm({ instrument }: { instrument: Instrument }) {
+  const queryClient = useQueryClient();
+  const [text, setText] = useState(instrument.spread_pct ? formatDecimal(instrument.spread_pct, 4) : "");
+  const [error, setError] = useState<string | null>(null);
+  const save = useMutation({
+    mutationFn: (value: string | null) => api.updateInstrument(instrument.id, { spread_pct: value }),
+    onSuccess: async () => {
+      setError(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: keys.instruments }),
+        queryClient.invalidateQueries({ queryKey: keys.portfolio }),
+      ]);
+    },
+    onError: (err) => setError(errorMessage(err)),
+  });
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!text.trim()) {
+      save.mutate(null);
+      return;
+    }
+    const value = parseAmount(text, 4);
+    if (value === null || Number(value) > 5) {
+      setError(SPREAD_RANGE);
+      return;
+    }
+    save.mutate(value);
+  }
+
+  return (
+    <form className={styles.sourceEdit} onSubmit={submit} noValidate>
+      <Field id={`spread-${instrument.id}`} label="Spread (%)" error={error ?? undefined}
+        hint="Połowa różnicy między ceną kupna a sprzedaży. Zostaw puste dla płynnych ETF-ów.">
+        <input id={`spread-${instrument.id}`} inputMode="decimal" value={text}
+          onChange={(e) => { setText(e.target.value); setError(null); save.reset(); }} aria-invalid={Boolean(error)} />
+      </Field>
+      {save.isSuccess && <p role="status">{SPREAD_SAVED}</p>}
+      <div className={forms.actions}>
+        <button type="submit" className={ui.primaryButton} disabled={save.isPending}>Zapisz spread</button>
+      </div>
+    </form>
+  );
+}
+
 function Source({ instrument, open, onToggle }: { instrument: Instrument; open: boolean; onToggle: () => void }) {
   const queryClient = useQueryClient();
   const [symbol, setSymbol] = useState(instrument.price_symbol ?? "");
   const [error, setError] = useState<string | null>(null);
   const save = useMutation({
-    mutationFn: (value: string | null) => api.updateInstrument(instrument.id, value),
+    mutationFn: (value: string | null) => api.updateInstrument(instrument.id, { price_symbol: value }),
     onSuccess: async (result) => {
       setError(null);
       setSymbol(result.price_symbol ?? "");
@@ -69,6 +117,7 @@ function Source({ instrument, open, onToggle }: { instrument: Instrument; open: 
         <span className={problem ? styles.problem : "dim"}>{problem ? "wymaga uwagi" : "ok"}</span>
       </button>
       {open && (
+        <>
         <form className={styles.sourceEdit} onSubmit={submit} noValidate>
           <Field id={`symbol-${instrument.id}`} label="Symbol w Yahoo" error={error ?? undefined}
             hint="Np. EIMI.L dla Londynu, SXR8.DE dla Xetry, VIE.PA dla Paryża.">
@@ -85,6 +134,8 @@ function Source({ instrument, open, onToggle }: { instrument: Instrument; open: 
             )}
           </div>
         </form>
+        <SpreadForm instrument={instrument} />
+        </>
       )}
     </li>
   );
