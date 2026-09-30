@@ -79,6 +79,7 @@ class DailyValuation(Base):
     value_pln: Mapped[Decimal] = mapped_column(MONEY)
     cost_pln: Mapped[Decimal] = mapped_column(MONEY)
     net_flow_pln: Mapped[Decimal] = mapped_column(MONEY)
+    exit_cost_pln: Mapped[Decimal] = mapped_column(MONEY, server_default=text("0"))
     flags: Mapped[list[str]] = mapped_column(JSONB, server_default=text("'[]'::jsonb"))
 
 

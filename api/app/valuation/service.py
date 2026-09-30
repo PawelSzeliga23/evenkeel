@@ -25,6 +25,7 @@ from app.models import (
 from app.scoping import UserScope
 from app.valuation.actions import Action, action_of, resolve
 from app.valuation.engine import Conversion, Entry, Split, daily_rows
+from app.valuation.exit_costs import ExitRules
 from app.valuation.fixed_income import FLAG_RATE_ESTIMATED, Holding, SavingsInput, bond_rows, savings_rows
 from app.valuation.market_data import BASE_CURRENCY, MarketData, Series
 
@@ -33,6 +34,7 @@ logger = logging.getLogger(__name__)
 ZONE = ZoneInfo("Europe/Warsaw")  # valuation days are Warsaw calendar days, like the worker's schedule
 LOCK_NAMESPACE = 4  # high 32 bits of the advisory lock key "valuations of user N"
 INSERT_CHUNK = 1000
+XTB_BROKER = "xtb"  # accounts of this broker pay the currency conversion fee on a sale
 
 
 def local_day(moment: dt.datetime) -> dt.date:
@@ -49,6 +51,7 @@ class Inputs:
     splits: list[Split]
     market: MarketData
     conversions: list[Conversion] = field(default_factory=list)
+    exit_rules: ExitRules = field(default_factory=ExitRules)
 
 
 def _series(points: dict[object, list[tuple[dt.date, object]]]) -> dict:
@@ -126,7 +129,12 @@ def load_inputs(scope: UserScope) -> Inputs:
     currencies = ({c for c in market.currencies.values() if c} | {entry.currency for entry in entries}) - {BASE_CURRENCY}
     if currencies:
         market.fx = _series_from(db, FxRate.currency, FxRate.date, FxRate.rate_pln, sorted(currencies), first_day)
-    return Inputs(entries, splits, market, conversions)
+    fee_accounts = frozenset(account.id for account in db.scalars(scope.accounts()) if account.broker == XTB_BROKER)
+    spreads = dict(db.execute(
+        select(Instrument.id, Instrument.spread_pct)
+        .where(Instrument.id.in_(instrument_ids), Instrument.spread_pct.is_not(None))
+    ).all()) if instrument_ids else {}
+    return Inputs(entries, splits, market, conversions, ExitRules(fee_accounts, spreads))
 
 
 @dataclass(frozen=True)
@@ -280,7 +288,7 @@ def recompute_user(db: Session, user_id: int, today: dt.date) -> int:
             return 0
         inputs = load_inputs(UserScope(db, user))
         rows = daily_rows(inputs.entries, inputs.splits, inputs.market, today, start=stale_from,
-                          conversions=inputs.conversions)
+                          conversions=inputs.conversions, exit_rules=inputs.exit_rules)
         fixed = load_fixed_income(UserScope(db, user))
         rows += bond_rows(fixed.holdings, fixed.cpi, stale_from, today) + savings_rows(fixed.savings, stale_from, today)
         db.execute(delete(DailyValuation).where(DailyValuation.user_id == user_id, DailyValuation.date >= stale_from))
@@ -288,7 +296,7 @@ def recompute_user(db: Session, user_id: int, today: dt.date) -> int:
             {
                 "user_id": user_id, "account_id": row.account_id, "instrument_id": row.instrument_id, "date": row.day,
                 "quantity": row.quantity, "value_pln": row.value_pln, "cost_pln": row.cost_pln,
-                "net_flow_pln": row.net_flow_pln, "flags": list(row.flags),
+                "net_flow_pln": row.net_flow_pln, "exit_cost_pln": row.exit_cost_pln, "flags": list(row.flags),
                 "bond_holding_id": row.bond_holding_id, "savings_account_id": row.savings_account_id,
             }
             for row in rows
