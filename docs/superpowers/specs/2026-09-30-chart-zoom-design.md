@@ -47,8 +47,8 @@ Wykres wartości na Pulpicie (`web/src/charts/ValueChart.tsx`) pokazuje stały z
   - kroki roczne: `2025`.
 - Etykiety oznaczające większą jednostkę (nowy miesiąc na osi dni, nowy rok na osi miesięcy) są pogrubione.
 - Przy każdej etykiecie delikatna pionowa linia siatki (styl `.grid`).
-- Każdy dzień historii ma swoje miejsce na osi (punkty są dzienne, także w weekendy — do sprawdzenia w danych;
-  jeśli brakuje dni, oś i tak liczy pozycję po indeksie punktu, a etykieta bierze datę punktu).
+- Każdy dzień historii ma swoje miejsce na osi (punkty są dzienne, także w weekendy — sprawdzone na danych
+  właściciela 2026-09-30).
 - Wiersz podglądu nad wykresem pokazuje datę z rokiem (`formatDate`, bez zmian).
 
 ## 3. Budowa (tylko `web/`, API bez zmian)
@@ -67,7 +67,8 @@ Wykres wartości na Pulpicie (`web/src/charts/ValueChart.tsx`) pokazuje stały z
   Ctrl), pointer events do przeciągania myszą i dwóch palców (śledzenie aktywnych `pointerId`), `dblclick` i
   podwójne stuknięcie (dwa `pointerup` jednego palca w < 300 ms). Zwraca handlery i stan podpowiedzi.
 - **`ValueChart.tsx`:** mierzy szerokość kontenera (`ResizeObserver`) i rysuje SVG w pikselach
-  (`viewBox` = rzeczywista szerokość × 190), więc tekst osi ma stałe ~11 px na każdym ekranie.
+  (`viewBox` = rzeczywista szerokość × wysokość), więc tekst osi ma stałe ~11 px na każdym ekranie. Wysokość
+  rośnie z szerokością jak dziś (0,45 × szerokość), w granicach 190–300 px.
   Przyjmuje `points`, `window`, `onWindowChange`.
 - Animacja rysowania linii (`draw`) tylko przy pierwszym wyświetleniu, nie przy każdym przybliżeniu.
 
