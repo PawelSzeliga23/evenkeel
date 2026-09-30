@@ -1,6 +1,6 @@
 /** Pure geometry of the value chart. Numbers here only place pixels; money is formatted from the API strings. */
 import type { HistoryPoint } from "../api/types";
-import type { ChartWindow } from "./viewport";
+import type { ChartWindow, YRange } from "./viewport";
 
 export interface ChartPoint { date: string; value: number; invested: number; flow: number }
 export interface Frame { width: number; height: number; left: number; right: number; top: number; bottom: number }
@@ -43,9 +43,20 @@ export function frameFor(width: number): Frame {
   return { ...FRAME, width, height: Math.min(Math.max(Math.round(width * 0.45), 190), 300) };
 }
 
-/** `view` is in indices of `points`; points outside it land left or right of the plot. */
-export function scales(points: ChartPoint[], frame: Frame, view?: ChartWindow): Scales {
-  const { min, max, ticks } = yDomain(points);
+/** Round ticks strictly above `min` and up to `max`. */
+function rangeTicks({ min, max }: YRange): number[] {
+  const step = niceStep(max - min, 3);
+  const ticks: number[] = [];
+  for (let k = Math.floor(min / step + 1e-9) + 1; k * step <= max + 1e-9; k++) ticks.push(Number((k * step).toFixed(6)));
+  return ticks;
+}
+
+/**
+ * `view` is in indices of `points`; points outside it land left or right of the plot.
+ * `fixed` replaces the automatic amount range (the owner dragged the Y axis).
+ */
+export function scales(points: ChartPoint[], frame: Frame, view?: ChartWindow, fixed?: YRange | null): Scales {
+  const { min, max, ticks } = fixed ? { ...fixed, ticks: rangeTicks(fixed) } : yDomain(points);
   const plotWidth = frame.width - frame.left - frame.right;
   const plotHeight = frame.height - frame.top - frame.bottom;
   const from = view?.from ?? 0;

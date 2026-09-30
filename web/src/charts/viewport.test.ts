@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clampWindow, drawnRange, fullWindow, moveWindow, windowForRange, type ChartWindow } from "./viewport";
+import { clampWindow, drawnRange, fullWindow, moveWindow, scaleRange, shiftRange, windowForRange, type ChartWindow } from "./viewport";
 
 const days = (count: number, start = "2026-09-01") =>
   Array.from({ length: count }, (_, i) => new Date(Date.parse(`${start}T00:00:00Z`) + i * 86_400_000).toISOString().slice(0, 10));
@@ -33,5 +33,20 @@ describe("chart window", () => {
   it("draws one point beyond each edge", () => {
     expect(drawnRange({ from: 7.25, to: 21.75 }, 30)).toEqual({ start: 7, end: 22 });
     expect(drawnRange({ from: 0, to: 29 }, 30)).toEqual({ start: 0, end: 29 });
+  });
+});
+
+describe("amount range", () => {
+  it("stretches or squeezes around its middle", () => {
+    expect(scaleRange({ min: 100, max: 200 }, 2)).toEqual({ min: 50, max: 250 });
+    expect(scaleRange({ min: 100, max: 200 }, 0.5)).toEqual({ min: 125, max: 175 });
+  });
+
+  it("never collapses below one złoty", () => {
+    expect(scaleRange({ min: 100, max: 200 }, 0.0001)).toEqual({ min: 149.5, max: 150.5 });
+  });
+
+  it("moves up and down", () => {
+    expect(shiftRange({ min: 100, max: 200 }, 10)).toEqual({ min: 110, max: 210 });
   });
 });

@@ -1,17 +1,45 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import type { Frame } from "./geometry";
-import { moveWindow, type ChartWindow } from "./viewport";
+import { moveWindow, scaleRange, shiftRange, type ChartWindow, type YRange } from "./viewport";
 
 const HINT_MS = 1500;
 const WHEEL_SPEED = 0.0015;
+const AXIS_SPEED = 0.01;
 const DRAG_START_PX = 3;
 const TAP_MS = 300;
 const TAP_MOVE_PX = 10;
 
-interface Options { view: ChartWindow; count: number; frame: Frame; onChange(view: ChartWindow): void; onReset(): void }
-interface Gesture { kind: "drag" | "pinch"; view: ChartWindow; frac: number; dist: number; startX: number; moved: boolean }
+interface Options {
+  view: ChartWindow;
+  count: number;
+  frame: Frame;
+  /** The amounts on screen now, automatic or hand-set. */
+  y(): YRange;
+  /** True when the owner has set the amounts by hand; then a drag moves them up and down too. */
+  manualY: boolean;
+  onChange(view: ChartWindow): void;
+  onYChange(range: YRange): void;
+  onReset(): void;
+}
+interface Gesture {
+  kind: "drag" | "pinch" | "scale";
+  view: ChartWindow;
+  y: YRange;
+  manualY: boolean;
+  frac: number;
+  dist: number;
+  startX: number;
+  startY: number;
+  moved: boolean;
+}
 interface Touch { time: number; x: number; y: number }
 type Spot = { x: number; y: number };
+
+/** Frame units per CSS pixel (the SVG is drawn at its measured width, so this is about 1). */
+function unitsPerPx(target: Element, frame: Frame): number {
+  const rect = target.getBoundingClientRect();
+  return rect.width ? frame.width / rect.width : 1;
+}
 
 /** Share of the plot width under `clientX`, 0 at the left edge, 1 at the right. */
 function fracAt(target: Element, clientX: number, frame: Frame): number {
@@ -21,7 +49,15 @@ function fracAt(target: Element, clientX: number, frame: Frame): number {
   return Math.min(Math.max((px - frame.left) / (frame.width - frame.left - frame.right), 0), 1);
 }
 
-/** Ctrl + wheel and pinch zoom, mouse drag and two-finger pan, double click or tap resets. */
+function onYAxis(target: Element, clientX: number, frame: Frame): boolean {
+  const rect = target.getBoundingClientRect();
+  return rect.width > 0 && ((clientX - rect.left) / rect.width) * frame.width > frame.width - frame.right;
+}
+
+/**
+ * Ctrl + wheel and pinch zoom, mouse drag and two-finger pan, a mouse drag on the Y axis scales the amounts,
+ * double click or tap resets.
+ */
 export function useChartGestures(options: Options) {
   const latest = useRef(options);
   latest.current = options;
@@ -58,18 +94,20 @@ export function useChartGestures(options: Options) {
   }, [svg]);
 
   function onPointerDown(event: PointerEvent<SVGSVGElement>): boolean {
-    const { view, frame } = latest.current;
+    const { view, frame, y, manualY } = latest.current;
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    const base = { view, y: y(), manualY, dist: 1, startX: event.clientX, startY: event.clientY, moved: false };
     if (event.pointerType === "mouse") {
       if (event.button !== 0) return false;
       event.currentTarget.setPointerCapture?.(event.pointerId);
-      gesture.current = { kind: "drag", view, frac: fracAt(event.currentTarget, event.clientX, frame), dist: 1, startX: event.clientX, moved: false };
-      return false;
+      const scale = onYAxis(event.currentTarget, event.clientX, frame);
+      gesture.current = { ...base, kind: scale ? "scale" : "drag", frac: fracAt(event.currentTarget, event.clientX, frame) };
+      return scale;
     }
     if (pointers.current.size === 2) {
       const [a, b] = [...pointers.current.values()] as [Spot, Spot];
       gesture.current = {
-        kind: "pinch", view, frac: fracAt(event.currentTarget, (a.x + b.x) / 2, frame),
+        ...base, kind: "pinch", frac: fracAt(event.currentTarget, (a.x + b.x) / 2, frame),
         dist: Math.max(Math.hypot(a.x - b.x, a.y - b.y), 1), startX: (a.x + b.x) / 2, moved: true,
       };
       down.current = null;
@@ -84,11 +122,21 @@ export function useChartGestures(options: Options) {
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
     const current = gesture.current;
     if (!current) return false;
-    const { count, frame, onChange } = latest.current;
-    if (current.kind === "drag") {
-      if (!current.moved && Math.abs(event.clientX - current.startX) < DRAG_START_PX) return false;
+    const { count, frame, onChange, onYChange } = latest.current;
+    if (current.kind !== "pinch") {
+      const moved = Math.hypot(event.clientX - current.startX, event.clientY - current.startY);
+      if (!current.moved && moved < DRAG_START_PX) return current.kind === "scale";
       current.moved = true;
+      const dy = (event.clientY - current.startY) * unitsPerPx(event.currentTarget, frame);
+      if (current.kind === "scale") {
+        onYChange(scaleRange(current.y, Math.exp(dy * AXIS_SPEED)));
+        return true;
+      }
       onChange(moveWindow(current.view, current.frac, fracAt(event.currentTarget, event.clientX, frame), 1, count));
+      if (current.manualY) {
+        const plotHeight = frame.height - frame.top - frame.bottom;
+        onYChange(shiftRange(current.y, (dy / plotHeight) * (current.y.max - current.y.min)));
+      }
       return true;
     }
     if (pointers.current.size < 2) return true;

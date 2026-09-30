@@ -36,3 +36,19 @@ export function moveWindow(view: ChartWindow, fromFrac: number, toFrac: number, 
 export function drawnRange(view: ChartWindow, count: number): { start: number; end: number } {
   return { start: Math.max(Math.ceil(view.from - 1e-9) - 1, 0), end: Math.min(Math.floor(view.to + 1e-9) + 1, count - 1) };
 }
+
+/** The amounts shown on the Y axis when the owner sets the scale by hand. */
+export interface YRange { min: number; max: number }
+
+const MIN_AMOUNT_SPAN = 1;
+
+/** `factor` > 1 squeezes the chart (a wider range), < 1 stretches it; the middle stays put. */
+export function scaleRange(range: YRange, factor: number): YRange {
+  const middle = (range.min + range.max) / 2;
+  const half = Math.max(((range.max - range.min) * factor) / 2, MIN_AMOUNT_SPAN / 2);
+  return { min: middle - half, max: middle + half };
+}
+
+export function shiftRange(range: YRange, delta: number): YRange {
+  return { min: range.min + delta, max: range.max + delta };
+}

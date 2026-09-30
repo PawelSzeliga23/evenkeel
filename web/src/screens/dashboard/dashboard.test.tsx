@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NETWORK_MESSAGE } from "../../api/client";
 import { pluralPl } from "../../format";
@@ -131,6 +131,24 @@ describe("dashboard screen", () => {
 
     expect(screen.getByRole("button", { name: "1M" })).toHaveAttribute("aria-pressed", "true");
     expect(histories).toBe(1);
+  });
+
+  it("goes back to the automatic amounts when a range button is chosen", async () => {
+    mockFetch(routes());
+    const { user } = renderApp("/");
+    const svg = await screen.findByRole("img", { name: /Wykres wartości portfela/ });
+    vi.spyOn(svg, "getBoundingClientRect").mockReturnValue({ left: 0, width: 350, top: 0, height: 190 } as DOMRect);
+    const amounts = () => [...svg.querySelectorAll("text")].map((t) => t.textContent).join("|");
+    const automatic = amounts();
+    const mouse = { pointerId: 1, pointerType: "mouse", button: 0, clientX: 330 };
+
+    fireEvent.pointerDown(svg, { ...mouse, clientY: 100 });
+    fireEvent.pointerMove(svg, { ...mouse, clientY: 20 });
+    fireEvent.pointerUp(svg, { ...mouse, clientY: 20 });
+    expect(amounts()).not.toBe(automatic);
+
+    await user.click(screen.getByRole("button", { name: "1R" }));
+    expect(amounts()).toBe(automatic);
   });
 
   it("keeps asking while the valuation is recalculated and then refreshes the chart", async () => {

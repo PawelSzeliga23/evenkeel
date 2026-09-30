@@ -45,6 +45,13 @@ describe("paths", () => {
     expect([zoomed.x(0), zoomed.x(1), zoomed.x(2)]).toEqual([-100, 0, 100]);
   });
 
+  it("uses a fixed amount range with round ticks inside it", () => {
+    const fixed = scales(POINTS, BOX, undefined, { min: 100, max: 200 });
+    expect([fixed.y(100), fixed.y(150), fixed.y(200), fixed.min, fixed.max]).toEqual([100, 50, 0, 100, 200]);
+    expect(fixed.ticks).toEqual([150, 200]);
+    expect(scales(POINTS, BOX, undefined, { min: 103, max: 157 }).ticks).toEqual([120, 140]);
+  });
+
   it("clips the field above and below the capital", () => {
     expect(clipAbove(POINTS, s, BOX)).toBe("M0.0,100.0H50.0V100.0H100.0V16.7V0.0H0.0Z");
     expect(clipBelow(POINTS, s, BOX)).toBe("M0.0,100.0H50.0V100.0H100.0V16.7V100.0H0.0Z");

@@ -26,6 +26,7 @@ Wykres wartości na Pulpicie (`web/src/charts/ValueChart.tsx`) pokazuje stały z
 - **Telefon**
   - Dwa palce: rozsunięcie / zsunięcie przybliża wokół środka między palcami, przesunięcie obu przesuwa widok.
   - Jeden palec: podgląd dnia i pionowe przewijanie strony, bez zmian (`touch-action: pan-y` zostaje).
+- **Skala kwot (dodane 2026-09-30 na prośbę właściciela):** przeciąganie lewym przyciskiem po osi Y (pasek kwot po prawej) w górę rozszerza wykres, w dół go zmniejsza; środek przedziału zostaje. Ręczna skala zostaje przy przybliżaniu i przesuwaniu w bok, a przeciąganie po wykresie przesuwa ją wtedy też w górę i w dół. Podwójne kliknięcie, przycisk zakresu i zmiana kont wracają do skali automatycznej. Telefon bez zmian.
 - **Cofnięcie przybliżenia:** podwójne kliknięcie / podwójne stuknięcie wraca do okna z bieżącego przycisku.
 - **Przyciski 1M / 3M / 1R / Wszystko** ustawiają widoczne okno kończące się ostatnim dniem historii.
   Po ręcznym przybliżeniu lub przesunięciu żaden przycisk nie jest zaznaczony. Kliknięcie przycisku ustawia jego okno.

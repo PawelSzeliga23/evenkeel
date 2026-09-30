@@ -115,4 +115,55 @@ describe("ValueChart", () => {
     fireEvent.wheel(svg, { ctrlKey: true, deltaY: 400, clientX: 150 });
     expect(onViewChange).not.toHaveBeenCalled();
   });
+
+  const span = (range: { min: number; max: number }) => range.max - range.min;
+  const mouse = { pointerId: 1, pointerType: "mouse", button: 0 };
+
+  it("stretches the amounts when the Y axis is dragged up and squeezes them when dragged down", () => {
+    const onYRangeChange = vi.fn();
+    const onViewChange = vi.fn();
+    render(<ValueChart points={MONTH} onYRangeChange={onYRangeChange} onViewChange={onViewChange} />);
+    const svg = screen.getByRole("img");
+    vi.spyOn(svg, "getBoundingClientRect").mockReturnValue(rect);
+
+    fireEvent.pointerDown(svg, { ...mouse, clientX: 330, clientY: 100 });
+    fireEvent.pointerMove(svg, { ...mouse, clientX: 330, clientY: 60 });
+    expect(span(onYRangeChange.mock.calls.at(-1)![0])).toBeLessThan(300);
+    fireEvent.pointerMove(svg, { ...mouse, clientX: 330, clientY: 140 });
+    expect(span(onYRangeChange.mock.calls.at(-1)![0])).toBeGreaterThan(300);
+    fireEvent.pointerUp(svg, { ...mouse, clientX: 330, clientY: 140 });
+
+    expect(onViewChange).not.toHaveBeenCalled();
+  });
+
+  it("moves a hand-set scale up and down with the drag", () => {
+    const onYRangeChange = vi.fn();
+    render(<ValueChart points={MONTH} view={{ from: 10, to: 20 }} yRange={{ min: 1000, max: 1300 }} onYRangeChange={onYRangeChange} />);
+    const svg = screen.getByRole("img");
+    vi.spyOn(svg, "getBoundingClientRect").mockReturnValue(rect);
+
+    fireEvent.pointerDown(svg, { ...mouse, clientX: 150, clientY: 100 });
+    fireEvent.pointerMove(svg, { ...mouse, clientX: 150, clientY: 140 });
+
+    const range = onYRangeChange.mock.calls.at(-1)![0] as { min: number; max: number };
+    expect([range.min, range.max]).toEqual([1075, 1375]);
+  });
+
+  it("keeps the automatic scale when the chart is dragged without a hand-set scale", () => {
+    const onYRangeChange = vi.fn();
+    render(<ValueChart points={MONTH} view={{ from: 10, to: 20 }} onYRangeChange={onYRangeChange} />);
+    const svg = screen.getByRole("img");
+    vi.spyOn(svg, "getBoundingClientRect").mockReturnValue(rect);
+
+    fireEvent.pointerDown(svg, { ...mouse, clientX: 150, clientY: 100 });
+    fireEvent.pointerMove(svg, { ...mouse, clientX: 150, clientY: 140 });
+
+    expect(onYRangeChange).not.toHaveBeenCalled();
+  });
+
+  it("draws the hand-set amounts on the Y axis", () => {
+    render(<ValueChart points={MONTH} yRange={{ min: 1100, max: 1160 }} />);
+    expect(screen.getByText(`1${S}120`)).toBeInTheDocument();
+    expect(screen.getByText(`1${S}140`)).toBeInTheDocument();
+  });
 });

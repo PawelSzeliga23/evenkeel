@@ -6,7 +6,7 @@ import { api } from "../../api/endpoints";
 import { keys } from "../../api/queryKeys";
 import type { Summary } from "../../api/types";
 import { ValueChart } from "../../charts/ValueChart";
-import { windowForRange, type ChartWindow } from "../../charts/viewport";
+import { windowForRange, type ChartWindow, type YRange } from "../../charts/viewport";
 import { formatDayLong, formatMoney, formatRefreshed, formatPercent, pluralPl, signOf, sumMoney } from "../../format";
 import { RefreshIcon } from "../../shell/icons";
 import { AccountSelect } from "../../ui/AccountPicker";
@@ -30,6 +30,7 @@ export function DashboardScreen() {
   const [range, setRange] = useState<Range>("1R");
   const [mode, setMode] = useState<AllocationMode>("kind");
   const [zoom, setZoom] = useState<ChartWindow | null>(null);
+  const [yRange, setYRange] = useState<YRange | null>(null);
 
   const accounts = useQuery({ queryKey: keys.accounts, queryFn: api.accounts });
   const summary = useQuery({
@@ -45,7 +46,11 @@ export function DashboardScreen() {
   const rangeView = windowForRange(dates, rangeFrom(range, dates[dates.length - 1] ?? null));
   // Another account selection brings another history; a zoom into the old one means nothing there.
   const selectionKey = accountIds.join(",");
-  useEffect(() => setZoom(null), [selectionKey]);
+  function resetChart() {
+    setZoom(null);
+    setYRange(null);
+  }
+  useEffect(resetChart, [selectionKey]);
   const exposure = useQuery({
     queryKey: keys.exposure(accountIds, asOf ?? ""),
     queryFn: () => api.exposure(accountIds, asOf!),
@@ -145,9 +150,10 @@ export function DashboardScreen() {
       <section className={ui.section} aria-label="Wartość w czasie">
         {history.isPending ? <Skeleton chart rows={0} />
           : history.isError ? <ErrorState error={history.error} onRetry={() => void history.refetch()} />
-            : <ValueChart points={history.data.points} view={zoom ?? rangeView} onViewChange={setZoom} onReset={() => setZoom(null)} />}
+            : <ValueChart points={history.data.points} view={zoom ?? rangeView} yRange={yRange}
+              onViewChange={setZoom} onYRangeChange={setYRange} onReset={resetChart} />}
         <Segmented label="Zakres wykresu" options={RANGES} value={zoom ? null : range}
-          onChange={(next) => { setRange(next); setZoom(null); }} />
+          onChange={(next) => { setRange(next); resetChart(); }} />
       </section>
 
       <section className={ui.section} aria-labelledby="allocation-title">
