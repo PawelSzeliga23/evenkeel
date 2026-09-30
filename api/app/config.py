@@ -4,6 +4,8 @@ from typing import Literal
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+HH_MM = r"^([01]\d|2[0-3]):[0-5]\d$"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -17,8 +19,11 @@ class Settings(BaseSettings):
     invite_codes: str = ""
     login_rate_limit_per_minute: int = 10
     register_rate_limit_per_minute: int = 5
-    market_daily_at: str = Field(default="23:00", pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    market_daily_at: str = Field(default="23:00", pattern=HH_MM)
     market_timezone: str = "Europe/Warsaw"
+    market_intraday_minutes: int = Field(default=30, ge=5)
+    market_intraday_from: str = Field(default="09:00", pattern=HH_MM)
+    market_intraday_to: str = Field(default="22:30", pattern=HH_MM)
     worker_poll_seconds: int = Field(default=300, ge=10)
 
     @property
