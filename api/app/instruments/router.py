@@ -26,6 +26,7 @@ def _out(instrument: Instrument, latest: Price | None) -> InstrumentOut:
         price_error=instrument.price_error,
         last_price=latest.close if latest else None,
         last_price_date=latest.date if latest else None,
+        spread_pct=instrument.spread_pct,
     )
 
 
@@ -39,19 +40,30 @@ def list_instruments(scope: UserScope = Depends(get_scope)) -> list[InstrumentOu
 @router.patch("/{instrument_id}", response_model=InstrumentOut)
 def update_instrument(instrument_id: DbId, body: InstrumentUpdate, scope: UserScope = Depends(get_scope)) -> InstrumentOut:
     instrument = scope.get_instrument(instrument_id)
-    symbol = body.price_symbol
+    if "price_symbol" in body.model_fields_set:
+        _update_symbol(scope, instrument, body.price_symbol)
+    if "spread_pct" in body.model_fields_set and body.spread_pct != instrument.spread_pct:
+        instrument.spread_pct = body.spread_pct
+        # Every holder's payout value depends on the spread (plan 6d); the worker rebuilds their histories.
+        mark_stale(scope.db, holders(scope.db, [instrument.id]), dt.date.min)
+        scope.db.commit()
+        logger.info("User %s set spread of %s to %s %%", scope.user.id, instrument.xtb_ticker, body.spread_pct)
+    return _out(instrument, latest_prices(scope.db, [instrument.id]).get(instrument.id))
+
+
+def _update_symbol(scope: UserScope, instrument: Instrument, symbol: str | None) -> None:
     unchanged = (symbol is None and not instrument.price_symbol_overridden) or (
         symbol is not None and instrument.price_symbol_overridden and symbol == instrument.price_symbol
     )
-    if not unchanged:
-        # Prices of the old symbol are wrong for the new one: drop them and let the worker refetch the history.
-        instrument.price_symbol = symbol
-        instrument.price_symbol_overridden = symbol is not None
-        instrument.price_checked_at = None
-        instrument.price_error = None
-        delete_prices(scope.db, instrument.id)
-        # Every holder's history was valued with the old symbol's prices.
-        mark_stale(scope.db, holders(scope.db, [instrument.id]), dt.date.min)
-        scope.db.commit()
-        logger.info("User %s set price symbol of %s to %r", scope.user.id, instrument.xtb_ticker, symbol)
-    return _out(instrument, latest_prices(scope.db, [instrument.id]).get(instrument.id))
+    if unchanged:
+        return
+    # Prices of the old symbol are wrong for the new one: drop them and let the worker refetch the history.
+    instrument.price_symbol = symbol
+    instrument.price_symbol_overridden = symbol is not None
+    instrument.price_checked_at = None
+    instrument.price_error = None
+    delete_prices(scope.db, instrument.id)
+    # Every holder's history was valued with the old symbol's prices.
+    mark_stale(scope.db, holders(scope.db, [instrument.id]), dt.date.min)
+    scope.db.commit()
+    logger.info("User %s set price symbol of %s to %r", scope.user.id, instrument.xtb_ticker, symbol)

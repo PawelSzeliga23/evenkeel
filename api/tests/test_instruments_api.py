@@ -4,10 +4,10 @@ from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, func, select
+from sqlalchemy import Engine, func, select, update
 from sqlalchemy.orm import Session
 
-from app.models import Instrument, PositionLot, Price, Transaction
+from app.models import Instrument, PositionLot, Price, Transaction, User
 
 LoginAs = Callable[[str], dict[str, str]]
 CHECKED_AT = dt.datetime(2026, 9, 25, 21, 0, tzinfo=dt.UTC)
@@ -65,7 +65,7 @@ def test_list_shows_only_own_instruments_with_last_price(client: TestClient, wor
     assert anna == [{
         "id": world["ids"]["SXR8.DE"], "xtb_ticker": "SXR8.DE", "name": "Core S&P 500", "category": "etf",
         "currency": "EUR", "price_symbol": "SXR8.DE", "price_symbol_overridden": False, "price_error": None,
-        "last_price": "713.80000000", "last_price_date": "2026-09-25",
+        "spread_pct": None, "last_price": "713.80000000", "last_price_date": "2026-09-25",
     }]
     assert [(i["xtb_ticker"], i["last_price"], i["last_price_date"]) for i in bartek] == [("VIE.FR", None, None)]
 
@@ -145,3 +145,39 @@ def test_invalid_symbol_is_rejected(client: TestClient, world: dict, payload: di
 
 def test_instruments_require_authentication(client: TestClient) -> None:
     assert client.get("/api/instruments").status_code == 401
+
+
+def test_a_manual_spread_is_saved_without_touching_the_price_symbol(
+    client: TestClient, world: dict, engine: Engine
+) -> None:
+    sxr8 = world["ids"]["SXR8.DE"]
+
+    saved = client.patch(f"/api/instruments/{sxr8}", json={"spread_pct": "0.1"}, headers=world["anna"])
+    cleared = client.patch(f"/api/instruments/{sxr8}", json={"spread_pct": None}, headers=world["anna"])
+
+    assert saved.status_code == 200
+    assert (saved.json()["spread_pct"], saved.json()["price_symbol"], saved.json()["price_symbol_overridden"],
+            saved.json()["last_price"]) == ("0.1000", "SXR8.DE", False, "713.80000000")
+    assert cleared.json()["spread_pct"] is None
+    assert _price_count(engine, sxr8) == 2
+
+
+def test_a_spread_change_marks_the_holders_valuations(client: TestClient, world: dict, engine: Engine) -> None:
+    with Session(engine) as session:
+        session.execute(update(User).values(valuations_stale_from=None))
+        session.commit()
+
+    client.patch(f"/api/instruments/{world['ids']['SXR8.DE']}", json={"spread_pct": "0.2"}, headers=world["anna"])
+
+    with Session(engine) as session:
+        stale = dict(session.execute(select(User.email, User.valuations_stale_from)).all())
+    assert stale["anna@portfolio.dev"] == dt.date.min  # the worker rebuilds her history with the new spread
+    assert stale["bartek@portfolio.dev"] is None  # he does not hold SXR8.DE
+
+
+@pytest.mark.parametrize("spread", ["-0.1", "5.01", "abc"])
+def test_a_spread_outside_0_to_5_percent_is_rejected(client: TestClient, world: dict, spread: str) -> None:
+    response = client.patch(f"/api/instruments/{world['ids']['SXR8.DE']}", json={"spread_pct": spread},
+                            headers=world["anna"])
+
+    assert (response.status_code, response.json()["code"]) == (422, "validation_error")
