@@ -1,6 +1,6 @@
 /** Pure geometry of the value chart. Numbers here only place pixels; money is formatted from the API strings. */
 import type { HistoryPoint } from "../api/types";
-import { monthShort } from "../format";
+import type { ChartWindow } from "./viewport";
 
 export interface ChartPoint { date: string; value: number; invested: number; flow: number }
 export interface Frame { width: number; height: number; left: number; right: number; top: number; bottom: number }
@@ -39,13 +39,19 @@ export function yDomain(points: ChartPoint[]): { min: number; max: number; ticks
   return { min, max, ticks };
 }
 
-export function scales(points: ChartPoint[], frame: Frame): Scales {
+export function frameFor(width: number): Frame {
+  return { ...FRAME, width, height: Math.min(Math.max(Math.round(width * 0.45), 190), 300) };
+}
+
+/** `view` is in indices of `points`; points outside it land left or right of the plot. */
+export function scales(points: ChartPoint[], frame: Frame, view?: ChartWindow): Scales {
   const { min, max, ticks } = yDomain(points);
   const plotWidth = frame.width - frame.left - frame.right;
   const plotHeight = frame.height - frame.top - frame.bottom;
-  const last = Math.max(points.length - 1, 1);
+  const from = view?.from ?? 0;
+  const span = (view ? view.to - view.from : points.length - 1) || 1;
   return {
-    x: (i) => frame.left + (i / last) * plotWidth,
+    x: (i) => frame.left + ((i - from) / span) * plotWidth,
     y: (v) => frame.top + (1 - (v - min) / (max - min)) * plotHeight,
     min, max, ticks,
   };
@@ -84,21 +90,10 @@ export function depositMarks(points: ChartPoint[]): { index: number; large: bool
   return deposits.map((d) => ({ index: d.index, large: d.flow > median }));
 }
 
-export function monthTicks(points: ChartPoint[], count = 4): { index: number; label: string }[] {
-  const starts = points
-    .map((p, index) => ({ index, month: p.date.slice(0, 7) }))
-    .filter((p, i, all) => i === 0 || p.month !== all[i - 1]!.month)
-    .map((p) => p.index);
-  const chosen = starts.length <= count
-    ? starts
-    : Array.from({ length: count }, (_, k) => starts[Math.round((k * (starts.length - 1)) / (count - 1))]!);
-  return [...new Set(chosen)].map((index) => ({ index, label: monthShort(points[index]!.date) }));
-}
-
-export function nearestIndex(px: number, count: number, frame: Frame): number {
+export function indexAt(px: number, view: ChartWindow, frame: Frame, count: number): number {
   const plotWidth = frame.width - frame.left - frame.right;
-  const index = Math.round(((px - frame.left) / plotWidth) * (count - 1));
-  return Math.min(Math.max(index, 0), count - 1);
+  const index = Math.round(view.from + ((px - frame.left) / plotWidth) * (view.to - view.from));
+  return Math.min(Math.max(index, Math.ceil(view.from - 1e-9), 0), Math.floor(view.to + 1e-9), count - 1);
 }
 
 export function axisLabel(value: number): string {

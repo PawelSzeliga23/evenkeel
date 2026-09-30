@@ -1,36 +1,69 @@
-import { useId, useMemo, useState, type PointerEvent } from "react";
+import { useEffect, useId, useMemo, useState, type PointerEvent } from "react";
 import type { HistoryPoint } from "../api/types";
 import { formatDate, formatMoney } from "../format";
 import {
-  FRAME, axisLabel, clipAbove, clipBelow, depositMarks, gapPath, linePath, monthTicks, nearestIndex, scales, stairPath,
+  FRAME, axisLabel, clipAbove, clipBelow, depositMarks, frameFor, gapPath, indexAt, linePath, scales, stairPath,
   toChartPoints,
 } from "./geometry";
+import { timeTicks } from "./timeTicks";
+import { clampWindow, drawnRange, fullWindow, type ChartWindow } from "./viewport";
 import styles from "./ValueChart.module.css";
 
-export function ValueChart({ points }: { points: HistoryPoint[] }) {
+/** Follows the element's width; jsdom has no ResizeObserver, so tests draw at FRAME.width. */
+function useWidth(element: HTMLElement | null): number {
+  const [width, setWidth] = useState(FRAME.width);
+  useEffect(() => {
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) => {
+      const measured = Math.round(entry!.contentRect.width);
+      if (measured > 0) setWidth(measured);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [element]);
+  return width;
+}
+
+export function ValueChart({ points, view: requested }: {
+  points: HistoryPoint[];
+  view?: ChartWindow;
+  onViewChange?: (view: ChartWindow) => void;
+  onReset?: () => void;
+}) {
   const data = useMemo(() => toChartPoints(points), [points]);
+  const marks = useMemo(() => depositMarks(data), [data]);
   const [active, setActive] = useState<number | null>(null);
+  const [figure, setFigure] = useState<HTMLElement | null>(null);
+  const width = useWidth(figure);
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
 
   if (data.length < 2) {
     return <p className={styles.note}>Wykres pojawi się, gdy wycena obejmie co najmniej dwa dni.</p>;
   }
 
-  const s = scales(data, FRAME);
+  const frame = frameFor(width);
+  const view = clampWindow(requested ?? fullWindow(data.length), data.length);
+  const { start, end } = drawnRange(view, data.length);
+  const drawn = data.slice(start, end + 1);
+  const s = scales(drawn, frame, { from: view.from - start, to: view.to - start });
+  const x = (index: number) => s.x(index - start);
   const last = data.length - 1;
-  const baseline = FRAME.height - FRAME.bottom;
-  const plotRight = FRAME.width - FRAME.right;
+  const firstShown = Math.ceil(view.from - 1e-9);
+  const lastShown = Math.floor(view.to + 1e-9);
+  const baseline = frame.height - frame.bottom;
+  const plotRight = frame.width - frame.right;
   const shown = active === null ? null : points[active]!;
-  const gap = gapPath(data, s);
+  const gap = gapPath(drawn, s);
+  const ticks = timeTicks(data, view, plotRight - frame.left);
 
   function track(event: PointerEvent<SVGSVGElement>) {
     const rect = event.currentTarget.getBoundingClientRect();
     if (!rect.width) return;
-    setActive(nearestIndex(((event.clientX - rect.left) / rect.width) * FRAME.width, data.length, FRAME));
+    setActive(indexAt(((event.clientX - rect.left) / rect.width) * frame.width, view, frame, data.length));
   }
 
   return (
-    <figure className={styles.chart}>
+    <figure className={styles.chart} ref={setFigure}>
       <div className={styles.readout} aria-live="polite">
         {shown ? (
           <>
@@ -48,37 +81,47 @@ export function ValueChart({ points }: { points: HistoryPoint[] }) {
       </div>
       <svg
         className={styles.svg}
-        viewBox={`0 0 ${FRAME.width} ${FRAME.height}`}
+        viewBox={`0 0 ${frame.width} ${frame.height}`}
         role="img"
-        aria-label={`Wykres wartości portfela od ${formatDate(points[0]!.date)} do ${formatDate(points[last]!.date)}`}
+        aria-label={`Wykres wartości portfela od ${formatDate(points[firstShown]!.date)} do ${formatDate(points[lastShown]!.date)}`}
         onPointerMove={track}
         onPointerDown={track}
         onPointerLeave={() => setActive(null)}
       >
         <defs>
-          <clipPath id={`above-${id}`}><path d={clipAbove(data, s, FRAME)} /></clipPath>
-          <clipPath id={`below-${id}`}><path d={clipBelow(data, s, FRAME)} /></clipPath>
+          <clipPath id={`plot-${id}`}><rect x={frame.left} y={0} width={plotRight - frame.left} height={frame.height} /></clipPath>
+          <clipPath id={`above-${id}`}><path d={clipAbove(drawn, s, frame)} /></clipPath>
+          <clipPath id={`below-${id}`}><path d={clipBelow(drawn, s, frame)} /></clipPath>
         </defs>
         {s.ticks.map((tick) => (
           <g key={tick}>
-            <line x1={FRAME.left} x2={plotRight} y1={s.y(tick)} y2={s.y(tick)} className={styles.grid} />
+            <line x1={frame.left} x2={plotRight} y1={s.y(tick)} y2={s.y(tick)} className={styles.grid} />
             <text x={plotRight + 6} y={s.y(tick) + 4} className={styles.axis}>{axisLabel(tick)}</text>
           </g>
         ))}
-        {monthTicks(data).map((tick) => (
-          <text key={tick.index} x={s.x(tick.index)} y={FRAME.height - 4} className={styles.axis}>{tick.label}</text>
+        {ticks.map((tick) => (
+          <g key={tick.index}>
+            <line x1={x(tick.index)} x2={x(tick.index)} y1={frame.top} y2={baseline} className={styles.grid} />
+            <text x={x(tick.index) + 3} y={frame.height - 4} className={tick.strong ? styles.axisStrong : styles.axis}>{tick.label}</text>
+          </g>
         ))}
-        {depositMarks(data).map((mark) => (
-          <line key={mark.index} x1={s.x(mark.index)} x2={s.x(mark.index)} y1={baseline + 2}
-            y2={baseline + (mark.large ? 12 : 7)} className={styles.deposit} />
-        ))}
-        <path d={gap} fill="var(--amber-soft)" clipPath={`url(#above-${id})`} />
-        <path d={gap} fill="var(--loss-soft)" clipPath={`url(#below-${id})`} />
-        <path d={stairPath(data, s)} className={styles.capital} />
-        <path d={linePath(data, s)} className={styles.value} pathLength={1} />
-        {active !== null && <line x1={s.x(active)} x2={s.x(active)} y1={FRAME.top} y2={baseline} className={styles.cursor} />}
-        <circle cx={s.x(last)} cy={s.y(data[last]!.value)} r={4} fill="var(--amber)" />
-        <circle cx={s.x(last)} cy={s.y(data[last]!.value)} r={8} fill="var(--amber)" opacity={0.18} />
+        <g clipPath={`url(#plot-${id})`}>
+          {marks.filter((mark) => mark.index >= start && mark.index <= end).map((mark) => (
+            <line key={mark.index} x1={x(mark.index)} x2={x(mark.index)} y1={baseline + 2}
+              y2={baseline + (mark.large ? 12 : 7)} className={styles.deposit} />
+          ))}
+          <path d={gap} fill="var(--amber-soft)" clipPath={`url(#above-${id})`} />
+          <path d={gap} fill="var(--loss-soft)" clipPath={`url(#below-${id})`} />
+          <path d={stairPath(drawn, s)} className={styles.capital} />
+          <path d={linePath(drawn, s)} className={styles.value} pathLength={1} />
+        </g>
+        {active !== null && <line x1={x(active)} x2={x(active)} y1={frame.top} y2={baseline} className={styles.cursor} />}
+        {lastShown === last && (
+          <>
+            <circle cx={x(last)} cy={s.y(data[last]!.value)} r={4} fill="var(--amber)" />
+            <circle cx={x(last)} cy={s.y(data[last]!.value)} r={8} fill="var(--amber)" opacity={0.18} />
+          </>
+        )}
       </svg>
     </figure>
   );
