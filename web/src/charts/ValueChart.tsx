@@ -41,7 +41,12 @@ export function ValueChart({ points, view: requested, onViewChange, onReset }: {
   const view = clampWindow(requested ?? fullWindow(data.length), data.length);
   const gestures = useChartGestures({
     view, count: data.length, frame,
-    onChange: (next) => { setActive(null); onViewChange?.(next); },
+    onChange: (next) => {
+      // A gesture held back by the history's edges changes nothing and must not count as a zoom.
+      if (Math.abs(next.from - view.from) < 1e-6 && Math.abs(next.to - view.to) < 1e-6) return;
+      setActive(null);
+      onViewChange?.(next);
+    },
     onReset: () => onReset?.(),
   });
 

@@ -104,6 +104,15 @@ describe("ValueChart", () => {
     const onViewChange = vi.fn();
     render(<ValueChart points={TWO} onViewChange={onViewChange} />);
     fireEvent.wheel(screen.getByRole("img"), { ctrlKey: true, deltaY: -200, clientX: 150 });
-    expect(onViewChange.mock.calls.every(([view]) => view.from === 0 && view.to === 1)).toBe(true);
+    expect(onViewChange).not.toHaveBeenCalled();
+  });
+
+  it("does not report a zoom out past the whole history as a change", () => {
+    const onViewChange = vi.fn();
+    render(<ValueChart points={MONTH} onViewChange={onViewChange} />);
+    const svg = screen.getByRole("img");
+    vi.spyOn(svg, "getBoundingClientRect").mockReturnValue(rect);
+    fireEvent.wheel(svg, { ctrlKey: true, deltaY: 400, clientX: 150 });
+    expect(onViewChange).not.toHaveBeenCalled();
   });
 });

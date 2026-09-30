@@ -1,5 +1,5 @@
 .chart { position: relative; margin: 0; display: grid; gap: 8px; }
-.svg { width: 100%; height: auto; display: block; overflow: visible; touch-action: pan-y; }
+.svg { width: 100%; height: auto; display: block; overflow: visible; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
 .readout {
   display: flex; flex-wrap: wrap; align-content: flex-start; gap: 2px 16px; height: 40px; overflow: hidden;
   font-size: 12.5px; color: var(--dim);
