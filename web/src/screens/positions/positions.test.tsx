@@ -130,4 +130,29 @@ describe("position detail", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Nie znaleziono.");
     expect(within(screen.getByRole("main")).getByRole("link", { name: "Pozycje" })).toHaveAttribute("href", "/pozycje");
   });
+
+  it("shows what selling would pay out and the exit costs in the gain", async () => {
+    const withCosts = { ...DETAIL, position: { ...DETAIL.position, value_pln: "1000.00", exit_fx_pln: "5.00",
+      exit_spread_pln: "1.00", exit_cost_pln: "6.00", payout_pln: "994.00", spread_pct: "0.1000" } };
+    mockFetch([...SIGNED_IN, { path: "/api/positions/2/12", respond: () => withCosts }]);
+    renderApp("/pozycje/2/12");
+
+    const payout = await screen.findByRole("region", { name: "Do wypłaty" });
+    expect(within(payout).getByText("Wartość rynkowa").nextElementSibling).toHaveTextContent(`1${T}000,00${T}zł`);
+    expect(within(payout).getByText("Przewalutowanie XTB 0,5 %").nextElementSibling).toHaveTextContent(`${M}5,00${T}zł`);
+    expect(within(payout).getByText(`Spread (ręczny 0,1${T}%)`).nextElementSibling).toHaveTextContent(`${M}1,00${T}zł`);
+    expect(within(payout).getByText("Do wypłaty").nextElementSibling).toHaveTextContent(`994,00${T}zł`);
+    const gain = screen.getByRole("region", { name: "Zysk" });
+    expect(within(gain).getByText("Koszty wyjścia").nextElementSibling).toHaveTextContent(`${M}6,00${T}zł`);
+  });
+
+  it("has no payout section without exit costs and names an unknown instrument currency", async () => {
+    const unknown = { ...DETAIL, position: { ...DETAIL.position, currency: null } };
+    mockFetch([...SIGNED_IN, { path: "/api/positions/2/12", respond: () => unknown }]);
+    renderApp("/pozycje/2/12");
+
+    expect(await screen.findByRole("heading", { name: "CD Projekt" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Do wypłaty" })).not.toBeInTheDocument();
+    expect(screen.getByText("Średnia cena").nextElementSibling).toHaveTextContent("192,2338 w walucie instrumentu");
+  });
 });
