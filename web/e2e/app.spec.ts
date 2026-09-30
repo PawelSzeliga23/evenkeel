@@ -24,6 +24,8 @@ test("rejestracja, import eksportu XTB, pulpit, pozycje i szczegóły pozycji", 
   await expect(page.getByText("Wartość portfela")).toBeVisible();
   await expect(page.getByRole("img", { name: /Wykres wartości portfela/ })).toBeVisible({ timeout: 45_000 });
   await expect(page.getByText("Przeliczam wycenę…")).toBeHidden({ timeout: 45_000 });
+  // The e2e sample holds only a PLN instrument, so there are no exit costs to show.
+  await expect(page.getByText(/Wartość rynkowa .* · koszty wyjścia/)).toBeHidden();
   await page.screenshot({ path: `${SCREENS}/pulpit.png`, fullPage: true });
 
   await page.getByRole("navigation", { name: "Główna" }).getByRole("link", { name: "Pozycje" }).click();
