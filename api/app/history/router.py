@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Query
 from app.errors import ApiError
 from app.history.schemas import HistoryPage
 from app.history.service import history_items, matches
-from app.scoping import UserScope, get_scope
+from app.scoping import AccountIds, UserScope, get_scope
 from app.valuation.service import local_today
 
 router = APIRouter(prefix="/api/history", tags=["history"])
@@ -25,7 +25,7 @@ def _cursor(value: str) -> tuple[dt.date, str]:
 @router.get("", response_model=HistoryPage)
 def get_history(
     scope: UserScope = Depends(get_scope),
-    account_id: IdQuery = None,
+    account_ids: AccountIds = None,
     type: Annotated[str | None, Query(max_length=30)] = None,  # noqa: A002 — public query name
     instrument_id: IdQuery = None,
     date_from: Annotated[dt.date | None, Query(alias="from")] = None,
@@ -35,13 +35,12 @@ def get_history(
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> HistoryPage:
     after = _cursor(cursor) if cursor else None
-    if account_id is not None:
-        scope.get_account(account_id)
+    accounts = scope.account_filter(account_ids)
     if instrument_id is not None:
         scope.get_instrument(instrument_id)
     items = [
         item for item in history_items(scope, local_today())
-        if (account_id is None or item.account_id == account_id)
+        if (accounts is None or item.account_id in accounts)
         and (type is None or item.type == type)
         and (instrument_id is None or item.instrument_id == instrument_id)
         and (date_from is None or item.date >= date_from)

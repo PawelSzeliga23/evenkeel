@@ -17,14 +17,14 @@ def _totals(sold_cost: Decimal, realized: Decimal, dividends: Decimal, fees: Dec
             "total_pln": total, "return_pct": percent(total, sold_cost)}
 
 
-def closed_investments(scope: UserScope, account_id: int | None, day: dt.date) -> ClosedOut:
+def closed_investments(scope: UserScope, account_ids: frozenset[int] | None, day: dt.date) -> ClosedOut:
     inputs = load_inputs(scope)
     book = replay(inputs.entries, inputs.splits, inputs.market, day, conversions=inputs.conversions)
     accounts = {account.id: account for account in scope.db.scalars(scope.accounts())}
     instruments = {instrument.id: instrument for instrument in scope.db.scalars(scope.instruments())}
     grouped: dict[Key, list[Sale]] = defaultdict(list)
     for sale in book.sales:
-        if account_id is None or sale.account_id == account_id:
+        if account_ids is None or sale.account_id in account_ids:
             grouped[(sale.account_id, sale.instrument_id)].append(sale)
 
     def names(key: Key) -> dict:

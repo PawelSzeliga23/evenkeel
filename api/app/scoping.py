@@ -1,6 +1,7 @@
 from typing import Annotated
 
-from fastapi import Depends, Path
+from fastapi import Depends, Path, Query
+from pydantic import Field
 from sqlalchemy import Select, or_, select
 from sqlalchemy.orm import Session
 
@@ -15,6 +16,9 @@ from app.models import (
 # Path parameter type for any database id: keeps Postgres int4 range errors
 # (which would otherwise surface as an opaque 500) as a 422 validation_error.
 DbId = Annotated[int, Path(ge=1, le=2**31 - 1)]
+
+# Query parameter `account_id`, repeatable: ?account_id=1&account_id=4. Absent = the whole portfolio.
+AccountIds = Annotated[list[Annotated[int, Field(ge=1, le=2**31 - 1)]] | None, Query(alias="account_id")]
 
 
 def not_found() -> ApiError:
@@ -39,6 +43,18 @@ class UserScope:
         if account is None:
             raise not_found()
         return account
+
+    def account_filter(self, ids: list[int] | None) -> frozenset[int] | None:
+        """Several of the user's accounts, each counted once; None for no filter. Someone else's (or a missing)
+        account is a 404, like the account itself."""
+        if not ids:
+            return None
+        wanted = frozenset(ids)
+        owned = set(self.db.scalars(
+            select(Account.id).where(Account.user_id == self.user.id, Account.id.in_(wanted))))
+        if owned != wanted:
+            raise not_found()
+        return wanted
 
     def add_account(self, **fields: object) -> Account:
         """Creates an account owned by this scope's user; does not commit."""
