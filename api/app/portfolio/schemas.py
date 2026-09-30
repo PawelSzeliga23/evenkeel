@@ -33,6 +33,12 @@ class SummaryOut(BaseModel):
     by_kind: list[AllocationOut]
     approximate_positions: int
     recalculating: bool
+    prices_refreshed_at: dt.datetime | None = None  # latest price check of the user's instruments
+
+
+class RefreshOut(BaseModel):
+    refreshed_at: dt.datetime | None
+    fetched: bool  # False: nothing to fetch, or checked less than a minute ago
 
 
 class HistoryPointOut(BaseModel):

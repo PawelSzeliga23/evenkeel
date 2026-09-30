@@ -40,6 +40,7 @@ export const api = {
   instruments: () => request<Instrument[]>("/api/instruments"),
   updateInstrument: (id: number, body: InstrumentUpdate) =>
     request<Instrument>(`/api/instruments/${id}`, { method: "PATCH", json: body }),
+  refreshPrices: () => request<{ refreshed_at: string | null; fetched: boolean }>("/api/portfolio/refresh", { method: "POST" }),
   summary: (ids: readonly number[]) => request<Summary>("/api/portfolio/summary", { query: { account_id: ids } }),
   history: (ids: readonly number[], from: IsoDate | null) =>
     request<History>("/api/portfolio/history", { query: { account_id: ids, from } }),

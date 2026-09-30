@@ -32,6 +32,12 @@ export function formatDateTime(iso: string): string {
   return `${formatDate(iso)}, ${iso.slice(11, 16)}`;
 }
 
+/** A moment from the API as "śr., 30 września, 14:32" in the browser's time zone. */
+export function formatRefreshed(iso: string): string {
+  const local = new Date(iso);
+  return `${formatDayLong(todayIso(local))}, ${pad(local.getHours())}:${pad(local.getMinutes())}`;
+}
+
 export function formatDays(days: number): string {
   return days === 1 ? "1 dzień" : `${days} dni`;
 }

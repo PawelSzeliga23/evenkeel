@@ -155,7 +155,7 @@ def _fetch(provider: PriceProvider, instrument: Instrument, symbol: str, start: 
     return None
 
 
-def _update_prices(
+def update_prices(
     db: Session, provider: PriceProvider, instruments: Sequence[Instrument], now: dt.datetime,
     changed: dict[int, dt.date] | None = None,
 ) -> tuple[int, list[str]]:
@@ -186,7 +186,7 @@ def update_all_prices(
     db: Session, provider: PriceProvider, now: dt.datetime, changed: dict[int, dt.date] | None = None
 ) -> tuple[int, list[str]]:
     instruments = db.scalars(select(Instrument).where(_referenced()).order_by(Instrument.id)).all()
-    return _update_prices(db, provider, instruments, now, changed)
+    return update_prices(db, provider, instruments, now, changed)
 
 
 def backfill_new_instruments(
@@ -198,7 +198,7 @@ def backfill_new_instruments(
         .where(Instrument.price_checked_at.is_(None), _referenced())
         .order_by(Instrument.id)
     ).all()
-    return _update_prices(db, provider, instruments, now, changed)
+    return update_prices(db, provider, instruments, now, changed)
 
 
 def fx_ranges_to_fetch(

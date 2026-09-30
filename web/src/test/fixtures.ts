@@ -34,6 +34,7 @@ export const SUMMARY: Summary = {
   ],
   approximate_positions: 1,
   recalculating: false,
+  prices_refreshed_at: "2026-09-26T20:05:00Z",
 };
 
 export const HISTORY: History = {

@@ -1,4 +1,4 @@
-"""Background worker: daily market data update, backfill of new instruments, valuation recompute, housekeeping.
+"""Background worker: daily market data update, a refresh of prices and NBP rates every half hour of the trading day, backfill of new instruments, valuation recompute, housekeeping.
 
 A plain loop instead of APScheduler: two jobs in one process, idempotent work, and the daily job
 must also run once at start-up to catch up after downtime. ~40 lines cover it without a dependency.
@@ -14,7 +14,6 @@ from pathlib import Path
 from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
-import httpx
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
@@ -25,11 +24,11 @@ from sqlalchemy.orm import Session
 from app.auth.maintenance import prune_refresh_tokens
 from app.config import get_settings
 from app.db import get_engine, get_sessionmaker
+from app.market.deps import build_providers
 from app.market.http import make_client
-from app.market.providers.gus import GusInflationProvider
-from app.market.providers.nbp import NbpFxProvider, NbpRefRateProvider
-from app.market.providers.yahoo import YahooPriceProvider
-from app.market.update import MarketProviders, backfill_new_instruments, run_market_update
+from app.market.update import (
+    MarketProviders, backfill_new_instruments, run_market_update, update_all_prices, update_fx,
+)
 from app.valuation.service import mark_market_changes, mark_new_days, recompute_stale
 
 logger = logging.getLogger("app.worker")
@@ -52,16 +51,32 @@ class DailySchedule:
         return last_completed is None or self.completed_through(now) > last_completed
 
 
+@dataclass(frozen=True)
+class IntradaySchedule:
+    """Prices and NBP rates during the trading day: weekdays between `start` and `end` local time, every `every`."""
+    start: dt.time
+    end: dt.time
+    every: dt.timedelta
+    zone: ZoneInfo
+
+    def is_due(self, now: dt.datetime, last: dt.datetime | None) -> bool:
+        local = now.astimezone(self.zone)
+        in_session = local.weekday() < 5 and self.start <= local.time() <= self.end
+        return in_session and (last is None or now - last >= self.every)
+
+
 @dataclass
 class WorkerState:
     last_completed: dt.date | None = None
+    last_intraday: dt.datetime | None = None  # the evening run counts too: prices are fresh after it
 
 
 def tick(
-    db: Session, providers: MarketProviders, schedule: DailySchedule, state: WorkerState, now: dt.datetime
-) -> Literal["daily", "backfill"]:
+    db: Session, providers: MarketProviders, schedule: DailySchedule, state: WorkerState, now: dt.datetime,
+    intraday: IntradaySchedule | None = None,
+) -> Literal["daily", "intraday", "backfill"]:
     today = now.astimezone(schedule.zone).date()
-    result: Literal["daily", "backfill"]
+    result: Literal["daily", "intraday", "backfill"]
     if schedule.is_due(now, state.last_completed):
         summary = run_market_update(db, providers, now, today)
         mark_market_changes(db, summary.prices_changed_from, summary.fx_changed_from)
@@ -72,8 +87,20 @@ def tick(
         pruned = prune_refresh_tokens(db, now)
         db.commit()
         state.last_completed = schedule.completed_through(now)
+        state.last_intraday = now
         logger.info("Daily market update done: %s; pruned %d refresh tokens", summary, pruned)
         result = "daily"
+    elif intraday is not None and intraday.is_due(now, state.last_intraday):
+        prices_from: dict[int, dt.date] = {}
+        fx_from: dict[str, dt.date] = {}
+        rows, failed = update_all_prices(db, providers.prices, now, prices_from)
+        fx_rows, failed_fx = update_fx(db, providers.fx, today, fx_from)
+        mark_market_changes(db, prices_from, fx_from)
+        db.commit()
+        state.last_intraday = now
+        logger.info("Intraday refresh: %d price rows (failed: %s), %d FX rows (failed: %s)",
+                    rows, failed, fx_rows, failed_fx)
+        result = "intraday"
     else:
         changed: dict[int, dt.date] = {}
         rows, failed = backfill_new_instruments(db, providers.prices, now, changed)
@@ -123,14 +150,6 @@ def wait_for_schema(engine: Engine, stop: threading.Event, poll_seconds: float =
     return False
 
 
-def build_providers(client: httpx.Client) -> MarketProviders:
-    return MarketProviders(
-        prices=YahooPriceProvider(client),
-        fx=NbpFxProvider(client),
-        inflation=GusInflationProvider(client),
-        ref_rates=NbpRefRateProvider(client),
-    )
-
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -140,14 +159,19 @@ def main() -> None:
         signal.signal(signum, lambda *_: stop.set())
     if not wait_for_schema(get_engine(), stop):
         return
-    schedule = DailySchedule(dt.time.fromisoformat(settings.market_daily_at), ZoneInfo(settings.market_timezone))
+    zone = ZoneInfo(settings.market_timezone)
+    schedule = DailySchedule(dt.time.fromisoformat(settings.market_daily_at), zone)
+    intraday = IntradaySchedule(
+        dt.time.fromisoformat(settings.market_intraday_from), dt.time.fromisoformat(settings.market_intraday_to),
+        dt.timedelta(minutes=settings.market_intraday_minutes), zone,
+    )
     state = WorkerState()
     logger.info("Worker started: daily update at %s %s", settings.market_daily_at, settings.market_timezone)
     with make_client() as client:
         providers = build_providers(client)
         run_forever(
             get_sessionmaker(),
-            lambda db, now: tick(db, providers, schedule, state, now),
+            lambda db, now: tick(db, providers, schedule, state, now, intraday),
             settings.worker_poll_seconds,
             stop,
         )

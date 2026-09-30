@@ -11,8 +11,8 @@ from sqlalchemy.orm import Session
 
 from app.auth.maintenance import prune_refresh_tokens
 from app.models import Cpi, Instrument, Price, RefreshToken, User
-from app.worker import DailySchedule, WorkerState, run_forever, schema_is_current, tick
-from tests.market_fakes import fake_providers
+from app.worker import DailySchedule, IntradaySchedule, WorkerState, run_forever, schema_is_current, tick
+from tests.market_fakes import FakeInflation, fake_providers
 from tests.test_market_update import _reference
 
 WARSAW = ZoneInfo("Europe/Warsaw")
@@ -119,3 +119,52 @@ def test_run_forever_survives_a_failing_iteration(caplog: pytest.LogCaptureFixtu
 
 def test_schema_is_current_on_migrated_database(engine: Engine) -> None:
     assert schema_is_current(engine) is True
+
+
+INTRADAY = IntradaySchedule(start=dt.time(9, 0), end=dt.time(22, 30), every=dt.timedelta(minutes=30), zone=WARSAW)
+SATURDAY = DAY + dt.timedelta(days=1)
+
+
+@pytest.mark.parametrize(
+    ("now", "last", "due"),
+    [
+        (_at(10), None, True),
+        (_at(10, 20), _at(10), False),
+        (_at(10, 31), _at(10), True),
+        (_at(12, 0, SATURDAY), None, False),
+        (_at(22, 45), None, False),
+        (_at(8, 50), None, False),
+    ],
+    ids=["weekday", "too-soon", "half-hour-later", "saturday", "after-22-30", "before-9"],
+)
+def test_intraday_schedule_is_due(now: dt.datetime, last: dt.datetime | None, due: bool) -> None:
+    assert INTRADAY.is_due(now, last) is due
+
+
+class CountingInflation(FakeInflation):
+    def __init__(self) -> None:
+        super().__init__()
+        self.calls = 0
+
+    def cpi(self):  # noqa: ANN201 — the fake's own return type
+        self.calls += 1
+        return super().cpi()
+
+
+def test_prices_and_rates_refresh_every_half_hour_during_the_day(db: Session) -> None:
+    instrument = Instrument(xtb_ticker="SXR8.DE", name="Core S&P 500")
+    db.add(instrument)
+    db.flush()
+    _reference(db, instrument)
+    inflation = CountingInflation()
+    providers = fake_providers(inflation=inflation)
+    state = WorkerState()
+
+    assert tick(db, providers, SCHEDULE, state, _at(10), INTRADAY) == "daily"  # the evening run caught up on start
+    assert state.last_intraday == _at(10)
+    assert tick(db, providers, SCHEDULE, state, _at(10, 5), INTRADAY) == "backfill"
+    fetches = len(providers.prices.calls)
+    assert tick(db, providers, SCHEDULE, state, _at(10, 31), INTRADAY) == "intraday"
+    assert len(providers.prices.calls) == fetches + 1
+    assert inflation.calls == 1  # inflation only in the evening run
+    assert tick(db, providers, SCHEDULE, state, _at(23, 0), INTRADAY) == "daily"

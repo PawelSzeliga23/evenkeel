@@ -39,6 +39,8 @@ export interface Summary {
   by_kind: Allocation[];
   approximate_positions: number;
   recalculating: boolean;
+  /** When the prices of the user's instruments were last checked; null without instruments. */
+  prices_refreshed_at: string | null;
 }
 
 export interface HistoryPoint { date: IsoDate; value_pln: Money; invested_pln: Money; net_flow_pln: Money; twr_pct: Money | null }
