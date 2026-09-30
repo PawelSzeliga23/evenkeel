@@ -28,7 +28,11 @@
     grid-template-columns: none; grid-auto-rows: min-content; align-content: start; gap: 4px;
     padding: 28px 16px; border-top: 0; border-right: 1px solid var(--rule); background: var(--night);
   }
-  .item { grid-auto-flow: column; justify-content: start; gap: 12px; font-size: 14px; padding: 0 10px; border-radius: var(--r-control); }
+  .item {
+    grid-auto-flow: column; justify-content: start; justify-items: start; align-items: center;
+    gap: 12px; font-size: 14px; padding: 0 10px; border-radius: var(--r-control);
+  }
+  .item > svg, .item > .plus { display: block; flex: none; }
   .item[aria-current="page"] { background: var(--amber-soft); }
   .plus { width: 30px; height: 26px; }
   .main { padding-top: 32px; padding-bottom: 48px; }
