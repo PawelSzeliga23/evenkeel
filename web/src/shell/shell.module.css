@@ -16,6 +16,7 @@
   color: var(--dim); font-size: 11px; font-weight: 500;
 }
 .item[aria-current="page"] { color: var(--amber); }
+.sidebarBrand { display: none; }
 .plus {
   width: 42px; height: 30px; border-radius: 10px; background: var(--amber); color: var(--night);
   display: grid; place-items: center;
@@ -35,5 +36,6 @@
   .item > svg { display: block; flex: none; }
   .item[aria-current="page"] { background: var(--amber-soft); }
   .plus { width: 30px; height: 26px; }
+  .sidebarBrand { display: block; padding: 0 10px 20px; }
   .main { padding-top: 32px; padding-bottom: 48px; }
 }

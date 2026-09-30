@@ -7,7 +7,8 @@
   padding: calc(24px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom));
 }
 .form { width: min(100%, 380px); display: grid; gap: 16px; }
-.title { font-size: 30px; font-weight: 600; letter-spacing: -.02em; }
+.title { font-size: 30px; font-weight: 600; letter-spacing: -.02em; justify-self: center; }
+.brand { justify-self: center; margin-bottom: 8px; }
 .lead { color: var(--dim); margin-top: -8px; }
 .field { display: grid; gap: 6px; font-size: 14px; color: var(--dim); }
 .field input {

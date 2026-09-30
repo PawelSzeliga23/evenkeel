@@ -42,6 +42,9 @@ describe("settings screen", () => {
     expect(await within(accounts).findByRole("link", { name: /IKE.*Rachunek maklerski/ })).toHaveAttribute("href", "/ustawienia/konta/1");
     expect(await screen.findByText("1 instrument wymaga uwagi.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Zobacz źródła cen" })).toHaveAttribute("href", "/ustawienia/zrodla-cen");
+    const about = screen.getByRole("region", { name: "O aplikacji" });
+    expect(within(about).getByRole("img", { name: "Evenkeel" })).toBeInTheDocument();
+    expect(within(about).getByText("Wersja 0.1.0")).toBeInTheDocument();
   });
 
   it("signs out to the login screen", async () => {

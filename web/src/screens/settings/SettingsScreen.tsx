@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router";
 import { api } from "../../api/endpoints";
 import { keys } from "../../api/queryKeys";
 import { useSession } from "../../auth/session";
+import { Logo } from "../../brand/Logo";
 import { ListRow } from "../../ui/ListRow";
 import { ErrorState, Skeleton } from "../../ui/States";
 import ui from "../../ui/ui.module.css";
@@ -51,6 +52,11 @@ export function SettingsScreen() {
           : instruments.isError ? <ErrorState error={instruments.error} onRetry={() => void instruments.refetch()} />
           : <p>{problemsSummary(instruments.data)}</p>}
         <Link className={`${ui.secondary} ${styles.start}`} to="/ustawienia/zrodla-cen">Zobacz źródła cen</Link>
+      </section>
+
+      <section className={styles.about} aria-label="O aplikacji">
+        <Logo layout="inline" />
+        <small className="dim">Wersja {__APP_VERSION__}</small>
       </section>
     </div>
   );

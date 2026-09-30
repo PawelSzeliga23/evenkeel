@@ -4,9 +4,9 @@ import { pwaOptions } from "./pwa.config";
 describe("PWA", () => {
   const manifest = pwaOptions.manifest as Record<string, unknown> & { icons: { sizes: string; purpose?: string }[] };
 
-  it("installs as a standalone dark app named Portfel", () => {
+  it("installs as a standalone dark app named Evenkeel", () => {
     expect(manifest).toMatchObject({
-      name: "Portfel", short_name: "Portfel", lang: "pl", display: "standalone", start_url: "/",
+      name: "Evenkeel", short_name: "Evenkeel", lang: "pl", display: "standalone", start_url: "/",
       background_color: "#0E1116", theme_color: "#0E1116",
     });
   });

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
 import { ApiError } from "../api/client";
 import { errorMessage } from "../api/messages";
+import { Logo } from "../brand/Logo";
 import styles from "./AuthScreens.module.css";
 import { useSession } from "./session";
 
@@ -46,6 +47,7 @@ export function RegisterScreen() {
   return (
     <main className={styles.screen}>
       <form className={styles.form} onSubmit={submit} noValidate>
+        <div className={styles.brand}><Logo layout="stacked" /></div>
         <h1 className={styles.title}>Załóż konto</h1>
         <p className={styles.lead}>Twoje dane widzisz tylko ty.</p>
         <div className={styles.field}>

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useLocation } from "react-router";
 import { errorMessage } from "../api/messages";
+import { Logo } from "../brand/Logo";
 import styles from "./AuthScreens.module.css";
 import { useSession } from "./session";
 
@@ -29,7 +30,7 @@ export function LoginScreen() {
   return (
     <main className={styles.screen}>
       <form className={styles.form} onSubmit={submit} noValidate>
-        <h1 className={styles.title}>Portfel</h1>
+        <h1 className={styles.title}><Logo layout="stacked" /></h1>
         <p className={styles.lead}>Zaloguj się, żeby zobaczyć swój portfel.</p>
         {expired && <p className={styles.notice} role="status">Sesja wygasła, zaloguj się ponownie.</p>}
         {offlineLogout && (

@@ -2,6 +2,7 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+import pkg from "./package.json";
 import { pwaOptions } from "./pwa.config";
 
 // The API runs in docker on :8000 (e2e: its own instance, API_TARGET=http://localhost:8001). Proxying /api keeps the
@@ -9,6 +10,7 @@ import { pwaOptions } from "./pwa.config";
 const apiTarget = process.env.API_TARGET ?? "http://localhost:8000";
 
 export default defineConfig(({ mode }) => ({
+  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   plugins: [react(), ...(mode === "test" ? [] : [VitePWA(pwaOptions)])],
   server: { port: 5173, proxy: { "/api": { target: apiTarget } } },
   preview: { proxy: { "/api": { target: apiTarget } } },
