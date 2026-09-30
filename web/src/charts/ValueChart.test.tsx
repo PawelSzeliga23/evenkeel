@@ -47,4 +47,63 @@ describe("ValueChart", () => {
     render(<ValueChart points={TWO} view={{ from: 20, to: 29 }} />);
     expect(screen.getByRole("img", { name: "Wykres wartości portfela od 01.09.2026 do 26.09.2026" })).toBeInTheDocument();
   });
+
+  const rect = { left: 0, width: 350, top: 0, height: 190 } as DOMRect;
+
+  it("zooms with Ctrl and the wheel around the pointer", () => {
+    const onViewChange = vi.fn();
+    render(<ValueChart points={MONTH} onViewChange={onViewChange} />);
+    const svg = screen.getByRole("img");
+    vi.spyOn(svg, "getBoundingClientRect").mockReturnValue(rect);
+
+    fireEvent.wheel(svg, { ctrlKey: true, deltaY: -200, clientX: 153 });
+
+    const view = onViewChange.mock.calls[0]![0] as { from: number; to: number };
+    expect(view.to - view.from).toBeLessThan(29);
+    expect(view.from).toBeGreaterThan(0);
+    expect(view.to).toBeLessThan(29);
+  });
+
+  it("scrolls the page on a plain wheel and says how to zoom", () => {
+    const onViewChange = vi.fn();
+    render(<ValueChart points={MONTH} onViewChange={onViewChange} />);
+
+    fireEvent.wheel(screen.getByRole("img"), { deltaY: 100 });
+
+    expect(onViewChange).not.toHaveBeenCalled();
+    expect(screen.getByText("Ctrl + kółko przybliża")).toBeInTheDocument();
+  });
+
+  it("goes back to the range on a double click", () => {
+    const onReset = vi.fn();
+    render(<ValueChart points={MONTH} view={{ from: 10, to: 20 }} onReset={onReset} />);
+
+    fireEvent.doubleClick(screen.getByRole("img"));
+
+    expect(onReset).toHaveBeenCalledOnce();
+  });
+
+  it("pans when the mouse drags, but a plain click does not change the window", () => {
+    const onViewChange = vi.fn();
+    render(<ValueChart points={MONTH} view={{ from: 10, to: 20 }} onViewChange={onViewChange} />);
+    const svg = screen.getByRole("img");
+    vi.spyOn(svg, "getBoundingClientRect").mockReturnValue(rect);
+
+    fireEvent.pointerDown(svg, { pointerId: 1, pointerType: "mouse", button: 0, clientX: 150 });
+    fireEvent.pointerMove(svg, { pointerId: 1, pointerType: "mouse", clientX: 151 });
+    fireEvent.pointerUp(svg, { pointerId: 1, pointerType: "mouse", clientX: 151 });
+    expect(onViewChange).not.toHaveBeenCalled();
+
+    fireEvent.pointerDown(svg, { pointerId: 1, pointerType: "mouse", button: 0, clientX: 150 });
+    fireEvent.pointerMove(svg, { pointerId: 1, pointerType: "mouse", clientX: 200 });
+    const view = onViewChange.mock.calls.at(-1)![0] as { from: number; to: number };
+    expect(view.from).toBeLessThan(10);
+  });
+
+  it("does nothing on a history shorter than a week", () => {
+    const onViewChange = vi.fn();
+    render(<ValueChart points={TWO} onViewChange={onViewChange} />);
+    fireEvent.wheel(screen.getByRole("img"), { ctrlKey: true, deltaY: -200, clientX: 150 });
+    expect(onViewChange.mock.calls.every(([view]) => view.from === 0 && view.to === 1)).toBe(true);
+  });
 });

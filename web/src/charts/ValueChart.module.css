@@ -1,4 +1,4 @@
-.chart { margin: 0; display: grid; gap: 8px; }
+.chart { position: relative; margin: 0; display: grid; gap: 8px; }
 .svg { width: 100%; height: auto; display: block; overflow: visible; touch-action: pan-y; }
 .readout {
   display: flex; flex-wrap: wrap; align-content: flex-start; gap: 2px 16px; height: 40px; overflow: hidden;
@@ -19,6 +19,11 @@
   stroke-dasharray: 1; stroke-dashoffset: 0;
 }
 .cursor { stroke: var(--ink); stroke-opacity: .35; stroke-width: 1; }
+.hint {
+  position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 1; margin: 0; pointer-events: none;
+  padding: 6px 12px; border-radius: var(--r-control); background: var(--slab); border: 1px solid var(--rule);
+  color: var(--ink); font-size: 13px; white-space: nowrap;
+}
 .note { color: var(--dim); font-size: 14px; padding: 24px 0; }
 
 @media (prefers-reduced-motion: no-preference) {

@@ -6,6 +6,7 @@ import {
   toChartPoints,
 } from "./geometry";
 import { timeTicks } from "./timeTicks";
+import { useChartGestures } from "./useChartGestures";
 import { clampWindow, drawnRange, fullWindow, type ChartWindow } from "./viewport";
 import styles from "./ValueChart.module.css";
 
@@ -24,7 +25,7 @@ function useWidth(element: HTMLElement | null): number {
   return width;
 }
 
-export function ValueChart({ points, view: requested }: {
+export function ValueChart({ points, view: requested, onViewChange, onReset }: {
   points: HistoryPoint[];
   view?: ChartWindow;
   onViewChange?: (view: ChartWindow) => void;
@@ -36,13 +37,18 @@ export function ValueChart({ points, view: requested }: {
   const [figure, setFigure] = useState<HTMLElement | null>(null);
   const width = useWidth(figure);
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const frame = frameFor(width);
+  const view = clampWindow(requested ?? fullWindow(data.length), data.length);
+  const gestures = useChartGestures({
+    view, count: data.length, frame,
+    onChange: (next) => { setActive(null); onViewChange?.(next); },
+    onReset: () => onReset?.(),
+  });
 
   if (data.length < 2) {
     return <p className={styles.note}>Wykres pojawi się, gdy wycena obejmie co najmniej dwa dni.</p>;
   }
 
-  const frame = frameFor(width);
-  const view = clampWindow(requested ?? fullWindow(data.length), data.length);
   const { start, end } = drawnRange(view, data.length);
   const drawn = data.slice(start, end + 1);
   const s = scales(drawn, frame, { from: view.from - start, to: view.to - start });
@@ -64,6 +70,7 @@ export function ValueChart({ points, view: requested }: {
 
   return (
     <figure className={styles.chart} ref={setFigure}>
+      {gestures.hint && <p className={styles.hint} role="status">Ctrl + kółko przybliża</p>}
       <div className={styles.readout} aria-live="polite">
         {shown ? (
           <>
@@ -84,9 +91,13 @@ export function ValueChart({ points, view: requested }: {
         viewBox={`0 0 ${frame.width} ${frame.height}`}
         role="img"
         aria-label={`Wykres wartości portfela od ${formatDate(points[firstShown]!.date)} do ${formatDate(points[lastShown]!.date)}`}
-        onPointerMove={track}
-        onPointerDown={track}
+        ref={gestures.ref}
+        onPointerDown={(event) => { if (!gestures.onPointerDown(event)) track(event); }}
+        onPointerMove={(event) => { if (!gestures.onPointerMove(event)) track(event); }}
+        onPointerUp={gestures.onPointerUp}
+        onPointerCancel={gestures.onPointerUp}
         onPointerLeave={() => setActive(null)}
+        onDoubleClick={gestures.onDoubleClick}
       >
         <defs>
           <clipPath id={`plot-${id}`}><rect x={frame.left} y={0} width={plotRight - frame.left} height={frame.height} /></clipPath>
