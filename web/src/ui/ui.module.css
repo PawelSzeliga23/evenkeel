@@ -6,7 +6,8 @@
 .page { display: grid; gap: 24px; }
 .pageTitle { font-size: 26px; font-weight: 600; letter-spacing: -.02em; }
 .section { display: grid; gap: 12px; }
-.sectionHead { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+/* Always as tall as the 44 px "more" link, so a link appearing or disappearing does not shift the page. */
+.sectionHead { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 44px; }
 .sectionTitle { font-size: 17px; font-weight: 600; }
 .sectionMore { color: var(--dim); font-size: 13px; display: inline-flex; align-items: center; min-height: 44px; }
 .kv { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; margin: 0; }
