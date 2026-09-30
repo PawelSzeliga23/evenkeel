@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 
 from app.valuation.market_data import BASE_CURRENCY, MarketData, Series
+from app.valuation.exit_costs import ExitRules, exit_part
 
 ZERO = Decimal(0)
 ONE = Decimal(1)
@@ -130,6 +131,7 @@ class LotView:
     value_pln: Decimal
     price_effect_pln: Decimal
     fx_effect_pln: Decimal
+    exit_cost_pln: Decimal = ZERO  # conversion fee + manual spread of this lot, grosze
 
 
 @dataclass(frozen=True)
@@ -145,6 +147,12 @@ class PositionView:
     quote: Quote | None
     lots: tuple[LotView, ...]
     flags: tuple[str, ...]
+    exit_fx_pln: Decimal = ZERO  # Σ lots' conversion fee, grosze
+    exit_spread_pln: Decimal = ZERO  # Σ lots' manual spread, grosze
+
+    @property
+    def exit_cost_pln(self) -> Decimal:
+        return self.exit_fx_pln + self.exit_spread_pln
 
 
 @dataclass(frozen=True)
@@ -162,13 +170,16 @@ class Row:
     flags: tuple[str, ...] = ()
     bond_holding_id: int | None = None
     savings_account_id: int | None = None
+    exit_cost_pln: Decimal = ZERO  # what selling and converting to PLN would cost (value − exit cost = payout)
 
 
 class Book:
     """Replays transactions in date order and keeps lots, cash, external flows, income and sales."""
 
-    def __init__(self, splits: Iterable[Split], market: MarketData, conversions: Iterable[Conversion] = ()) -> None:
+    def __init__(self, splits: Iterable[Split], market: MarketData, conversions: Iterable[Conversion] = (),
+                 exit_rules: ExitRules | None = None) -> None:
         self.market = market
+        self.exit_rules = exit_rules or ExitRules()
         self.splits: dict[int, list[Split]] = defaultdict(list)
         for split in splits:
             self.splits[split.instrument_id].append(split)
@@ -320,6 +331,15 @@ class Book:
         parts = [(lot, lot.quantity if whole else lot.quantity * share) for lot in list(lots.values())]
         return sum((self._take(lots, lot, taken) for lot, taken in parts), ZERO), parts
 
+    def _exit_fractions(self, account_id: int, instrument_id: int, quote: Quote | None) -> tuple[Decimal, Decimal]:
+        """(conversion fee, manual spread) as fractions of the value; none for positions valued from XTB figures,
+        whose value already is XTB's own."""
+        if quote is None or quote.source != SOURCE_PROVIDER:
+            return ZERO, ZERO
+        fee = self.exit_rules.fx_fee(account_id, self.market.currencies.get(instrument_id),
+                                     self.account_currency.get(account_id, BASE_CURRENCY))
+        return fee, self.exit_rules.spread(instrument_id)
+
     def quote(self, account_id: int, instrument_id: int, day: dt.date) -> Quote | None:
         """Provider close × NBP rate; without either, the newest XTB figure on or before `day`: a trade of this
         account (PLN per unit, costs included) or the Open Positions value per unit of an import."""
@@ -354,8 +374,9 @@ class Book:
             return None
         quote = self.quote(account_id, instrument_id, day)
         factor = self.factor(instrument_id, day)
+        fee, spread = self._exit_fractions(account_id, instrument_id, quote)
         views: list[LotView] = []
-        quantity = value_total = cost_total = fx_total = ZERO
+        quantity = value_total = cost_total = fx_total = exit_fx_total = exit_spread_total = ZERO
         for lot in lots.values():
             value = lot.quantity * quote.unit_pln if quote else ZERO
             fx_effect = ZERO
@@ -366,24 +387,31 @@ class Book:
                 (lot.cost_pln * factor / (lot.quantity * lot.fx_open)).quantize(PRICE_PLACES, rounding=ROUND_HALF_UP)
                 if lot.fx_open else None
             )
+            exit_fx, exit_spread = exit_part(value, fee), exit_part(value, spread)
             views.append(LotView(lot.position_id, lot.opened_on, lot.quantity / factor, open_price,
-                                 *_effects(value, lot.cost_pln, fx_effect)))
+                                 *_effects(value, lot.cost_pln, fx_effect), exit_fx + exit_spread))
             quantity += lot.quantity
             value_total += value
             cost_total += lot.cost_pln
             fx_total += fx_effect
+            exit_fx_total += exit_fx
+            exit_spread_total += exit_spread
         flags = () if quote is not None and quote.source == SOURCE_PROVIDER else (FLAG_XTB_PRICE,)
         if self.market.rate(self.account_currency.get(account_id, BASE_CURRENCY), day) is None:
             flags += (FLAG_FX_MISSING,)  # the cost (and any XTB figure) could not be converted to PLN
         return PositionView(account_id, instrument_id, day, quantity / factor,
-                            *_effects(value_total, cost_total, fx_total), quote, tuple(views), flags)
+                            *_effects(value_total, cost_total, fx_total), quote, tuple(views), flags,
+                            exit_fx_total, exit_spread_total)
 
     def cash_row(self, account_id: int, day: dt.date) -> Row:
         cash = self.cash[account_id]
-        rate = self.market.rate(self.account_currency[account_id], day)
+        currency = self.account_currency[account_id]
+        rate = self.market.rate(currency, day)
         value = money(cash * rate) if rate is not None else ZERO
         flags = () if rate is not None else (FLAG_FX_MISSING,)
-        return Row(account_id, None, day, cash, value, value, money(self.flows.get((account_id, day), ZERO)), flags)
+        exit_cost = exit_part(value, self.exit_rules.fx_fee(account_id, currency))
+        return Row(account_id, None, day, cash, value, value, money(self.flows.get((account_id, day), ZERO)), flags,
+                   exit_cost_pln=exit_cost)
 
     def rows(self, day: dt.date) -> list[Row]:
         result = [self.cash_row(account_id, day) for account_id in sorted(self.cash)]
@@ -391,7 +419,7 @@ class Book:
             view = self.position(account_id, instrument_id, day)
             if view is not None:
                 result.append(Row(account_id, instrument_id, day, view.quantity, view.value_pln, view.cost_pln,
-                                  ZERO, view.flags))
+                                  ZERO, view.flags, exit_cost_pln=view.exit_cost_pln))
         return result
 
     def day_change(self, account_id: int, instrument_id: int, session: dt.date, previous: dt.date) -> Decimal:
@@ -403,7 +431,8 @@ class Book:
         if now is None or before is None:
             return ZERO
         quantity = sum((lot.quantity for lot in lots.values()), ZERO)
-        return money(quantity * (now.unit_pln - before.unit_pln))
+        fee, spread = self._exit_fractions(account_id, instrument_id, now)
+        return money(quantity * (now.unit_pln - before.unit_pln) * (ONE - fee - spread))
 
 
 def _ordered(entries: Iterable[Entry]) -> list[Entry]:
@@ -412,10 +441,10 @@ def _ordered(entries: Iterable[Entry]) -> list[Entry]:
 
 def replay(
     entries: Iterable[Entry], splits: Iterable[Split], market: MarketData, until: dt.date,
-    conversions: Iterable[Conversion] = (),
+    conversions: Iterable[Conversion] = (), exit_rules: ExitRules | None = None,
 ) -> Book:
     """The book after every transaction and conversion dated `until` or earlier."""
-    book = Book(splits, market, conversions)
+    book = Book(splits, market, conversions, exit_rules)
     for entry in _ordered(entries):
         if entry.day > until:
             break
@@ -426,14 +455,14 @@ def replay(
 
 def daily_rows(
     entries: Sequence[Entry], splits: Iterable[Split], market: MarketData, end: dt.date, start: dt.date | None = None,
-    conversions: Iterable[Conversion] = (),
+    conversions: Iterable[Conversion] = (), exit_rules: ExitRules | None = None,
 ) -> list[Row]:
     """Every day from the first transaction (or from `start`, if later) to `end`: a cash row per account and a
     row per open position. Transactions before `start` are still replayed; only their days get no rows."""
     ordered = _ordered(entries)
     if not ordered:
         return []
-    book = Book(splits, market, conversions)
+    book = Book(splits, market, conversions, exit_rules)
     rows: list[Row] = []
     index, day = 0, ordered[0].day
     while day <= end:
