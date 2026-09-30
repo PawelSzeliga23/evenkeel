@@ -1,8 +1,14 @@
 import datetime as dt
+import threading
 from collections.abc import Callable
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import Engine, select
+from sqlalchemy.orm import Session
+
+from app.models import User
+from app.valuation.service import lock_user
 
 LoginAs = Callable[[str], dict[str, str]]
 NEW = {"name": "Konto oszczędnościowe", "wrapper": "regular", "capitalization": "monthly", "annual_rate": "5",
@@ -108,3 +114,28 @@ def test_a_configured_account_without_entries_reads_as_zero(client: TestClient, 
 
     assert (account["flows"], account["capitalizations"], account["summary"]["balance"],
             account["summary"]["current_rate"]) == ([], [], "0.00", None)
+
+
+def test_a_withdrawal_waits_for_another_change_of_the_same_user(
+    client: TestClient, anna: dict, engine: Engine
+) -> None:
+    url = f"/api/savings-accounts/{_create(client, anna)['account_id']}"
+    with Session(engine) as db:
+        user_id = db.scalar(select(User.id).where(User.email == "anna@portfolio.dev"))
+    finished = threading.Event()
+    responses: list = []
+
+    def withdraw() -> None:
+        responses.append(client.post(f"{url}/flows", json={"date": "2026-09-20", "amount": "-6000"}, headers=anna))
+        finished.set()
+
+    with Session(engine) as other:
+        lock_user(other, user_id)  # like a second withdrawal still checking the balance
+        thread = threading.Thread(target=withdraw)
+        thread.start()
+        assert not finished.wait(0.5)  # the balance check waits instead of reading a balance that may change
+        other.commit()
+    thread.join(10)
+
+    assert finished.is_set()
+    assert responses[0].status_code == 201
