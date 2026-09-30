@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useAccountSelection } from "../../accounts/AccountSelection";
@@ -6,7 +6,8 @@ import { api } from "../../api/endpoints";
 import { keys } from "../../api/queryKeys";
 import type { Summary } from "../../api/types";
 import { ValueChart } from "../../charts/ValueChart";
-import { formatDayLong, formatMoney, formatPercent, pluralPl, signOf, sumMoney } from "../../format";
+import { formatDayLong, formatMoney, formatRefreshed, formatPercent, pluralPl, signOf, sumMoney } from "../../format";
+import { RefreshIcon } from "../../shell/icons";
 import { AccountSelect } from "../../ui/AccountPicker";
 import { HeroAmount, Money } from "../../ui/Amount";
 import { LimitsCard } from "../limits/LimitsCard";
@@ -56,11 +57,29 @@ export function DashboardScreen() {
     wasRecalculating.current = recalculating;
   }, [recalculating, queryClient]);
 
+  // Fetch current prices now; the summary then reports the recalculation and the rest follows as above.
+  const refresh = useMutation({
+    mutationFn: api.refreshPrices,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.portfolio }),
+  });
+  const refreshedAt = summary.data?.prices_refreshed_at ?? null;
+
   const header = (
-    <div className={styles.bar}>
-      {accounts.data ? <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} /> : <span />}
-      {asOf && <span className="dim">{formatDayLong(asOf)}</span>}
-    </div>
+    <>
+      <div className={styles.bar}>
+        {accounts.data ? <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} /> : <span />}
+        {refreshedAt ? (
+          <span className={styles.refreshed}>
+            <span className="dim">{formatRefreshed(refreshedAt)}</span>
+            <button type="button" className={styles.refresh} aria-label="Odśwież ceny" disabled={refresh.isPending}
+              data-spinning={refresh.isPending || recalculating} onClick={() => refresh.mutate()}>
+              <RefreshIcon />
+            </button>
+          </span>
+        ) : asOf && <span className="dim">{formatDayLong(asOf)}</span>}
+      </div>
+      {refresh.isError && <p role="alert" className={styles.refreshError}>Nie udało się odświeżyć cen. Spróbuj ponownie.</p>}
+    </>
   );
 
   if (summary.isPending) return <div className={ui.page}>{header}<Skeleton chart rows={4} /></div>;

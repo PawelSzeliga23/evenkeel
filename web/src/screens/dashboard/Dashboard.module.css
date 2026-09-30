@@ -15,3 +15,14 @@
 .dot { width: 9px; height: 9px; border-radius: 3px; }
 .allocAmount { display: grid; text-align: right; }
 .allocAmount small { font-size: 12.5px; }
+.refreshed { display: inline-flex; align-items: center; gap: 2px; }
+.refresh {
+  display: grid; place-items: center; width: 44px; height: 44px; margin-right: -12px;
+  background: none; border: 0; border-radius: 999px; color: var(--dim); cursor: pointer;
+}
+.refresh:hover { color: var(--amber); }
+.refresh:disabled { cursor: default; }
+.refresh[data-spinning="true"] svg { animation: spin 1s linear infinite; color: var(--amber); }
+.refreshError { color: var(--loss); font-size: 13px; margin-top: -8px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .refresh[data-spinning="true"] svg { animation: none; } }

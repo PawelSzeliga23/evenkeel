@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addMonths, formatDate, formatDateTime, formatDayLong, formatDays, formatDecimal, formatMoney, formatPercent,
-  fromCents, moneyParts, monthShort, signOf, sumMoney, toCents, todayIso, NBSP,
+  formatRefreshed, fromCents, moneyParts, monthShort, signOf, sumMoney, toCents, todayIso, NBSP,
 } from ".";
 
 const S = "\u00a0";
@@ -89,5 +89,14 @@ describe("dates", () => {
     expect(addMonths("2026-03-31", -1)).toBe("2026-02-28");
     expect(addMonths("2026-01-15", -12)).toBe("2025-01-15");
     expect(todayIso(new Date(2026, 8, 28, 23, 59))).toBe("2026-09-28");
+  });
+});
+
+describe("price refresh time", () => {
+  it("shows the local day and time of the last refresh", () => {
+    const iso = "2026-09-30T12:32:00Z";
+    const local = new Date(iso);
+    const time = `${String(local.getHours()).padStart(2, "0")}:${String(local.getMinutes()).padStart(2, "0")}`;
+    expect(formatRefreshed(iso)).toBe(`${formatDayLong(todayIso(local))}, ${time}`);
   });
 });

@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { NETWORK_MESSAGE } from "../../api/client";
 import { pluralPl } from "../../format";
 import { ACCOUNTS, EXPOSURE, HISTORY, LIMITS, POSITIONS, SUMMARY, position } from "../../test/fixtures";
-import { SIGNED_IN, mockFetch, renderApp, type MockRoute } from "../../test/render";
+import { SIGNED_IN, json, mockFetch, renderApp, type MockRoute } from "../../test/render";
+import { formatRefreshed } from "../../format";
 import { allocationRows, dayMovers, rangeFrom } from "./model";
 
 // Testing Library normalizes NBSP to a plain space in text matchers.
@@ -81,7 +82,7 @@ describe("dashboard screen", () => {
     renderApp("/");
 
     expect(await screen.findByText("Wartość portfela")).toBeInTheDocument();
-    expect(screen.getByText("sob., 26 września")).toBeInTheDocument();
+    expect(screen.getByText(formatRefreshed(SUMMARY.prices_refreshed_at!))).toBeInTheDocument();
     expect(screen.getByText(`+1${T}204,50${T}zł`)).toHaveClass("up");
     expect(screen.getByText(`(+0,66${T}%)`)).toBeInTheDocument();
     expect(screen.getByText(`+14,2${T}%`)).toBeInTheDocument();
@@ -184,5 +185,44 @@ describe("dashboard screen", () => {
     expect(screen.getByText("Wartość portfela")).toBeInTheDocument(); // no skeleton in between
     release();
     expect(await screen.findByText(/120/)).toBeInTheDocument();
+  });
+});
+
+describe("price refresh", () => {
+  it("shows when prices were refreshed and refreshes them on request", async () => {
+    let summaries = 0;
+    const fetchMock = mockFetch([
+      { method: "POST", path: "/api/portfolio/refresh", respond: () => ({ refreshed_at: "2026-09-26T20:05:00Z", fetched: true }) },
+      ...routes({ summary: () => { summaries += 1; return SUMMARY; } }),
+    ]);
+    const { user } = renderApp("/");
+
+    expect(await screen.findByText(formatRefreshed(SUMMARY.prices_refreshed_at!))).toBeInTheDocument();
+    const before = summaries;
+    await user.click(screen.getByRole("button", { name: "Odśwież ceny" }));
+
+    await waitFor(() => expect(summaries).toBeGreaterThan(before));
+    expect(fetchMock.mock.calls.some(([url, init]) => String(url) === "/api/portfolio/refresh" && init?.method === "POST")).toBe(true);
+  });
+
+  it("says when the refresh failed and keeps the numbers", async () => {
+    mockFetch([
+      { method: "POST", path: "/api/portfolio/refresh", respond: () => json(500, { code: "x", message: "y", details: {} }) },
+      ...routes(),
+    ]);
+    const { user } = renderApp("/");
+
+    await user.click(await screen.findByRole("button", { name: "Odśwież ceny" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Nie udało się odświeżyć cen. Spróbuj ponownie.");
+    expect(screen.getByText("Wartość portfela")).toBeInTheDocument();
+  });
+
+  it("shows only the valuation day without instruments to refresh", async () => {
+    mockFetch(routes({ summary: () => ({ ...SUMMARY, prices_refreshed_at: null }) }));
+    renderApp("/");
+
+    expect(await screen.findByText("sob., 26 września")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Odśwież ceny" })).not.toBeInTheDocument();
   });
 });
