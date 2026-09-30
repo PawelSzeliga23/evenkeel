@@ -1,0 +1,5 @@
+.word { font-weight: 600; font-size: 26px; line-height: 1; letter-spacing: -.01em; color: var(--ink); }
+.keel { color: var(--amber); }
+.small { font-size: 17px; }
+.stacked { display: inline-grid; justify-items: center; gap: 14px; }
+.inline { display: inline-flex; align-items: center; gap: 10px; }
