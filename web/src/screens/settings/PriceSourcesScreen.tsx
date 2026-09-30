@@ -18,11 +18,14 @@ const SAVED = "Zapisano. Ceny pobiorę przy najbliższej aktualizacji.";
 const SPREAD_SAVED = "Zapisano. Wycena przeliczy się w tle.";
 const SPREAD_RANGE = "Podaj spread od 0 do 5 %.";
 
+// The backend treats a zero spread as no spread, so the UI does too.
+const hasSpread = (value: string | null): value is string => value !== null && /[1-9]/.test(value);
+
 function symbolLine(instrument: Instrument): string {
   const symbol = instrument.price_symbol
     ? `Yahoo: ${instrument.price_symbol}${instrument.price_symbol_overridden ? " (ręczny)" : ""}`
     : "Brak symbolu w Yahoo";
-  const spread = instrument.spread_pct ? ` · spread ${formatDecimal(instrument.spread_pct, 4)} %` : "";
+  const spread = hasSpread(instrument.spread_pct) ?` · spread ${formatDecimal(instrument.spread_pct, 4)} %` : "";
   if (instrument.price_error) return symbol + spread;
   return (instrument.last_price_date ? `${symbol} · ostatnia cena ${formatDate(instrument.last_price_date)}` : `${symbol} · jeszcze bez cen`) + spread;
 }
@@ -35,7 +38,7 @@ function symbolError(error: unknown): string {
 
 function SpreadForm({ instrument }: { instrument: Instrument }) {
   const queryClient = useQueryClient();
-  const [text, setText] = useState(instrument.spread_pct ? formatDecimal(instrument.spread_pct, 4) : "");
+  const [text, setText] = useState(hasSpread(instrument.spread_pct) ?formatDecimal(instrument.spread_pct, 4) : "");
   const [error, setError] = useState<string | null>(null);
   const save = useMutation({
     mutationFn: (value: string | null) => api.updateInstrument(instrument.id, { spread_pct: value }),

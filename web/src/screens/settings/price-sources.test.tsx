@@ -117,4 +117,13 @@ describe("price sources", () => {
 
     expect(await screen.findByText(/spread 0,2 %/)).toBeInTheDocument();
   });
+
+  it("treats a zero spread as none: no spread text and an empty field", async () => {
+    mockFetch([...SIGNED_IN, { path: "/api/instruments", respond: () => [instrument({ id: 10, spread_pct: "0.0000" })] }]);
+    const { user } = renderApp("/ustawienia/zrodla-cen");
+
+    await user.click(await screen.findByRole("button", { name: /SXR8\.DE/ }));
+    expect(screen.queryByText(/spread \d/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Spread (%)")).toHaveValue("");
+  });
 });
