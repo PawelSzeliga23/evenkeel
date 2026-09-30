@@ -118,7 +118,19 @@ describe("dashboard screen", () => {
     const urls = fetchMock.mock.calls.map(([url]) => String(url));
     expect(urls).toContain("/api/portfolio/summary?account_id=1");
     expect(urls).toContain("/api/portfolio/exposure?account_id=1&from=2026-09-26&to=2026-09-26");
-    expect(urls.some((u) => u.startsWith("/api/portfolio/history?account_id=1&from=2025-09-26"))).toBe(true);
+    expect(urls).toContain("/api/portfolio/history?account_id=1");
+  });
+
+  it("changes the chart range without asking the API again", async () => {
+    let histories = 0;
+    mockFetch(routes({ history: () => { histories += 1; return HISTORY; } }));
+    const { user } = renderApp("/");
+
+    await screen.findByRole("img", { name: /Wykres wartości portfela/ });
+    await user.click(screen.getByRole("button", { name: "1M" }));
+
+    expect(screen.getByRole("button", { name: "1M" })).toHaveAttribute("aria-pressed", "true");
+    expect(histories).toBe(1);
   });
 
   it("keeps asking while the valuation is recalculated and then refreshes the chart", async () => {
