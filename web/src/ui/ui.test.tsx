@@ -86,6 +86,15 @@ describe("controls", () => {
     await userEvent.click(screen.getByText("obok"));
     expect(screen.queryByRole("group", { name: "Wybór kont" })).not.toBeInTheDocument();
   });
+
+  it("closes when focus tabs out of the control", async () => {
+    render(<><AccountSelect accounts={THREE} value={[]} onChange={() => {}} /><button type="button">dalej</button></>);
+    await userEvent.click(screen.getByRole("button", { name: "Konta: Cały portfel" }));
+    screen.getByRole("checkbox", { name: "Oszczędności" }).focus();
+    await userEvent.tab();
+    expect(screen.getByRole("button", { name: "dalej" })).toHaveFocus();
+    expect(screen.queryByRole("group", { name: "Wybór kont" })).not.toBeInTheDocument();
+  });
 });
 
 describe("states and rows", () => {

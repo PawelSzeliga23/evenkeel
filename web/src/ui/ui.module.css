@@ -23,7 +23,7 @@
 }
 .segmented button[aria-pressed="true"] { background: var(--amber-soft); color: var(--amber); }
 
-.select { position: relative; display: inline-flex; max-width: 100%; }
+.select { position: relative; display: inline-flex; max-width: 100%; min-width: 0; }
 .selectButton {
   display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-height: 44px; padding: 0 14px;
   background: var(--slab); border: 1px solid var(--rule); border-radius: 999px; color: var(--ink);

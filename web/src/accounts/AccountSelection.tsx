@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api } from "../api/endpoints";
 import { keys } from "../api/queryKeys";
 import { normalizeSelection, readSelection, writeSelection } from "./selection";
@@ -14,6 +14,14 @@ export function AccountSelectionProvider({ userId, children }: { userId: number;
   const [stored, setStored] = useState(() => readSelection(userId));
   const known = useMemo(() => accounts.data?.map((account) => account.id) ?? null, [accounts.data]);
   const ids = useMemo(() => normalizeSelection(stored, known), [stored, known]);
+  // Persist what normalization dropped, so a deleted account is not revived by a later new one.
+  useEffect(() => {
+    if (known === null) return;
+    const clean = normalizeSelection(stored, known);
+    if (clean.length === stored.length && clean.every((id, i) => id === stored[i])) return;
+    setStored(clean);
+    writeSelection(userId, clean);
+  }, [stored, known, userId]);
   // A stored choice may name an account deleted meanwhile: wait for the list before asking the API with it.
   const ready = stored.length === 0 || known !== null || accounts.isError;
   const setIds = useCallback((next: readonly number[]) => {

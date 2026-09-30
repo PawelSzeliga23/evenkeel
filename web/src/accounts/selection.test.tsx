@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import type { Account } from "../api/types";
+import { keys } from "../api/queryKeys";
 import { createQueryClient } from "../providers";
 import { ACCOUNTS } from "../test/fixtures";
 import { mockFetch } from "../test/render";
@@ -76,7 +77,7 @@ function renderProbe(userId: number, accounts: () => unknown = () => ACCOUNTS) {
     </QueryClientProvider>
   );
   const utils = render(view(userId));
-  return { ...utils, rerenderFor: (id: number) => utils.rerender(view(id)) };
+  return { ...utils, client, rerenderFor: (id: number) => utils.rerender(view(id)) };
 }
 
 describe("shared selection", () => {
@@ -113,5 +114,22 @@ describe("shared selection", () => {
     writeSelection(7, [1]);
     renderProbe(7, () => new Response(null, { status: 500 }));
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("ready:1"));
+  });
+
+  it("forgets a deleted account for good: a later new account does not revive the old choice", async () => {
+    writeSelection(7, [1, 2]);
+    let list = [1, 2, 3].map((id) => ({ ...ACCOUNTS[0]!, id, name: `K${id}` }));
+    const { client } = renderProbe(7, () => list);
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("ready:1,2"));
+
+    list = list.filter((account) => account.id !== 3);
+    await client.invalidateQueries({ queryKey: keys.accounts });
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/^ready:$/));
+    await waitFor(() => expect(localStorage.getItem(storageKey(7))).toBe("[]"));
+
+    list = [...list, { ...ACCOUNTS[0]!, id: 5, name: "K5" }];
+    await client.invalidateQueries({ queryKey: keys.accounts });
+    await waitFor(() => expect(client.getQueryData<Account[]>(keys.accounts)).toHaveLength(3));
+    expect(screen.getByRole("status")).toHaveTextContent(/^ready:$/);
   });
 });

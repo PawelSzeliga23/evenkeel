@@ -33,7 +33,10 @@ export function AccountSelect({
   }, [open]);
 
   return (
-    <div className={styles.select} ref={root}>
+    <div
+      className={styles.select} ref={root}
+      onBlur={(event) => { if (!root.current?.contains(event.relatedTarget as Node | null)) setOpen(false); }}
+    >
       <button
         ref={button} type="button" className={styles.selectButton} aria-label={`Konta: ${label}`}
         aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((was) => !was)}
