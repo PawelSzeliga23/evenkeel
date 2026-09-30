@@ -42,7 +42,7 @@ function Entry({ title, subtitle, value, detail }: { title: ReactNode; subtitle?
 }
 
 const price = (value: string | null, currency: string | null) =>
-  value === null ? "—" : `${formatDecimal(value, 4)}${currency ? ` ${currency}` : " w walucie instrumentu"}`;
+  value === null ? "—" : `${formatDecimal(value, 4)}${currency ? ` ${currency}` : " w walucie instrumentu"}`;
 
 /** An exit cost (a positive amount) shown as money taken away. */
 const minus = (value: string) => (signOf(value) > 0 ? `-${value}` : value);
