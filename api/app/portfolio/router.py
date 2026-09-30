@@ -1,15 +1,23 @@
 import datetime as dt
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from sqlalchemy.orm import Session, sessionmaker
 
+from app.db import get_session_factory
+from app.market.deps import get_market_providers
+from app.market.update import MarketProviders, update_fx, update_prices
 from app.portfolio.closed import closed_investments
 from app.portfolio.exposure import currency_exposure
 from app.portfolio.limits import wrapper_limits
-from app.portfolio.schemas import ClosedOut, ExposureOut, HistoryOut, LimitOut, PositionDetailOut, PositionOut, SummaryOut
-from app.portfolio.service import list_positions, portfolio_history, portfolio_summary, position_detail
+from app.portfolio.schemas import (
+    ClosedOut, ExposureOut, HistoryOut, LimitOut, PositionDetailOut, PositionOut, RefreshOut, SummaryOut,
+)
+from app.portfolio.service import (
+    list_positions, portfolio_history, portfolio_summary, position_detail, prices_refreshed_at,
+)
 from app.scoping import AccountIds, DbId, UserScope, get_scope
-from app.valuation.service import local_today
+from app.valuation.service import local_today, mark_market_changes, recompute_in_background
 
 router = APIRouter(prefix="/api", tags=["portfolio"])
 
@@ -65,3 +73,33 @@ def get_exposure(
 @router.get("/portfolio/limits", response_model=list[LimitOut])
 def get_limits(scope: UserScope = Depends(get_scope)) -> list[LimitOut]:
     return wrapper_limits(scope, local_today())
+
+
+REFRESH_THROTTLE = dt.timedelta(seconds=60)
+
+
+@router.post("/portfolio/refresh", response_model=RefreshOut)
+def refresh_prices(
+    background: BackgroundTasks,
+    scope: UserScope = Depends(get_scope),
+    sessions: sessionmaker[Session] = Depends(get_session_factory),
+    providers: MarketProviders = Depends(get_market_providers),
+) -> RefreshOut:
+    """Fetches the user's prices and the NBP rates now; the valuation is recomputed right after the response.
+    Provider problems land in each instrument's `price_error`, as in the worker; they are not an error here."""
+    db = scope.db
+    instruments = list(db.scalars(scope.instruments()))
+    if not instruments:
+        return RefreshOut(refreshed_at=None, fetched=False)
+    latest = prices_refreshed_at(scope)
+    now = dt.datetime.now(dt.UTC)
+    if latest is not None and now - latest < REFRESH_THROTTLE:
+        return RefreshOut(refreshed_at=latest, fetched=False)
+    prices_from: dict[int, dt.date] = {}
+    fx_from: dict[str, dt.date] = {}
+    update_prices(db, providers.prices, instruments, now, prices_from)
+    update_fx(db, providers.fx, local_today(), fx_from)
+    mark_market_changes(db, prices_from, fx_from)
+    db.commit()
+    background.add_task(recompute_in_background, sessions, scope.user.id)
+    return RefreshOut(refreshed_at=now, fetched=True)

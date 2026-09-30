@@ -96,6 +96,11 @@ def _kind(row: Any, categories: dict[int, str | None]) -> str:
     return categories.get(row.instrument_id) or OTHER_KIND
 
 
+def prices_refreshed_at(scope: UserScope) -> dt.datetime | None:
+    """When the prices of the user's instruments were last checked (by the worker or an on-demand refresh)."""
+    return scope.db.scalar(scope.instruments().with_only_columns(func.max(Instrument.price_checked_at)).order_by(None))
+
+
 def portfolio_summary(scope: UserScope, account_ids: frozenset[int] | None) -> SummaryOut:
     db = scope.db
     rows = _valuations(scope, account_ids)
@@ -111,6 +116,7 @@ def portfolio_summary(scope: UserScope, account_ids: frozenset[int] | None) -> S
             total_gain_pln=money(ZERO), total_gain_pct=None, day_change_pln=None, day_change_pct=None,
             dividends_net_pln=money(dividends), interest_net_pln=money(interest), fees_pln=money(fees),
             twr_pct=None, by_account=[], by_kind=[], approximate_positions=0, recalculating=recalculating,
+            prices_refreshed_at=prices_refreshed_at(scope),
         )
     session = last_session(latest)
     previous = previous_session(session)
@@ -161,6 +167,7 @@ def portfolio_summary(scope: UserScope, account_ids: frozenset[int] | None) -> S
         dividends_net_pln=money(dividends), interest_net_pln=money(interest), fees_pln=money(fees),
         twr_pct=twr_percent(index[-1][1]), by_account=_allocation(by_account, value), by_kind=_allocation(by_kind, value),
         approximate_positions=approximate, recalculating=recalculating,
+        prices_refreshed_at=prices_refreshed_at(scope),
     )
 
 

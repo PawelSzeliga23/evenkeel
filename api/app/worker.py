@@ -14,7 +14,6 @@ from pathlib import Path
 from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
-import httpx
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
@@ -25,10 +24,8 @@ from sqlalchemy.orm import Session
 from app.auth.maintenance import prune_refresh_tokens
 from app.config import get_settings
 from app.db import get_engine, get_sessionmaker
+from app.market.deps import build_providers
 from app.market.http import make_client
-from app.market.providers.gus import GusInflationProvider
-from app.market.providers.nbp import NbpFxProvider, NbpRefRateProvider
-from app.market.providers.yahoo import YahooPriceProvider
 from app.market.update import (
     MarketProviders, backfill_new_instruments, run_market_update, update_all_prices, update_fx,
 )
@@ -152,14 +149,6 @@ def wait_for_schema(engine: Engine, stop: threading.Event, poll_seconds: float =
         stop.wait(poll_seconds)
     return False
 
-
-def build_providers(client: httpx.Client) -> MarketProviders:
-    return MarketProviders(
-        prices=YahooPriceProvider(client),
-        fx=NbpFxProvider(client),
-        inflation=GusInflationProvider(client),
-        ref_rates=NbpRefRateProvider(client),
-    )
 
 
 def main() -> None:
