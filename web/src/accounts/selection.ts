@@ -14,8 +14,10 @@ export function normalizeSelection(ids: readonly number[], known: readonly numbe
   return known !== null && known.length > 0 && kept.length === known.length ? [] : kept;
 }
 
+/** Flip one account; from the whole portfolio (empty) that means "all except this one". */
 export function toggleAccount(value: readonly number[], id: number, known: readonly number[]): number[] {
-  const next = value.includes(id) ? value.filter((v) => v !== id) : [...value, id];
+  const from = value.length === 0 ? known : value; // "whole portfolio" shows every account ticked
+  const next = from.includes(id) ? from.filter((v) => v !== id) : [...from, id];
   return normalizeSelection(next, known);
 }
 

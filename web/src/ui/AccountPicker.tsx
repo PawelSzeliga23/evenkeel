@@ -35,7 +35,8 @@ export function AccountSelect({
   return (
     <div
       className={styles.select} ref={root}
-      onBlur={(event) => { if (!root.current?.contains(event.relatedTarget as Node | null)) setOpen(false); }}
+      onBlur={(event) => { const next = event.relatedTarget as Node | null; // null in Safari: a clicked checkbox is not focused
+        if (next && !root.current?.contains(next)) setOpen(false); }}
     >
       <button
         ref={button} type="button" className={styles.selectButton} aria-label={`Konta: ${label}`}
@@ -54,7 +55,7 @@ export function AccountSelect({
           </label>
           {accounts.map((account) => (
             <label key={account.id} className={styles.selectOption}>
-              <input type="checkbox" checked={value.includes(account.id)}
+              <input type="checkbox" checked={value.length === 0 || value.includes(account.id)}
                 onChange={() => onChange(toggleAccount(value, account.id, known))} />
               {account.name}
             </label>

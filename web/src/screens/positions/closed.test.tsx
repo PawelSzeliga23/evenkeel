@@ -70,7 +70,7 @@ describe("closed investments", () => {
     const totals = await screen.findByRole("region", { name: "Wynik zamkniętych" });
     expect(within(totals).getByText("Razem").nextElementSibling).toHaveTextContent(`+301,00${T}zł`);
     await user.click(screen.getByRole("button", { name: "Konta: Cały portfel" }));
-    await user.click(screen.getByRole("checkbox", { name: "IKE" }));
+    await user.click(screen.getByRole("checkbox", { name: "XTB" }));
 
     // the previous answer stays on screen until the new one arrives
     expect(within(screen.getByRole("region", { name: "Wynik zamkniętych" })).getByText("Razem")).toBeInTheDocument();

@@ -23,7 +23,8 @@ describe("selection helpers", () => {
   });
 
   it("ticks and unticks accounts; the last one off or the last one on is the whole portfolio", () => {
-    expect(toggleAccount([], 2, [1, 2, 4])).toEqual([2]);
+    expect(toggleAccount([], 2, [1, 2, 4])).toEqual([1, 4]);
+    expect(toggleAccount([], 1, [1])).toEqual([]);
     expect(toggleAccount([2], 1, [1, 2, 4])).toEqual([1, 2]);
     expect(toggleAccount([1, 2], 4, [1, 2, 4])).toEqual([]);
     expect(toggleAccount([2], 2, [1, 2, 4])).toEqual([]);

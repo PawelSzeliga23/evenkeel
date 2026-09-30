@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
@@ -51,9 +51,10 @@ describe("controls", () => {
     expect(within(panel).getAllByRole("checkbox").map((c) => c.getAttribute("aria-label") ?? c.parentElement!.textContent))
       .toEqual(["Cały portfel", "IKE", "XTB", "Oszczędności"]);
     expect(screen.getByRole("checkbox", { name: "Cały portfel" })).toBeChecked();
+    for (const name of ["IKE", "XTB", "Oszczędności"]) expect(screen.getByRole("checkbox", { name })).toBeChecked();
 
     await userEvent.click(screen.getByRole("checkbox", { name: "Oszczędności" }));
-    expect(onChange).toHaveBeenLastCalledWith([4]);
+    expect(onChange).toHaveBeenLastCalledWith([1, 2]);
     expect(button).toHaveAttribute("aria-expanded", "true"); // stays open for more ticks
   });
 
@@ -65,6 +66,7 @@ describe("controls", () => {
 
     expect(screen.getByRole("checkbox", { name: "IKE" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Cały portfel" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "XTB" })).not.toBeChecked();
     await userEvent.click(screen.getByRole("checkbox", { name: "XTB" }));
     expect(onChange).toHaveBeenLastCalledWith([]); // every account ticked = the whole portfolio
     await userEvent.click(screen.getByRole("checkbox", { name: "IKE" }));
@@ -94,6 +96,15 @@ describe("controls", () => {
     await userEvent.tab();
     expect(screen.getByRole("button", { name: "dalej" })).toHaveFocus();
     expect(screen.queryByRole("group", { name: "Wybór kont" })).not.toBeInTheDocument();
+  });
+
+  it("stays open when a blur has no next target (Safari does not focus clicked checkboxes)", async () => {
+    render(<AccountSelect accounts={THREE} value={[]} onChange={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: "Konta: Cały portfel" }));
+    const box = screen.getByRole("checkbox", { name: "IKE" });
+    box.focus();
+    fireEvent.blur(box, { relatedTarget: null });
+    expect(screen.getByRole("group", { name: "Wybór kont" })).toBeInTheDocument();
   });
 });
 

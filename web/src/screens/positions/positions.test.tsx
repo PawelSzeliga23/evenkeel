@@ -60,7 +60,7 @@ describe("positions screen", () => {
     const fetchMock = mockFetch(LIST);
     const { user } = renderApp("/pozycje");
     await user.click(await screen.findByRole("button", { name: "Konta: Cały portfel" }));
-    await user.click(screen.getByRole("checkbox", { name: "IKE" }));
+    await user.click(screen.getByRole("checkbox", { name: "XTB" }));
     await screen.findByRole("region", { name: "Akcje i ETF-y" });
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toContain("/api/positions?account_id=1");
   });

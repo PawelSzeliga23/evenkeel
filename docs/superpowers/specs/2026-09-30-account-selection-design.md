@@ -16,6 +16,8 @@ aplikacji.
    obowiązuje też w Pozycjach, Historii i Ekspozycji. Wybór jest zapamiętany.
 2. Wygląd: przycisk z opisem wyboru, a po kliknięciu lista z checkboxami. Ten sam element zastępuje listę
    rozwijaną (Pulpit, Ekspozycja) i chipsy (Pozycje, Historia).
+3. (2026-09-30) Przy „Cały portfel” zaznaczone są też wszystkie konta; odznaczenie konta daje wszystkie konta oprócz
+   niego, a opis na przycisku i znacznik „Cały portfel” zmieniają się od razu.
 
 ## 1. Backend
 
@@ -36,8 +38,10 @@ aplikacji.
   - przycisk z opisem: „Cały portfel” (nic nie wybrane albo wszystkie konta), nazwy kont oddzielone przecinkiem przy
     1–2 kontach, „N konta” / „N kont” przy 3 i więcej (polska odmiana przez `pluralPl`);
   - po kliknięciu panel z checkboxami: „Cały portfel” na górze, pod nim konta w kolejności z `/api/accounts`;
-  - zaznaczenie „Cały portfel” czyści wybór; odznaczenie ostatniego konta też wraca do całego portfela;
-    zaznaczenie wszystkich kont po kolei to również „Cały portfel” (wybór pusty);
+  - przy „Cały portfel” zaznaczone są też wszystkie konta; odznaczenie konta daje wszystkie konta oprócz niego (opis na
+    przycisku i znacznik „Cały portfel” zmieniają się od razu); zaznaczenie „Cały portfel” czyści wybór;
+    zaznaczenie wszystkich kont po kolei to również „Cały portfel” (wybór pusty); odznaczenie ostatniego konta nie jest
+    możliwe — zostaje „Cały portfel”;
   - zmiana działa od razu; panel zamyka klik poza nim i Esc; przycisk ma `aria-expanded`, checkboxy są prawdziwymi
     `input type="checkbox"` z etykietami.
 - Wspólny wybór: hook `useAccountSelection()` zwraca `[ids: number[], setIds]`, trzymany w kontekście aplikacji,

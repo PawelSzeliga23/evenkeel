@@ -109,7 +109,7 @@ describe("dashboard screen", () => {
     const { user } = renderApp("/");
 
     await user.click(await screen.findByRole("button", { name: "Konta: Cały portfel" }));
-    await user.click(screen.getByRole("checkbox", { name: "IKE" }));
+    await user.click(screen.getByRole("checkbox", { name: "XTB" }));
     await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: "Waluta" }));
 
@@ -179,7 +179,7 @@ describe("dashboard screen", () => {
 
     expect(await screen.findByText("Wartość portfela")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Konta: Cały portfel" }));
-    await user.click(screen.getByRole("checkbox", { name: "IKE" }));
+    await user.click(screen.getByRole("checkbox", { name: "XTB" }));
 
     expect(screen.getByText("Wartość portfela")).toBeInTheDocument(); // no skeleton in between
     release();

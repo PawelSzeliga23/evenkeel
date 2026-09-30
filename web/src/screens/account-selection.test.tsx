@@ -26,8 +26,7 @@ describe("one account selection for the whole app", () => {
     const { user } = renderApp("/");
 
     await user.click(await screen.findByRole("button", { name: "Konta: Cały portfel" }));
-    await user.click(screen.getByRole("checkbox", { name: "IKE" }));
-    await user.click(screen.getByRole("checkbox", { name: "Oszczędności" }));
+    await user.click(screen.getByRole("checkbox", { name: "XTB" }));
     await waitFor(() => expect(urls(fetchMock)).toContain("/api/portfolio/summary?account_id=1&account_id=4"));
     expect(localStorage.getItem(storageKey(USER.id))).toBe("[1,4]");
 

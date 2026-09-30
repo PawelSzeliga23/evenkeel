@@ -47,7 +47,7 @@ describe("history", () => {
     const { user } = renderApp("/historia");
 
     await user.click(await screen.findByRole("button", { name: "Konta: Cały portfel" }));
-    await user.click(screen.getByRole("checkbox", { name: "IKE" }));
+    await user.click(screen.getByRole("checkbox", { name: "XTB" }));
     await user.keyboard("{Escape}");
     await user.selectOptions(screen.getByLabelText("Rodzaj"), "buy");
     await user.type(screen.getByLabelText("Szukaj"), "projekt");
