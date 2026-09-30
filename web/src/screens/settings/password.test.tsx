@@ -55,4 +55,19 @@ describe("password change", () => {
     expect(await screen.findByText("Obecne hasło jest nieprawidłowe.")).toBeInTheDocument();
     expect(screen.getByLabelText("Nowe hasło")).toHaveValue("jeszcze-bardziej-tajne");
   });
+
+  it("says the new password is too long before asking the API", async () => {
+    const sent: unknown[] = [];
+    mockFetch(routes(sent));
+    const { user } = renderApp("/ustawienia/haslo");
+
+    await user.type(await screen.findByLabelText("Obecne hasło"), "stare-haslo-1");
+    const long = "a".repeat(129);
+    await user.type(screen.getByLabelText("Nowe hasło"), long);
+    await user.type(screen.getByLabelText("Powtórz nowe hasło"), long);
+    await user.click(screen.getByRole("button", { name: "Zmień hasło" }));
+
+    expect(screen.getByText("Hasło może mieć najwyżej 128 znaków.")).toBeInTheDocument();
+    expect(sent).toEqual([]);
+  });
 });

@@ -35,7 +35,7 @@ export function RequireAuth() {
   if (state.status === "offline") return <Offline />;
   if (state.status === "serverError") return <ServerProblem />;
   if (state.status === "anonymous") {
-    return <Navigate to="/logowanie" replace state={{ from: location.pathname, expired: state.expired }} />;
+    return <Navigate to="/logowanie" replace state={{ from: location.pathname, expired: state.expired, offlineLogout: state.offlineLogout === true }} />;
   }
   return <Outlet />;
 }
