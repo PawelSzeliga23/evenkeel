@@ -46,7 +46,7 @@ def world(client: TestClient, login_as: LoginAs, engine: Engine) -> dict:
 
 
 def _items(client: TestClient, headers: dict, **params: object) -> list[dict]:
-    response = client.get("/api/history", params={"to": "2026-03-31", **params}, headers=headers)
+    response = client.get("/api/history", params={"to": "2026-04-01", **params}, headers=headers)
     assert response.status_code == 200, response.json()
     return response.json()["items"]
 
@@ -55,10 +55,10 @@ def test_everything_in_one_list_newest_first(client: TestClient, world: dict) ->
     items = _items(client, world["anna"])
 
     assert [(i["date"], i["kind"], i["type"]) for i in items] == [
-        ("2026-03-31", "savings_interest", "savings_interest"),
+        ("2026-04-01", "savings_interest", "savings_interest"),  # March's interest, credited once March has ended
         ("2026-03-02", "transaction", "buy"),
         ("2026-03-01", "transaction", "deposit"),
-        ("2026-02-28", "savings_interest", "savings_interest"),
+        ("2026-03-01", "savings_interest", "savings_interest"),
         ("2026-02-01", "savings_flow", "savings_deposit"),
         ("2026-01-15", "bond_purchase", "bond_purchase"),
     ]
@@ -80,7 +80,8 @@ def test_filters(client: TestClient, world: dict) -> None:
     assert [i["type"] for i in _items(client, anna, account_id=world["cash"])] == ["deposit"]
     assert [i["type"] for i in _items(client, anna, type="bond_purchase")] == ["bond_purchase"]
     assert [i["type"] for i in _items(client, anna, instrument_id=world["cdr"])] == ["buy"]
-    assert [i["date"] for i in _items(client, anna, **{"from": "2026-03-01", "to": "2026-03-01"})] == ["2026-03-01"]
+    assert [i["type"] for i in _items(client, anna, **{"from": "2026-03-01", "to": "2026-03-01"})] == [
+        "deposit", "savings_interest"]
     assert [i["type"] for i in _items(client, anna, q="projekt")] == ["buy"]
     assert [i["type"] for i in _items(client, anna, q="PENSJA")] == ["deposit"]
 
@@ -88,7 +89,7 @@ def test_filters(client: TestClient, world: dict) -> None:
 def test_pages_follow_each_other_without_gaps(client: TestClient, world: dict) -> None:
     anna, seen, cursor = world["anna"], [], None
     for _ in range(10):
-        params = {"to": "2026-03-31", "limit": 2, **({"cursor": cursor} if cursor else {})}
+        params = {"to": "2026-04-01", "limit": 2, **({"cursor": cursor} if cursor else {})}
         page = client.get("/api/history", params=params, headers=anna).json()
         seen += [i["id"] for i in page["items"]]
         cursor = page["next_cursor"]
@@ -116,7 +117,7 @@ def test_cursor_between_entries_of_the_same_day(client: TestClient, world: dict)
                                                "date": "2026-03-01", "comment": f"wpłata {amount}"}, headers=anna)
     seen, cursor = [], None
     for _ in range(20):
-        params = {"to": "2026-03-31", "limit": 1, **({"cursor": cursor} if cursor else {})}
+        params = {"to": "2026-04-01", "limit": 1, **({"cursor": cursor} if cursor else {})}
         page = client.get("/api/history", params=params, headers=anna).json()
         seen += [i["id"] for i in page["items"]]
         cursor = page["next_cursor"]

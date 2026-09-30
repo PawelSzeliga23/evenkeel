@@ -113,7 +113,7 @@ function Detail({ account, savings }: { account: Account; savings: SavingsAccoun
     onError: (err) => { setDeleting(null); setError(formErrors(err).general); },
   });
   const { summary } = savings;
-  const since = [...savings.capitalizations].pop()?.period_end;
+  const since = [...savings.capitalizations].pop()?.credited_on;
 
   return (
     <>

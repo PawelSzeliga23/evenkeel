@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 LoginAs = Callable[[str], dict[str, str]]
-ON = {"date": "2026-09-30"}
+ON = {"date": "2026-10-01"}  # September's interest is credited once 30 September has ended
 
 
 @pytest.fixture

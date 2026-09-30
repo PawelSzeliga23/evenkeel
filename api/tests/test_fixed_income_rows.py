@@ -59,7 +59,7 @@ def test_savings_rows_carry_balance_capital_and_flows() -> None:
     account = SavingsInput(4, 5, "monthly", True, [(dt.date(2026, 9, 1), D("10000"))],
                            [(dt.date(2026, 9, 1), D("5.00"))])
 
-    rows = savings_rows([account], dt.date(2026, 9, 30), dt.date(2026, 9, 30))
+    rows = savings_rows([account], dt.date(2026, 10, 1), dt.date(2026, 10, 1))
 
     (row,) = rows
     assert (row.account_id, row.savings_account_id, row.quantity, row.value_pln, row.cost_pln, row.net_flow_pln) == (
@@ -81,7 +81,7 @@ def test_savings_rows_follow_deposits() -> None:
     sep_01, sep_30 = dt.date(2026, 9, 1), dt.date(2026, 9, 30)
     account = SavingsInput(1, 10, "monthly", True, [], [(sep_01, D("5"))], flows=[(sep_01, D("10000"))])
 
-    rows = savings_rows([account], sep_01, sep_30)
+    rows = savings_rows([account], sep_01, sep_30 + dt.timedelta(days=1))
 
     assert (rows[0].net_flow_pln, rows[0].savings_account_id) == (D("10000.00"), 1)
     assert (rows[-1].value_pln, rows[-1].cost_pln, rows[-1].net_flow_pln) == (D("10033.29"), D("10000.00"), D("0.00"))

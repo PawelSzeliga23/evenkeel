@@ -227,7 +227,7 @@ export interface SavingsSummary {
   accrued: Money;
   current_rate: string | null;
 }
-export interface SavingsCapitalization { period_end: IsoDate; gross: Money; tax: Money; net: Money }
+export interface SavingsCapitalization { period_end: IsoDate; credited_on: IsoDate; gross: Money; tax: Money; net: Money }
 export interface SavingsAccountOut {
   account_id: number;
   capitalization: Capitalization;

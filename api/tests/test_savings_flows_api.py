@@ -24,7 +24,8 @@ def test_an_account_is_created_with_its_rate_and_first_deposit(client: TestClien
     created = _create(client, anna)
     url = f"/api/savings-accounts/{created['account_id']}"
 
-    account = client.get(url, params={"date": "2026-09-30"}, headers=anna).json()
+    last_day = client.get(url, params={"date": "2026-09-30"}, headers=anna).json()
+    account = client.get(url, params={"date": "2026-10-01"}, headers=anna).json()
     accounts = client.get("/api/accounts", headers=anna).json()
 
     assert [(a["name"], a["kind"], a["wrapper"], a["currency"]) for a in accounts] == [
@@ -34,7 +35,10 @@ def test_an_account_is_created_with_its_rate_and_first_deposit(client: TestClien
     assert account["summary"] == {"balance": "10033.29", "deposits": "10000.00", "interest_net": "33.29",
                                   "tax": "7.81", "accrued": "0.00", "current_rate": "5.0000"}
     assert account["capitalizations"] == [
-        {"period_end": "2026-09-30", "gross": "41.10", "tax": "7.81", "net": "33.29"}]
+        {"period_end": "2026-09-30", "credited_on": "2026-10-01", "gross": "41.10", "tax": "7.81", "net": "33.29"}]
+    # on the month's last day the bank has not credited September yet: 29 finished days accrued
+    assert (last_day["summary"]["balance"], last_day["summary"]["accrued"], last_day["capitalizations"]) == (
+        "10000.00", "39.73", [])
 
 
 def test_nothing_is_created_when_the_first_deposit_is_in_the_future(client: TestClient, anna: dict) -> None:
@@ -83,7 +87,7 @@ def test_flows_value_the_position_and_stay_private(client: TestClient, anna: dic
     bartek = login_as("bartek@portfolio.dev")
 
     positions = client.get("/api/positions", params={"date": "2026-09-15"}, headers=anna).json()
-    summary = client.get(url, params={"date": "2026-09-30"}, headers=anna).json()["summary"]
+    summary = client.get(url, params={"date": "2026-10-01"}, headers=anna).json()["summary"]
     foreign = client.post(f"{url}/flows", json={"date": "2026-09-10", "amount": "1"}, headers=bartek)
     flow_id = client.get(url, headers=anna).json()["flows"][0]["id"]
     foreign_delete = client.delete(f"{url}/flows/{flow_id}", headers=bartek)

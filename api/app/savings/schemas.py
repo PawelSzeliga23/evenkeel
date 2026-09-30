@@ -83,6 +83,7 @@ class SummaryOut(BaseModel):
 
 class CapitalizationOut(BaseModel):
     period_end: dt.date
+    credited_on: dt.date
     gross: Decimal
     tax: Decimal
     net: Decimal

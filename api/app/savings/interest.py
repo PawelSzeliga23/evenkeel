@@ -1,6 +1,8 @@
 """A savings account from its deposits and withdrawals (pure functions). Interest accrues daily at the annual rate
 of the day (balance × rate / 100 / 365) and is credited on each capitalization day, rounded to the grosz, minus the
-19 % tax (none on IKE / IKZE). On a day, the day's deposits and withdrawals come first, then that day's interest,
+19 % tax (none on IKE / IKZE). Like the bank, it is credited once the capitalization day has ended, so it shows from
+the next day (the 1st of a month for monthly capitalization). On a day, the interest credited overnight comes first,
+then the day's deposits and withdrawals, then that day's interest,
 from the balance at the end of the day, as banks count it: money deposited earns from its own day and money withdrawn
 stops earning on its day. A balance copied from the bank is
 the balance at the end of its day; its difference from the computed balance counts as the owner's deposit or
@@ -63,17 +65,19 @@ def savings_days(
     rate_days = sorted(rates)
     day = min([*copied, *moves])
     balance = accrued = ZERO
+    due = False  # the previous day was a capitalization day, so its interest is credited overnight
     result: list[SavingsDay] = []
     while day <= end:
-        flow = moves.get(day, ZERO)
-        balance += flow
-        accrued += balance * rate_on(rate_days, day) / HUNDRED / DAYS_IN_YEAR
         credited = tax = ZERO
-        if is_capitalization_day(day, capitalization):
+        if due:
             credited = _money(accrued)
             tax = _money(credited * TAX_RATE) if taxed else ZERO
             balance += credited - tax
             accrued = ZERO
+        flow = moves.get(day, ZERO)
+        balance += flow
+        accrued += balance * rate_on(rate_days, day) / HUNDRED / DAYS_IN_YEAR
+        due = is_capitalization_day(day, capitalization)
         if day in copied:
             flow += copied[day] - balance
             balance = copied[day]

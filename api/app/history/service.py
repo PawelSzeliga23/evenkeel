@@ -66,7 +66,7 @@ def history_items(scope: UserScope, today: dt.date) -> list[HistoryItem]:
                                      delete=DeleteTarget(target="savings_flow", id=flow.id), **common))
         for cap in capitalizations(account_days(db, settings, account, today)):
             items.append(HistoryItem(id=f"scap:{settings.id}:{cap.period_end:%Y-%m}", kind="savings_interest",
-                                     type="savings_interest", date=cap.period_end, amount=cap.net,
+                                     type="savings_interest", date=cap.credited_on, amount=cap.net,
                                      amount_pln=cap.net, tax=cap.tax, **common))
 
     items.sort(key=lambda item: (item.date, item.id), reverse=True)

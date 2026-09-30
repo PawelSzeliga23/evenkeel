@@ -10,7 +10,7 @@ const SAVINGS = {
   balances: [],
   flows: [{ id: 11, date: "2026-09-01", amount: "10000.0000", note: "" }, { id: 12, date: "2026-09-20", amount: "-500.0000", note: "wakacje" }],
   summary: { balance: "9532.18", deposits: "9500.00", interest_net: "32.18", tax: "7.55", accrued: "12.40", current_rate: "5.0000" },
-  capitalizations: [{ period_end: "2026-09-30", gross: "39.73", tax: "7.55", net: "32.18" }],
+  capitalizations: [{ period_end: "2026-09-30", credited_on: "2026-10-01", gross: "39.73", tax: "7.55", net: "32.18" }],
 };
 
 function routes(calls: { method: string; path: string; body?: unknown }[], deleteAnswer?: () => unknown) {
@@ -36,6 +36,7 @@ describe("savings account detail", () => {
     expect(screen.getByText("Odsetki narosłe od ostatniej kapitalizacji: 12,40 zł")).toBeInTheDocument();
     expect(screen.getByText("Odsetki dopisane (netto)").nextElementSibling).toHaveTextContent("32,18 zł");
     expect(within(screen.getByRole("region", { name: "Odsetki" })).getByText("wrzesień 2026")).toBeInTheDocument();
+    expect(screen.getByText("Ostatnia kapitalizacja").nextElementSibling).toHaveTextContent("01.10.2026");
     expect(within(screen.getByRole("region", { name: "Wpłaty i wypłaty" })).getByText("wakacje")).toBeInTheDocument();
   });
 
