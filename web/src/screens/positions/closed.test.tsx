@@ -56,12 +56,25 @@ describe("closed investments", () => {
   it("filters the closed view by account and says when there is nothing closed", async () => {
     const empty = { sales: [], investments: [], totals: { sold_cost_pln: "0.00", realized_pln: "0.00",
       dividends_net_pln: "0.00", fees_pln: "0.00", total_pln: "0.00", return_pct: null } };
-    const fetchMock = mockFetch(routes(empty));
+    let release: () => void = () => {};
+    const slow = new Promise<void>((resolve) => { release = resolve; });
+    const fetchMock = mockFetch([
+      ...routes().filter((r) => r.path !== "/api/portfolio/closed"),
+      { path: "/api/portfolio/closed", respond: async (url: URL) => {
+        if (url.searchParams.get("account_id") === "1") { await slow; return empty; }
+        return CLOSED;
+      } },
+    ]);
     const { user } = renderApp("/pozycje?widok=zamkniete");
 
-    expect(await screen.findByText("Nie masz jeszcze zamkniętych inwestycji.")).toBeInTheDocument();
+    const totals = await screen.findByRole("region", { name: "Wynik zamkniętych" });
+    expect(within(totals).getByText("Razem").nextElementSibling).toHaveTextContent(`+301,00${T}zł`);
     await user.click(screen.getByRole("button", { name: "IKE" }));
-    await screen.findByText("Nie masz jeszcze zamkniętych inwestycji.");
+
+    // the previous answer stays on screen until the new one arrives
+    expect(within(screen.getByRole("region", { name: "Wynik zamkniętych" })).getByText("Razem")).toBeInTheDocument();
+    release();
+    expect(await screen.findByText("Nie masz jeszcze zamkniętych inwestycji.")).toBeInTheDocument();
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toContain("/api/portfolio/closed?account_id=1");
   });
 });

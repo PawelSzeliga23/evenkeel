@@ -165,4 +165,21 @@ describe("dashboard screen", () => {
     expect(await screen.findByText("Wartość portfela")).toBeInTheDocument();
     expect(screen.queryByText(/koszty wyjścia/)).not.toBeInTheDocument();
   });
+
+  it("keeps the numbers on screen while another account loads", async () => {
+    let release: () => void = () => {};
+    const slow = new Promise<void>((resolve) => { release = resolve; });
+    mockFetch(routes({ summary: async (url) => {
+      if (url.searchParams.get("account_id") === "1") { await slow; return { ...SUMMARY, value_pln: "120000.00" }; }
+      return SUMMARY;
+    } }));
+    const { user } = renderApp("/");
+
+    expect(await screen.findByText("Wartość portfela")).toBeInTheDocument();
+    await user.selectOptions(screen.getByRole("combobox", { name: "Konto" }), "1");
+
+    expect(screen.getByText("Wartość portfela")).toBeInTheDocument(); // no skeleton in between
+    release();
+    expect(await screen.findByText(/120/)).toBeInTheDocument();
+  });
 });

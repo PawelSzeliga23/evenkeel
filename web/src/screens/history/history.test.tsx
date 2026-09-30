@@ -124,4 +124,15 @@ describe("history", () => {
     expect(row).toContainElement(alert);
     expect(screen.queryByRole("group", { name: "Potwierdzenie" })).not.toBeInTheDocument();
   });
+
+  it("shows a transaction's price with two decimals and its currency", async () => {
+    const buy = { ...PAGE_1.items[1]!, quantity: "2", price: "250.0000", price_currency: "PLN" };
+    mockFetch([
+      ...SIGNED_IN, { path: "/api/accounts", respond: () => ACCOUNTS },
+      { path: "/api/history", respond: () => ({ items: [buy], next_cursor: null }) },
+    ]);
+    renderApp("/historia");
+
+    expect(await screen.findByText(/2 szt. po 250,00 PLN/)).toBeInTheDocument();
+  });
 });

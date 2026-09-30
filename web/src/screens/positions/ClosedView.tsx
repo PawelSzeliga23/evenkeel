@@ -48,7 +48,7 @@ function Investment({ closed, investment }: { closed: Closed; investment: Closed
 }
 
 export function ClosedView({ accountId }: { accountId: number | null }) {
-  const closed = useQuery({ queryKey: keys.closed(accountId), queryFn: () => api.closed(accountId) });
+  const closed = useQuery({ queryKey: keys.closed(accountId), queryFn: () => api.closed(accountId), placeholderData: (previous) => previous });
   if (closed.isPending) return <Skeleton rows={4} />;
   if (closed.isError) return <ErrorState error={closed.error} onRetry={() => void closed.refetch()} />;
   const { totals, investments } = closed.data;

@@ -25,6 +25,7 @@ class HistoryItem(BaseModel):
     name: str | None = None  # instrument name or bond series
     quantity: Decimal | None = None
     price: Decimal | None = None
+    price_currency: str | None = None  # the instrument's quote currency of `price`
     amount: Decimal  # in the account's currency: − money going out (buy, bond purchase, withdrawal), + coming in
     currency: str
     amount_pln: Decimal | None  # None for an account in another currency

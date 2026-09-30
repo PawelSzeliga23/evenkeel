@@ -25,7 +25,8 @@ function useDebounced(value: string, ms = 300): string {
 function subtitle(item: HistoryItem): string {
   const parts = [item.name ? entryLabel(item) : null, item.account_name];
   if (item.quantity && item.kind === "transaction") {
-    parts.push(`${formatDecimal(item.quantity, 8)} szt.${item.price ? ` po ${formatDecimal(item.price, 4)}` : ""}`);
+    const at = item.price ? ` po ${formatMoney(item.price, { currency: item.price_currency })}` : "";
+    parts.push(`${formatDecimal(item.quantity, 8)} szt.${at}`);
   }
   if (item.quantity && item.kind !== "transaction") parts.push(`${formatDecimal(item.quantity, 0)} szt.`);
   if (item.tax) parts.push(`podatek ${formatMoney(item.tax)}`);

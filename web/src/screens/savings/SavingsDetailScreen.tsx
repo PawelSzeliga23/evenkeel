@@ -122,10 +122,13 @@ function Detail({ account, savings }: { account: Account; savings: SavingsAccoun
         <h1 className={styles.name}>{account.name}</h1>
         <HeroAmount value={summary.balance} size="m" />
         <span className="dim num">{`Odsetki narosłe od ostatniej kapitalizacji: ${formatMoney(summary.accrued)}`}</span>
+        {savings.rates.length > 0 && savings.rates[0]!.valid_from > todayIso() && (
+          <span className="flag">{`Oprocentowanie od ${formatDate(savings.rates[0]!.valid_from)}, do tego czasu 0 %.`}</span>
+        )}
       </section>
 
       <dl className={ui.kv}>
-        <dt>Wpłacono</dt><dd><Money value={summary.deposits} /></dd>
+        <dt>Wpłacono (netto)</dt><dd><Money value={summary.deposits} /></dd>
         <dt>Odsetki dopisane (netto)</dt><dd><Money value={summary.interest_net} /></dd>
         <dt>Podatek</dt><dd><Money value={summary.tax} /></dd>
         <dt>Oprocentowanie teraz</dt><dd>{formatPercent(summary.current_rate, { sign: false })}</dd>

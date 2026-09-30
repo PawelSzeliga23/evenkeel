@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+const T = " ";
 import { SIGNED_IN, json, mockFetch, renderApp } from "../../test/render";
 
 const ACCOUNT = { id: 5, name: "Konto w banku", kind: "savings", wrapper: "regular", broker: null,
@@ -35,6 +36,7 @@ describe("savings account detail", () => {
     expect(await screen.findByRole("heading", { name: "Konto w banku" })).toBeInTheDocument();
     expect(screen.getByText("Odsetki narosłe od ostatniej kapitalizacji: 12,40 zł")).toBeInTheDocument();
     expect(screen.getByText("Odsetki dopisane (netto)").nextElementSibling).toHaveTextContent("32,18 zł");
+    expect(screen.getByText("Wpłacono (netto)").nextElementSibling).toHaveTextContent(`9${T}500,00${T}zł`);
     expect(within(screen.getByRole("region", { name: "Odsetki" })).getByText("wrzesień 2026")).toBeInTheDocument();
     expect(screen.getByText("Ostatnia kapitalizacja").nextElementSibling).toHaveTextContent("01.10.2026");
     expect(within(screen.getByRole("region", { name: "Wpłaty i wypłaty" })).getByText("wakacje")).toBeInTheDocument();
@@ -97,5 +99,14 @@ describe("savings account detail", () => {
     mockFetch(routes([]).map((r) => (r.path === "/api/savings-accounts/5" ? { ...r, respond: () => ({ ...SAVINGS, capitalization: "quarterly" }) } : r)));
     renderApp("/pozycje/oszczednosci/5");
     expect(await screen.findByText("III kwartał 2026")).toBeInTheDocument();
+  });
+
+  it("says when the rate starts in the future", async () => {
+    mockFetch(routes([]).map((r) => (r.path === "/api/savings-accounts/5"
+      ? { ...r, respond: () => ({ ...SAVINGS, rates: [{ id: 1, valid_from: "2999-01-01", annual_rate: "5.0000" }] }) }
+      : r)));
+    renderApp("/pozycje/oszczednosci/5");
+
+    expect(await screen.findByText("Oprocentowanie od 01.01.2999, do tego czasu 0 %.")).toBeInTheDocument();
   });
 });

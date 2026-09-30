@@ -32,16 +32,17 @@ export function DashboardScreen() {
     queryKey: keys.summary(accountId),
     queryFn: () => api.summary(accountId),
     refetchInterval: (query) => (query.state.data?.recalculating ? RECALC_POLL_MS : false),
+    placeholderData: (previous) => previous,
   });
   const asOf = summary.data?.as_of ?? null;
   const from = rangeFrom(range, asOf);
-  const history = useQuery({ queryKey: keys.history(accountId, from), queryFn: () => api.history(accountId, from), enabled: asOf !== null });
+  const history = useQuery({ queryKey: keys.history(accountId, from), queryFn: () => api.history(accountId, from), enabled: asOf !== null, placeholderData: (previous) => previous });
   const exposure = useQuery({
     queryKey: keys.exposure(accountId, asOf ?? ""),
     queryFn: () => api.exposure(accountId, asOf!),
     enabled: asOf !== null && mode === "currency",
   });
-  const positions = useQuery({ queryKey: keys.positions(accountId), queryFn: () => api.positions(accountId), enabled: asOf !== null });
+  const positions = useQuery({ queryKey: keys.positions(accountId), queryFn: () => api.positions(accountId), enabled: asOf !== null, placeholderData: (previous) => previous });
 
   // When the background recalculation ends, everything valued may have changed.
   const recalculating = summary.data?.recalculating ?? false;

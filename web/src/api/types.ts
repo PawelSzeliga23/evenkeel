@@ -269,6 +269,7 @@ export interface HistoryItem {
   name: string | null;
   quantity: Money | null;
   price: Money | null;
+  price_currency: string | null;
   amount: Money;
   currency: string;
   amount_pln: Money | null;
