@@ -7,6 +7,8 @@ import { ValueChart } from "./ValueChart";
 const S = " ";
 const point = (date: string, value: string, invested: string, flow = "0.00"): HistoryPoint =>
   ({ date, value_pln: value, invested_pln: invested, net_flow_pln: flow, twr_pct: null });
+const MONTH = Array.from({ length: 30 }, (_, i) =>
+  point(`2026-09-${String(i + 1).padStart(2, "0")}`, `${1000 + i * 10}.00`, "1000.00", i === 0 ? "1000.00" : "0.00"));
 const TWO = [point("2026-09-01", "1000.00", "1000.00", "1000.00"), point("2026-09-26", "1100.00", "1000.00")];
 
 describe("ValueChart", () => {
@@ -32,5 +34,136 @@ describe("ValueChart", () => {
     expect(screen.getByText("26.09.2026")).toBeInTheDocument();
     expect(screen.getByText(`Wartość 1${S}100,00${S}zł`)).toBeInTheDocument();
     expect(screen.getByText(`Wpłacono 1${S}000,00${S}zł`)).toBeInTheDocument();
+  });
+
+  it("draws only the visible window and names it", () => {
+    render(<ValueChart points={MONTH} view={{ from: 23, to: 29 }} />);
+    expect(screen.getByRole("img", { name: "Wykres wartości portfela od 24.09.2026 do 30.09.2026" })).toBeInTheDocument();
+    expect(screen.getByText("24 wrz")).toBeInTheDocument();
+    expect(screen.getByText("30")).toBeInTheDocument();
+  });
+
+  it("clamps a window that no longer fits the history", () => {
+    render(<ValueChart points={TWO} view={{ from: 20, to: 29 }} />);
+    expect(screen.getByRole("img", { name: "Wykres wartości portfela od 01.09.2026 do 26.09.2026" })).toBeInTheDocument();
+  });
+
+  const rect = { left: 0, width: 350, top: 0, height: 190 } as DOMRect;
+
+  it("zooms with Ctrl and the wheel around the pointer", () => {
+    const onViewChange = vi.fn();
+    render(<ValueChart points={MONTH} onViewChange={onViewChange} />);
+    const svg = screen.getByRole("img");
+    vi.spyOn(svg, "getBoundingClientRect").mockReturnValue(rect);
+
+    fireEvent.wheel(svg, { ctrlKey: true, deltaY: -200, clientX: 153 });
+
+    const view = onViewChange.mock.calls[0]![0] as { from: number; to: number };
+    expect(view.to - view.from).toBeLessThan(29);
+    expect(view.from).toBeGreaterThan(0);
+    expect(view.to).toBeLessThan(29);
+  });
+
+  it("scrolls the page on a plain wheel and says how to zoom", () => {
+    const onViewChange = vi.fn();
+    render(<ValueChart points={MONTH} onViewChange={onViewChange} />);
+
+    fireEvent.wheel(screen.getByRole("img"), { deltaY: 100 });
+
+    expect(onViewChange).not.toHaveBeenCalled();
+    expect(screen.getByText("Ctrl + kółko przybliża")).toBeInTheDocument();
+  });
+
+  it("goes back to the range on a double click", () => {
+    const onReset = vi.fn();
+    render(<ValueChart points={MONTH} view={{ from: 10, to: 20 }} onReset={onReset} />);
+
+    fireEvent.doubleClick(screen.getByRole("img"));
+
+    expect(onReset).toHaveBeenCalledOnce();
+  });
+
+  it("pans when the mouse drags, but a plain click does not change the window", () => {
+    const onViewChange = vi.fn();
+    render(<ValueChart points={MONTH} view={{ from: 10, to: 20 }} onViewChange={onViewChange} />);
+    const svg = screen.getByRole("img");
+    vi.spyOn(svg, "getBoundingClientRect").mockReturnValue(rect);
+
+    fireEvent.pointerDown(svg, { pointerId: 1, pointerType: "mouse", button: 0, clientX: 150 });
+    fireEvent.pointerMove(svg, { pointerId: 1, pointerType: "mouse", clientX: 151 });
+    fireEvent.pointerUp(svg, { pointerId: 1, pointerType: "mouse", clientX: 151 });
+    expect(onViewChange).not.toHaveBeenCalled();
+
+    fireEvent.pointerDown(svg, { pointerId: 1, pointerType: "mouse", button: 0, clientX: 150 });
+    fireEvent.pointerMove(svg, { pointerId: 1, pointerType: "mouse", clientX: 200 });
+    const view = onViewChange.mock.calls.at(-1)![0] as { from: number; to: number };
+    expect(view.from).toBeLessThan(10);
+  });
+
+  it("does nothing on a history shorter than a week", () => {
+    const onViewChange = vi.fn();
+    render(<ValueChart points={TWO} onViewChange={onViewChange} />);
+    fireEvent.wheel(screen.getByRole("img"), { ctrlKey: true, deltaY: -200, clientX: 150 });
+    expect(onViewChange).not.toHaveBeenCalled();
+  });
+
+  it("does not report a zoom out past the whole history as a change", () => {
+    const onViewChange = vi.fn();
+    render(<ValueChart points={MONTH} onViewChange={onViewChange} />);
+    const svg = screen.getByRole("img");
+    vi.spyOn(svg, "getBoundingClientRect").mockReturnValue(rect);
+    fireEvent.wheel(svg, { ctrlKey: true, deltaY: 400, clientX: 150 });
+    expect(onViewChange).not.toHaveBeenCalled();
+  });
+
+  const span = (range: { min: number; max: number }) => range.max - range.min;
+  const mouse = { pointerId: 1, pointerType: "mouse", button: 0 };
+
+  it("stretches the amounts when the Y axis is dragged up and squeezes them when dragged down", () => {
+    const onYRangeChange = vi.fn();
+    const onViewChange = vi.fn();
+    render(<ValueChart points={MONTH} onYRangeChange={onYRangeChange} onViewChange={onViewChange} />);
+    const svg = screen.getByRole("img");
+    vi.spyOn(svg, "getBoundingClientRect").mockReturnValue(rect);
+
+    fireEvent.pointerDown(svg, { ...mouse, clientX: 330, clientY: 100 });
+    fireEvent.pointerMove(svg, { ...mouse, clientX: 330, clientY: 60 });
+    expect(span(onYRangeChange.mock.calls.at(-1)![0])).toBeLessThan(300);
+    fireEvent.pointerMove(svg, { ...mouse, clientX: 330, clientY: 140 });
+    expect(span(onYRangeChange.mock.calls.at(-1)![0])).toBeGreaterThan(300);
+    fireEvent.pointerUp(svg, { ...mouse, clientX: 330, clientY: 140 });
+
+    expect(onViewChange).not.toHaveBeenCalled();
+  });
+
+  it("moves a hand-set scale up and down with the drag", () => {
+    const onYRangeChange = vi.fn();
+    render(<ValueChart points={MONTH} view={{ from: 10, to: 20 }} yRange={{ min: 1000, max: 1300 }} onYRangeChange={onYRangeChange} />);
+    const svg = screen.getByRole("img");
+    vi.spyOn(svg, "getBoundingClientRect").mockReturnValue(rect);
+
+    fireEvent.pointerDown(svg, { ...mouse, clientX: 150, clientY: 100 });
+    fireEvent.pointerMove(svg, { ...mouse, clientX: 150, clientY: 140 });
+
+    const range = onYRangeChange.mock.calls.at(-1)![0] as { min: number; max: number };
+    expect([range.min, range.max]).toEqual([1075, 1375]);
+  });
+
+  it("keeps the automatic scale when the chart is dragged without a hand-set scale", () => {
+    const onYRangeChange = vi.fn();
+    render(<ValueChart points={MONTH} view={{ from: 10, to: 20 }} onYRangeChange={onYRangeChange} />);
+    const svg = screen.getByRole("img");
+    vi.spyOn(svg, "getBoundingClientRect").mockReturnValue(rect);
+
+    fireEvent.pointerDown(svg, { ...mouse, clientX: 150, clientY: 100 });
+    fireEvent.pointerMove(svg, { ...mouse, clientX: 150, clientY: 140 });
+
+    expect(onYRangeChange).not.toHaveBeenCalled();
+  });
+
+  it("draws the hand-set amounts on the Y axis", () => {
+    render(<ValueChart points={MONTH} yRange={{ min: 1100, max: 1160 }} />);
+    expect(screen.getByText(`1${S}120`)).toBeInTheDocument();
+    expect(screen.getByText(`1${S}140`)).toBeInTheDocument();
   });
 });

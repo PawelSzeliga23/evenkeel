@@ -1,6 +1,6 @@
 /** Pure geometry of the value chart. Numbers here only place pixels; money is formatted from the API strings. */
 import type { HistoryPoint } from "../api/types";
-import { monthShort } from "../format";
+import type { ChartWindow, YRange } from "./viewport";
 
 export interface ChartPoint { date: string; value: number; invested: number; flow: number }
 export interface Frame { width: number; height: number; left: number; right: number; top: number; bottom: number }
@@ -39,13 +39,30 @@ export function yDomain(points: ChartPoint[]): { min: number; max: number; ticks
   return { min, max, ticks };
 }
 
-export function scales(points: ChartPoint[], frame: Frame): Scales {
-  const { min, max, ticks } = yDomain(points);
+export function frameFor(width: number): Frame {
+  return { ...FRAME, width, height: Math.min(Math.max(Math.round(width * 0.45), 190), 300) };
+}
+
+/** Round ticks strictly above `min` and up to `max`. */
+function rangeTicks({ min, max }: YRange): number[] {
+  const step = niceStep(max - min, 4); // 4, not 3: always at least two ticks inside a hand-set range
+  const ticks: number[] = [];
+  for (let k = Math.floor(min / step + 1e-9) + 1; k * step <= max + 1e-9; k++) ticks.push(Number((k * step).toFixed(6)));
+  return ticks;
+}
+
+/**
+ * `view` is in indices of `points`; points outside it land left or right of the plot.
+ * `fixed` replaces the automatic amount range (the owner dragged the Y axis).
+ */
+export function scales(points: ChartPoint[], frame: Frame, view?: ChartWindow, fixed?: YRange | null): Scales {
+  const { min, max, ticks } = fixed ? { ...fixed, ticks: rangeTicks(fixed) } : yDomain(points);
   const plotWidth = frame.width - frame.left - frame.right;
   const plotHeight = frame.height - frame.top - frame.bottom;
-  const last = Math.max(points.length - 1, 1);
+  const from = view?.from ?? 0;
+  const span = (view ? view.to - view.from : points.length - 1) || 1;
   return {
-    x: (i) => frame.left + (i / last) * plotWidth,
+    x: (i) => frame.left + ((i - from) / span) * plotWidth,
     y: (v) => frame.top + (1 - (v - min) / (max - min)) * plotHeight,
     min, max, ticks,
   };
@@ -84,24 +101,15 @@ export function depositMarks(points: ChartPoint[]): { index: number; large: bool
   return deposits.map((d) => ({ index: d.index, large: d.flow > median }));
 }
 
-export function monthTicks(points: ChartPoint[], count = 4): { index: number; label: string }[] {
-  const starts = points
-    .map((p, index) => ({ index, month: p.date.slice(0, 7) }))
-    .filter((p, i, all) => i === 0 || p.month !== all[i - 1]!.month)
-    .map((p) => p.index);
-  const chosen = starts.length <= count
-    ? starts
-    : Array.from({ length: count }, (_, k) => starts[Math.round((k * (starts.length - 1)) / (count - 1))]!);
-  return [...new Set(chosen)].map((index) => ({ index, label: monthShort(points[index]!.date) }));
-}
-
-export function nearestIndex(px: number, count: number, frame: Frame): number {
+export function indexAt(px: number, view: ChartWindow, frame: Frame, count: number): number {
   const plotWidth = frame.width - frame.left - frame.right;
-  const index = Math.round(((px - frame.left) / plotWidth) * (count - 1));
-  return Math.min(Math.max(index, 0), count - 1);
+  const index = Math.round(view.from + ((px - frame.left) / plotWidth) * (view.to - view.from));
+  return Math.min(Math.max(index, Math.ceil(view.from - 1e-9), 0), Math.floor(view.to + 1e-9), count - 1);
 }
 
-export function axisLabel(value: number): string {
+/** `step` is the distance between ticks; below 100 zł the thousands would repeat, so whole amounts are written. */
+export function axisLabel(value: number, step = Infinity): string {
+  if (Math.abs(value) >= 1_000 && step < 100) return String(Math.round(value)).replace(/\B(?=(\d{3})+(?!\d))/g," ");
   const decimal = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace(".", ","));
   if (Math.abs(value) >= 1_000_000) return `${decimal(value / 1_000_000)} mln`;
   if (Math.abs(value) >= 1_000) return `${decimal(value / 1_000)} tys.`;

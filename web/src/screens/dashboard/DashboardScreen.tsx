@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useAccountSelection } from "../../accounts/AccountSelection";
 import { api } from "../../api/endpoints";
 import { keys } from "../../api/queryKeys";
 import type { Summary } from "../../api/types";
 import { ValueChart } from "../../charts/ValueChart";
+import { windowForRange, type ChartWindow, type YRange } from "../../charts/viewport";
 import { formatDayLong, formatMoney, formatRefreshed, formatPercent, pluralPl, signOf, sumMoney } from "../../format";
 import { RefreshIcon } from "../../shell/icons";
 import { AccountSelect } from "../../ui/AccountPicker";
@@ -28,6 +29,8 @@ export function DashboardScreen() {
   const [accountIds, setAccountIds, ready] = useAccountSelection();
   const [range, setRange] = useState<Range>("1R");
   const [mode, setMode] = useState<AllocationMode>("kind");
+  const [zoom, setZoom] = useState<ChartWindow | null>(null);
+  const [yRange, setYRange] = useState<YRange | null>(null);
 
   const accounts = useQuery({ queryKey: keys.accounts, queryFn: api.accounts });
   const summary = useQuery({
@@ -38,8 +41,16 @@ export function DashboardScreen() {
     placeholderData: (previous) => previous,
   });
   const asOf = summary.data?.as_of ?? null;
-  const from = rangeFrom(range, asOf);
-  const history = useQuery({ queryKey: keys.history(accountIds, from), queryFn: () => api.history(accountIds, from), enabled: ready && asOf !== null, placeholderData: (previous) => previous });
+  const history = useQuery({ queryKey: keys.history(accountIds, null), queryFn: () => api.history(accountIds, null), enabled: ready && asOf !== null, placeholderData: (previous) => previous });
+  const dates = useMemo(() => (history.data?.points ?? []).map((p) => p.date), [history.data]);
+  const rangeView = windowForRange(dates, rangeFrom(range, dates[dates.length - 1] ?? null));
+  // Another account selection brings another history; a zoom into the old one means nothing there.
+  const selectionKey = accountIds.join(",");
+  function resetChart() {
+    setZoom(null);
+    setYRange(null);
+  }
+  useEffect(resetChart, [selectionKey]);
   const exposure = useQuery({
     queryKey: keys.exposure(accountIds, asOf ?? ""),
     queryFn: () => api.exposure(accountIds, asOf!),
@@ -139,8 +150,10 @@ export function DashboardScreen() {
       <section className={ui.section} aria-label="Wartość w czasie">
         {history.isPending ? <Skeleton chart rows={0} />
           : history.isError ? <ErrorState error={history.error} onRetry={() => void history.refetch()} />
-            : <ValueChart points={history.data.points} />}
-        <Segmented label="Zakres wykresu" options={RANGES} value={range} onChange={setRange} />
+            : <ValueChart points={history.data.points} view={zoom ?? rangeView} yRange={yRange}
+              onViewChange={setZoom} onYRangeChange={setYRange} onReset={resetChart} />}
+        <Segmented label="Zakres wykresu" options={RANGES} value={zoom ? null : range}
+          onChange={(next) => { setRange(next); resetChart(); }} />
       </section>
 
       <section className={ui.section} aria-labelledby="allocation-title">

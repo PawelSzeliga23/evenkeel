@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NETWORK_MESSAGE } from "../../api/client";
 import { pluralPl } from "../../format";
@@ -118,7 +118,37 @@ describe("dashboard screen", () => {
     const urls = fetchMock.mock.calls.map(([url]) => String(url));
     expect(urls).toContain("/api/portfolio/summary?account_id=1");
     expect(urls).toContain("/api/portfolio/exposure?account_id=1&from=2026-09-26&to=2026-09-26");
-    expect(urls.some((u) => u.startsWith("/api/portfolio/history?account_id=1&from=2025-09-26"))).toBe(true);
+    expect(urls).toContain("/api/portfolio/history?account_id=1");
+  });
+
+  it("changes the chart range without asking the API again", async () => {
+    let histories = 0;
+    mockFetch(routes({ history: () => { histories += 1; return HISTORY; } }));
+    const { user } = renderApp("/");
+
+    await screen.findByRole("img", { name: /Wykres wartości portfela/ });
+    await user.click(screen.getByRole("button", { name: "1M" }));
+
+    expect(screen.getByRole("button", { name: "1M" })).toHaveAttribute("aria-pressed", "true");
+    expect(histories).toBe(1);
+  });
+
+  it("goes back to the automatic amounts when a range button is chosen", async () => {
+    mockFetch(routes());
+    const { user } = renderApp("/");
+    const svg = await screen.findByRole("img", { name: /Wykres wartości portfela/ });
+    vi.spyOn(svg, "getBoundingClientRect").mockReturnValue({ left: 0, width: 350, top: 0, height: 190 } as DOMRect);
+    const amounts = () => [...svg.querySelectorAll("text")].map((t) => t.textContent).join("|");
+    const automatic = amounts();
+    const mouse = { pointerId: 1, pointerType: "mouse", button: 0, clientX: 330 };
+
+    fireEvent.pointerDown(svg, { ...mouse, clientY: 100 });
+    fireEvent.pointerMove(svg, { ...mouse, clientY: 20 });
+    fireEvent.pointerUp(svg, { ...mouse, clientY: 20 });
+    expect(amounts()).not.toBe(automatic);
+
+    await user.click(screen.getByRole("button", { name: "1R" }));
+    expect(amounts()).toBe(automatic);
   });
 
   it("keeps asking while the valuation is recalculated and then refreshes the chart", async () => {
