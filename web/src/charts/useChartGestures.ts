@@ -99,7 +99,11 @@ export function useChartGestures(options: Options) {
     const base = { view, y: y(), manualY, dist: 1, startX: event.clientX, startY: event.clientY, moved: false };
     if (event.pointerType === "mouse") {
       if (event.button !== 0) return false;
-      event.currentTarget.setPointerCapture?.(event.pointerId);
+      try {
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+      } catch {
+        // Capture only keeps the drag alive outside the chart; without it the drag still works inside.
+      }
       const scale = onYAxis(event.currentTarget, event.clientX, frame);
       gesture.current = { ...base, kind: scale ? "scale" : "drag", frac: fracAt(event.currentTarget, event.clientX, frame) };
       return scale;

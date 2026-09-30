@@ -48,7 +48,8 @@ describe("paths", () => {
   it("uses a fixed amount range with round ticks inside it", () => {
     const fixed = scales(POINTS, BOX, undefined, { min: 100, max: 200 });
     expect([fixed.y(100), fixed.y(150), fixed.y(200), fixed.min, fixed.max]).toEqual([100, 50, 0, 100, 200]);
-    expect(fixed.ticks).toEqual([150, 200]);
+    expect(fixed.ticks).toEqual([125, 150, 175, 200]);
+    for (const span of [2001, 2600, 3100, 5100]) expect(scales(POINTS, BOX, undefined, { min: 9000, max: 9000 + span }).ticks.length).toBeGreaterThanOrEqual(2);
     expect(scales(POINTS, BOX, undefined, { min: 103, max: 157 }).ticks).toEqual([120, 140]);
   });
 

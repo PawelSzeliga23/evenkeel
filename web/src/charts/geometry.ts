@@ -45,7 +45,7 @@ export function frameFor(width: number): Frame {
 
 /** Round ticks strictly above `min` and up to `max`. */
 function rangeTicks({ min, max }: YRange): number[] {
-  const step = niceStep(max - min, 3);
+  const step = niceStep(max - min, 4); // 4, not 3: always at least two ticks inside a hand-set range
   const ticks: number[] = [];
   for (let k = Math.floor(min / step + 1e-9) + 1; k * step <= max + 1e-9; k++) ticks.push(Number((k * step).toFixed(6)));
   return ticks;
