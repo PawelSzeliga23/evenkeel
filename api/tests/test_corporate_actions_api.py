@@ -12,8 +12,8 @@ from tests.valuation_seed import seed_holdings, seed_market, valuate
 
 LoginAs = Callable[[str], dict[str, str]]
 URL = "/api/corporate-actions"
-BEFORE = "10829.70"  # 2 × 600 EUR × 4.25 + 5 729.70 zł cash (tests/valuation_seed.py)
-DOUBLED = "15929.70"  # after a 1:2 split effective 2026-09-25: 4 × 600 × 4.25 + 5 729.70
+BEFORE = "10804.20"  # 2 × 600 EUR × 4.25 = 5 100.00 − 0.5 % conversion 25.50, + 5 729.70 zł cash (valuation_seed)
+DOUBLED = "15878.70"  # after a 1:2 split effective 2026-09-25: 4 × 600 × 4.25 = 10 200.00 − 51.00, + 5 729.70
 
 
 @pytest.fixture
@@ -118,7 +118,7 @@ def test_update_and_delete_own_entry_recompute_the_valuation(client: TestClient,
     action_id = client.post(URL, json=_split(world), headers=world["anna"]).json()["id"]
 
     updated = client.put(f"{URL}/{action_id}", json=_split(world, ratio_to="3"), headers=world["anna"])
-    assert (updated.status_code, _value(client, world["anna"])) == (200, "21029.70")  # 6 × 600 × 4.25 + cash
+    assert (updated.status_code, _value(client, world["anna"])) == (200, "20953.20")  # 6 × 600 × 4.25 = 15 300.00 − 76.50 + cash
 
     deleted = client.delete(f"{URL}/{action_id}", headers=world["anna"])
     assert (deleted.status_code, _value(client, world["anna"])) == (204, BEFORE)

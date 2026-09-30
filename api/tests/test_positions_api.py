@@ -36,17 +36,21 @@ def test_positions_list_open_instruments_and_cash_with_the_profit_breakdown(clie
 
     assert Decimal(instrument["quantity"]) == 2 and Decimal(instrument["price"]) == 600
     assert {key: instrument[key] for key in (
-        "kind", "ticker", "name", "currency", "price_date", "price_source", "value_pln", "cost_pln", "unrealized_pln",
+        "kind", "ticker", "name", "currency", "price_date", "price_source", "value_pln", "exit_fx_pln",
+        "exit_spread_pln", "exit_cost_pln", "payout_pln", "spread_pct", "cost_pln", "unrealized_pln",
         "unrealized_pct", "price_effect_pln", "fx_effect_pln", "dividends_net_pln", "realized_pln", "day_change_pln",
         "share_pct", "flags",
     )} == {
         "kind": "instrument", "ticker": "SXR8.DE", "name": "Core S&P 500", "currency": "EUR", "price_date": "2026-09-25",
-        "price_source": "provider", "value_pln": "5100.00", "cost_pln": "4304.30", "unrealized_pln": "795.70",
-        "unrealized_pct": "18.49", "price_effect_pln": "855.70", "fx_effect_pln": "-60.00", "dividends_net_pln": "34.00",
-        "realized_pln": "0.00", "day_change_pln": "800.00", "share_pct": "47.09", "flags": [],
+        "price_source": "provider", "value_pln": "5100.00", "exit_fx_pln": "25.50", "exit_spread_pln": "0.00",
+        "exit_cost_pln": "25.50", "payout_pln": "5074.50", "spread_pct": None, "cost_pln": "4304.30",
+        # 5 074.50 − 4 304.30 = price 855.70 + currency −60.00 − exit 25.50
+        "unrealized_pln": "770.20", "unrealized_pct": "17.89", "price_effect_pln": "855.70", "fx_effect_pln": "-60.00",
+        "dividends_net_pln": "34.00", "realized_pln": "0.00", "day_change_pln": "796.00", "share_pct": "46.97",
+        "flags": [],
     }
-    assert (cash["kind"], cash["name"], cash["currency"], cash["value_pln"], cash["share_pct"]) == (
-        "cash", "Gotówka", "PLN", "5729.70", "52.91")
+    assert (cash["kind"], cash["name"], cash["currency"], cash["value_pln"], cash["exit_cost_pln"],
+            cash["payout_pln"], cash["share_pct"]) == ("cash", "Gotówka", "PLN", "5729.70", "0.00", "5729.70", "53.03")
     assert Decimal(cash["quantity"]) == Decimal("5729.70")
     assert (instrument["price_currency"], cash["price_currency"]) == ("EUR", None)
 
@@ -61,6 +65,7 @@ def test_position_without_provider_prices_is_valued_from_xtb(client: TestClient,
     assert (instrument["price_source"], instrument["price"], instrument["price_currency"], instrument["price_date"],
             instrument["value_pln"], instrument["flags"]) == (
         "xtb", "2152.1500", "PLN", "2026-03-02", "4304.30", ["xtb_price"])
+    assert (instrument["exit_cost_pln"], instrument["payout_pln"]) == ("0.00", "4304.30")
 
 
 def test_positions_are_private_and_filterable_by_own_account(client: TestClient, world: dict) -> None:
@@ -82,11 +87,12 @@ def test_position_detail_lists_lots_income_transactions_and_reconciles_with_xtb(
     assert body["position"]["value_pln"] == "5100.00"
     (lot,) = body["lots"]
     assert Decimal(lot["quantity"]) == 2 and Decimal(lot["stop_loss"]) == 450
-    assert {key: lot[key] for key in ("position_id", "opened_on", "open_price", "cost_pln", "value_pln", "gain_pln",
-                                      "price_effect_pln", "fx_effect_pln", "holding_days", "take_profit")} == {
+    assert {key: lot[key] for key in ("position_id", "opened_on", "open_price", "cost_pln", "value_pln",
+                                      "exit_cost_pln", "gain_pln", "price_effect_pln", "fx_effect_pln",
+                                      "holding_days", "take_profit")} == {
         "position_id": "777", "opened_on": "2026-03-02", "open_price": "500.5000", "cost_pln": "4304.30",
-        "value_pln": "5100.00", "gain_pln": "795.70", "price_effect_pln": "855.70", "fx_effect_pln": "-60.00",
-        "holding_days": 208, "take_profit": None,
+        "value_pln": "5100.00", "exit_cost_pln": "25.50", "gain_pln": "770.20", "price_effect_pln": "855.70",
+        "fx_effect_pln": "-60.00", "holding_days": 208, "take_profit": None,
     }
     assert body["sales"] == []
     assert [(i["date"], i["type"], i["amount_pln"]) for i in body["income"]] == [
@@ -275,3 +281,14 @@ def test_fully_sold_position_has_no_average_price(client: TestClient, world: dic
     detail = _detail(client, world)
 
     assert (detail["lots"], detail["average_price"], detail["position"]["price_currency"]) == ([], None, None)
+
+
+def test_a_manual_spread_shows_in_the_position_and_its_payout(client: TestClient, world: dict, engine: Engine) -> None:
+    with Session(engine) as db:
+        db.execute(update(Instrument).where(Instrument.id == world["instrument_id"]).values(spread_pct=Decimal("0.1")))
+        db.commit()
+
+    position = _detail(client, world)["position"]
+
+    assert (position["spread_pct"], position["exit_fx_pln"], position["exit_spread_pln"], position["exit_cost_pln"],
+            position["payout_pln"]) == ("0.1000", "25.50", "5.10", "30.60", "5069.40")
