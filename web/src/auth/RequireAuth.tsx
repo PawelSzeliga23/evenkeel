@@ -1,4 +1,5 @@
 import { Navigate, Outlet, useLocation } from "react-router";
+import { AccountSelectionProvider } from "../accounts/AccountSelection";
 import { ApiError, NETWORK_MESSAGE } from "../api/client";
 import { ErrorState } from "../ui/States";
 import styles from "./AuthScreens.module.css";
@@ -37,7 +38,11 @@ export function RequireAuth() {
   if (state.status === "anonymous") {
     return <Navigate to="/logowanie" replace state={{ from: location.pathname, expired: state.expired, offlineLogout: state.offlineLogout === true }} />;
   }
-  return <Outlet />;
+  return (
+    <AccountSelectionProvider key={state.user.id} userId={state.user.id}>
+      <Outlet />
+    </AccountSelectionProvider>
+  );
 }
 
 export function GuestOnly() {

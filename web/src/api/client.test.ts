@@ -35,6 +35,16 @@ describe("request", () => {
     expect(auth(calls[0]!.init)).toBe("Bearer old");
   });
 
+  it("repeats a parameter for each value of a list and leaves out an empty list", async () => {
+    handler = () => json(200, { ok: true });
+
+    await request("/api/positions", { query: { account_id: [1, 4], date: "2026-09-26" } });
+    await request("/api/positions", { query: { account_id: [] } });
+
+    expect(calls[0]!.url).toBe("/api/positions?account_id=1&account_id=4&date=2026-09-26");
+    expect(calls[1]!.url).toBe("/api/positions");
+  });
+
   it("turns the API error format into an ApiError with the Polish message", async () => {
     handler = () => json(404, { code: "not_found", message: "Nie znaleziono.", details: { id: 7 } });
 

@@ -81,7 +81,7 @@ export function refreshSession(): Promise<boolean> {
   return refreshing;
 }
 
-type Query = Record<string, string | number | null | undefined>;
+type Query = Record<string, string | number | readonly number[] | null | undefined>;
 
 export interface RequestOptions {
   method?: string;
@@ -95,7 +95,8 @@ export interface RequestOptions {
 function withQuery(path: string, query: Query | undefined): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query ?? {})) {
-    if (value !== null && value !== undefined && value !== "") params.set(key, String(value));
+    if (Array.isArray(value)) for (const item of value) params.append(key, String(item));
+    else if (value !== null && value !== undefined && value !== "") params.set(key, String(value));
   }
   const text = params.toString();
   return text ? `${path}?${text}` : path;

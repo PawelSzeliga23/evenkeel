@@ -7,4 +7,5 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   setAccessToken(null);
+  try { localStorage.clear(); } catch { /* storage unavailable */ }
 });
