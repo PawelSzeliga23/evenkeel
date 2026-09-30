@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { SIGNED_IN, mockFetch, renderApp } from "../test/render";
 
@@ -18,6 +18,6 @@ describe("app shell", () => {
     mockFetch(SIGNED_IN);
     const { router } = renderApp("/nie-ma-takiej-strony");
     await screen.findByRole("navigation", { name: "Główna" });
-    expect(router.state.location.pathname).toBe("/");
+    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
   });
 });

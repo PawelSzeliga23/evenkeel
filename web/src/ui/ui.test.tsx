@@ -1,10 +1,10 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import { ApiError } from "../api/client";
 import type { Account } from "../api/types";
-import { AccountChips, AccountPicker } from "./AccountPicker";
+import { AccountSelect } from "./AccountPicker";
 import { HeroAmount, Money } from "./Amount";
 import { ListRow } from "./ListRow";
 import { Segmented } from "./Segmented";
@@ -12,7 +12,7 @@ import { ErrorState } from "./States";
 
 const S = "\u00a0";
 const T = " "; // Testing Library normalizes NBSP to a plain space in text matchers
-const ACCOUNTS = [{ id: 1, name: "IKE" }, { id: 2, name: "XTB" }] as Account[];
+const THREE = [{ id: 1, name: "IKE" }, { id: 2, name: "XTB" }, { id: 4, name: "Oszcz\u0119dno\u015bci" }] as Account[];
 
 describe("amounts", () => {
   it("draws the grosze and the currency smaller in a hero amount", () => {
@@ -39,20 +39,72 @@ describe("controls", () => {
     expect(onChange).toHaveBeenCalledWith("1M");
   });
 
-  it("chooses the whole portfolio or one account", async () => {
+  it("shows the choice on a button and opens checkboxes for the accounts", async () => {
     const onChange = vi.fn();
-    render(<AccountPicker accounts={ACCOUNTS} value={null} onChange={onChange} />);
-    await userEvent.selectOptions(screen.getByRole("combobox", { name: "Konto" }), "2");
-    expect(onChange).toHaveBeenLastCalledWith(2);
-    expect(screen.getByRole("option", { name: "Cały portfel" })).toBeInTheDocument();
+    render(<AccountSelect accounts={THREE} value={[]} onChange={onChange} />);
+    const button = screen.getByRole("button", { name: "Konta: Cały portfel" });
+    expect(button).toHaveAttribute("aria-expanded", "false");
+
+    await userEvent.click(button);
+    expect(button).toHaveAttribute("aria-expanded", "true");
+    const panel = screen.getByRole("group", { name: "Wybór kont" });
+    expect(within(panel).getAllByRole("checkbox").map((c) => c.getAttribute("aria-label") ?? c.parentElement!.textContent))
+      .toEqual(["Cały portfel", "IKE", "XTB", "Oszczędności"]);
+    expect(screen.getByRole("checkbox", { name: "Cały portfel" })).toBeChecked();
+    for (const name of ["IKE", "XTB", "Oszczędności"]) expect(screen.getByRole("checkbox", { name })).toBeChecked();
+
+    await userEvent.click(screen.getByRole("checkbox", { name: "Oszczędności" }));
+    expect(onChange).toHaveBeenLastCalledWith([1, 2]);
+    expect(button).toHaveAttribute("aria-expanded", "true"); // stays open for more ticks
   });
 
-  it("filters by account with chips", async () => {
+  it("adds, removes and clears accounts", async () => {
     const onChange = vi.fn();
-    render(<AccountChips accounts={ACCOUNTS} value={1} onChange={onChange} />);
-    expect(screen.getByRole("button", { name: "IKE" })).toHaveAttribute("aria-pressed", "true");
-    await userEvent.click(screen.getByRole("button", { name: "Wszystkie" }));
-    expect(onChange).toHaveBeenCalledWith(null);
+    render(<AccountSelect accounts={THREE} value={[1, 4]} onChange={onChange} />);
+    expect(screen.getByRole("button", { name: "Konta: IKE, Oszczędności" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /^Konta:/ }));
+
+    expect(screen.getByRole("checkbox", { name: "IKE" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Cały portfel" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "XTB" })).not.toBeChecked();
+    await userEvent.click(screen.getByRole("checkbox", { name: "XTB" }));
+    expect(onChange).toHaveBeenLastCalledWith([]); // every account ticked = the whole portfolio
+    await userEvent.click(screen.getByRole("checkbox", { name: "IKE" }));
+    expect(onChange).toHaveBeenLastCalledWith([4]);
+    await userEvent.click(screen.getByRole("checkbox", { name: "Cały portfel" }));
+    expect(onChange).toHaveBeenLastCalledWith([]);
+  });
+
+  it("closes on Escape and on a click outside", async () => {
+    render(<><AccountSelect accounts={THREE} value={[]} onChange={() => {}} /><p>obok</p></>);
+    const button = screen.getByRole("button", { name: "Konta: Cały portfel" });
+
+    await userEvent.click(button);
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("group", { name: "Wybór kont" })).not.toBeInTheDocument();
+    expect(button).toHaveFocus();
+
+    await userEvent.click(button);
+    await userEvent.click(screen.getByText("obok"));
+    expect(screen.queryByRole("group", { name: "Wybór kont" })).not.toBeInTheDocument();
+  });
+
+  it("closes when focus tabs out of the control", async () => {
+    render(<><AccountSelect accounts={THREE} value={[]} onChange={() => {}} /><button type="button">dalej</button></>);
+    await userEvent.click(screen.getByRole("button", { name: "Konta: Cały portfel" }));
+    screen.getByRole("checkbox", { name: "Oszczędności" }).focus();
+    await userEvent.tab();
+    expect(screen.getByRole("button", { name: "dalej" })).toHaveFocus();
+    expect(screen.queryByRole("group", { name: "Wybór kont" })).not.toBeInTheDocument();
+  });
+
+  it("stays open when a blur has no next target (Safari does not focus clicked checkboxes)", async () => {
+    render(<AccountSelect accounts={THREE} value={[]} onChange={() => {}} />);
+    await userEvent.click(screen.getByRole("button", { name: "Konta: Cały portfel" }));
+    const box = screen.getByRole("checkbox", { name: "IKE" });
+    box.focus();
+    fireEvent.blur(box, { relatedTarget: null });
+    expect(screen.getByRole("group", { name: "Wybór kont" })).toBeInTheDocument();
   });
 });
 

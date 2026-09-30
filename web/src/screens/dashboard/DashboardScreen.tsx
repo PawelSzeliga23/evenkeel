@@ -1,12 +1,13 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
+import { useAccountSelection } from "../../accounts/AccountSelection";
 import { api } from "../../api/endpoints";
 import { keys } from "../../api/queryKeys";
 import type { Summary } from "../../api/types";
 import { ValueChart } from "../../charts/ValueChart";
 import { formatDayLong, formatMoney, formatPercent, pluralPl, signOf, sumMoney } from "../../format";
-import { AccountPicker } from "../../ui/AccountPicker";
+import { AccountSelect } from "../../ui/AccountPicker";
 import { HeroAmount, Money } from "../../ui/Amount";
 import { LimitsCard } from "../limits/LimitsCard";
 import { ListRow } from "../../ui/ListRow";
@@ -23,26 +24,27 @@ const tone = (value: string | null) => (signOf(value) > 0 ? "up" : signOf(value)
 
 export function DashboardScreen() {
   const queryClient = useQueryClient();
-  const [accountId, setAccountId] = useState<number | null>(null);
+  const [accountIds, setAccountIds, ready] = useAccountSelection();
   const [range, setRange] = useState<Range>("1R");
   const [mode, setMode] = useState<AllocationMode>("kind");
 
   const accounts = useQuery({ queryKey: keys.accounts, queryFn: api.accounts });
   const summary = useQuery({
-    queryKey: keys.summary(accountId),
-    queryFn: () => api.summary(accountId),
+    queryKey: keys.summary(accountIds),
+    queryFn: () => api.summary(accountIds),
+    enabled: ready,
     refetchInterval: (query) => (query.state.data?.recalculating ? RECALC_POLL_MS : false),
     placeholderData: (previous) => previous,
   });
   const asOf = summary.data?.as_of ?? null;
   const from = rangeFrom(range, asOf);
-  const history = useQuery({ queryKey: keys.history(accountId, from), queryFn: () => api.history(accountId, from), enabled: asOf !== null, placeholderData: (previous) => previous });
+  const history = useQuery({ queryKey: keys.history(accountIds, from), queryFn: () => api.history(accountIds, from), enabled: ready && asOf !== null, placeholderData: (previous) => previous });
   const exposure = useQuery({
-    queryKey: keys.exposure(accountId, asOf ?? ""),
-    queryFn: () => api.exposure(accountId, asOf!),
-    enabled: asOf !== null && mode === "currency",
+    queryKey: keys.exposure(accountIds, asOf ?? ""),
+    queryFn: () => api.exposure(accountIds, asOf!),
+    enabled: ready && asOf !== null && mode === "currency",
   });
-  const positions = useQuery({ queryKey: keys.positions(accountId), queryFn: () => api.positions(accountId), enabled: asOf !== null, placeholderData: (previous) => previous });
+  const positions = useQuery({ queryKey: keys.positions(accountIds), queryFn: () => api.positions(accountIds), enabled: ready && asOf !== null, placeholderData: (previous) => previous });
 
   // When the background recalculation ends, everything valued may have changed.
   const recalculating = summary.data?.recalculating ?? false;
@@ -56,7 +58,7 @@ export function DashboardScreen() {
 
   const header = (
     <div className={styles.bar}>
-      {accounts.data ? <AccountPicker accounts={accounts.data} value={accountId} onChange={setAccountId} /> : <span />}
+      {accounts.data ? <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} /> : <span />}
       {asOf && <span className="dim">{formatDayLong(asOf)}</span>}
     </div>
   );

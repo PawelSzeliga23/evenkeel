@@ -52,26 +52,26 @@ def amount_pln(db: Session, transaction: Transaction) -> Decimal:
     return transaction.amount * rate if rate is not None else ZERO
 
 
-def _transactions(scope: UserScope, account_id: int | None, types: tuple[str, ...]) -> list[Transaction]:
+def _transactions(scope: UserScope, account_ids: frozenset[int] | None, types: tuple[str, ...]) -> list[Transaction]:
     query = scope.transactions().where(Transaction.type.in_(types))
-    if account_id is not None:
-        query = query.where(Transaction.account_id == account_id)
+    if account_ids is not None:
+        query = query.where(Transaction.account_id.in_(account_ids))
     return list(scope.db.scalars(query).unique())
 
 
-def _valuations(scope: UserScope, account_id: int | None) -> Select[tuple[DailyValuation]]:
+def _valuations(scope: UserScope, account_ids: frozenset[int] | None) -> Select[tuple[DailyValuation]]:
     query = scope.daily_valuations()
-    return query if account_id is None else query.where(DailyValuation.account_id == account_id)
+    return query if account_ids is None else query.where(DailyValuation.account_id.in_(account_ids))
 
 
 def _flow_sum() -> object:
     return func.coalesce(func.sum(DailyValuation.net_flow_pln), 0)
 
 
-def _daily_totals(scope: UserScope, account_id: int | None) -> list[tuple[dt.date, Decimal, Decimal]]:
+def _daily_totals(scope: UserScope, account_ids: frozenset[int] | None) -> list[tuple[dt.date, Decimal, Decimal]]:
     """(day, value, net external flow) of the portfolio or one account, in date order."""
     return [tuple(row) for row in scope.db.execute(
-        _valuations(scope, account_id)
+        _valuations(scope, account_ids)
         .with_only_columns(DailyValuation.date, func.sum(PAYOUT), func.sum(DailyValuation.net_flow_pln))
         .group_by(DailyValuation.date)
         .order_by(DailyValuation.date)
@@ -96,10 +96,10 @@ def _kind(row: Any, categories: dict[int, str | None]) -> str:
     return categories.get(row.instrument_id) or OTHER_KIND
 
 
-def portfolio_summary(scope: UserScope, account_id: int | None) -> SummaryOut:
+def portfolio_summary(scope: UserScope, account_ids: frozenset[int] | None) -> SummaryOut:
     db = scope.db
-    rows = _valuations(scope, account_id)
-    income = _transactions(scope, account_id, DIVIDEND_TYPES + INTEREST_TYPES + FEE_TYPES)
+    rows = _valuations(scope, account_ids)
+    income = _transactions(scope, account_ids, DIVIDEND_TYPES + INTEREST_TYPES + FEE_TYPES)
     dividends = sum((amount_pln(db, t) for t in income if t.type in DIVIDEND_TYPES), ZERO)
     interest = sum((amount_pln(db, t) for t in income if t.type in INTEREST_TYPES), ZERO)
     fees = sum((amount_pln(db, t) for t in income if t.type in FEE_TYPES), ZERO)
@@ -152,7 +152,7 @@ def portfolio_summary(scope: UserScope, account_id: int | None) -> SummaryOut:
         elif row.flags:
             approximate += 1
     gain = value - invested
-    index = twr_index(_daily_totals(scope, account_id))
+    index = twr_index(_daily_totals(scope, account_ids))
     return SummaryOut(
         as_of=latest, value_pln=money(value), market_value_pln=money(value + exit_cost),
         exit_cost_pln=money(exit_cost), cash_pln=money(cash), invested_pln=money(invested),
@@ -165,7 +165,7 @@ def portfolio_summary(scope: UserScope, account_id: int | None) -> SummaryOut:
 
 
 def portfolio_history(
-    scope: UserScope, account_id: int | None, start: dt.date | None, end: dt.date | None
+    scope: UserScope, account_ids: frozenset[int] | None, start: dt.date | None, end: dt.date | None
 ) -> HistoryOut:
     """Daily value with invested capital (cumulative external flows from the very first day) and operations."""
     db = scope.db
@@ -173,7 +173,7 @@ def portfolio_history(
     def inside(day: dt.date) -> bool:
         return (start is None or day >= start) and (end is None or day <= end)
 
-    grouped = _daily_totals(scope, account_id)
+    grouped = _daily_totals(scope, account_ids)
     invested = ZERO
     points = []
     for (day, value, flow), (_, factor) in zip(grouped, twr_index(grouped), strict=True):
@@ -182,7 +182,7 @@ def portfolio_history(
             points.append(HistoryPointOut(date=day, value_pln=money(value), invested_pln=money(invested),
                                           net_flow_pln=money(flow), twr_pct=twr_percent(factor)))
     buckets: dict[tuple[dt.date, str], Decimal] = defaultdict(Decimal)
-    for transaction in _transactions(scope, account_id, EVENT_TYPES):
+    for transaction in _transactions(scope, account_ids, EVENT_TYPES):
         day = local_day(transaction.occurred_at)
         if inside(day):
             buckets[(day, transaction.type)] += amount_pln(db, transaction)
@@ -271,25 +271,25 @@ def _fixed_item(row: Row, change: Decimal, account: Account, kind: str, name: st
     )
 
 
-def _fixed_items(scope: UserScope, accounts: dict[int, Account], day: dt.date, account_id: int | None) -> list[PositionOut]:
+def _fixed_items(scope: UserScope, accounts: dict[int, Account], day: dt.date, account_ids: frozenset[int] | None) -> list[PositionOut]:
     """Bond purchases and savings accounts valued on `day` with the valuation's own rows."""
     fixed = load_fixed_income(scope)
     series = dict(scope.db.execute(scope.bond_holdings().with_only_columns(BondHolding.id, BondHolding.series)).all())
     items: list[PositionOut] = []
     for holding in fixed.holdings:
         view = day_view(bond_rows([holding], fixed.cpi, day - ONE_DAY, day), day)
-        if view is not None and (account_id is None or holding.account_id == account_id):
+        if view is not None and (account_ids is None or holding.account_id in account_ids):
             items.append(_fixed_item(*view, accounts[holding.account_id], "bond", series[holding.id]))
     for savings in fixed.savings:
         view = day_view(savings_rows([savings], day - ONE_DAY, day), day)
-        if view is not None and (account_id is None or savings.account_id == account_id):
+        if view is not None and (account_ids is None or savings.account_id in account_ids):
             account = accounts[savings.account_id]
             items.append(_fixed_item(*view, account, "savings", account.name))
     return items
 
 
 def build_positions(
-    scope: UserScope, inputs: Inputs, day: dt.date, account_id: int | None
+    scope: UserScope, inputs: Inputs, day: dt.date, account_ids: frozenset[int] | None
 ) -> tuple[Book, list[PositionOut]]:
     """Open positions, each account's cash, then bonds and savings accounts, valued on `day`; shares of the total."""
     db = scope.db
@@ -299,23 +299,23 @@ def build_positions(
     instruments = {instrument.id: instrument for instrument in db.scalars(scope.instruments())}
     items: list[PositionOut] = []
     for owner, instrument_id in sorted(book.lots):
-        if account_id is not None and owner != account_id:
+        if account_ids is not None and owner not in account_ids:
             continue
         view = book.position(owner, instrument_id, day)
         if view is not None:
             items.append(_instrument_item(book, accounts[owner], instruments[instrument_id], view, day))
     for owner in sorted(book.cash):
-        if account_id is None or owner == account_id:
+        if account_ids is None or owner in account_ids:
             items.append(_cash_item(book, accounts[owner], day))
-    items += _fixed_items(scope, accounts, day, account_id)
+    items += _fixed_items(scope, accounts, day, account_ids)
     total = sum((item.payout_pln for item in items), ZERO)
     for item in items:
         item.share_pct = percent(item.payout_pln, total)
     return book, items
 
 
-def list_positions(scope: UserScope, account_id: int | None, day: dt.date) -> list[PositionOut]:
-    return build_positions(scope, load_inputs(scope), day, account_id)[1]
+def list_positions(scope: UserScope, account_ids: frozenset[int] | None, day: dt.date) -> list[PositionOut]:
+    return build_positions(scope, load_inputs(scope), day, account_ids)[1]
 
 
 def _reconciliation(db: Session, book: Book, inputs: Inputs, account: Account, instrument: Instrument) -> ReconciliationOut:

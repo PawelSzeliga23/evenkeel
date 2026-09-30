@@ -15,13 +15,13 @@ UNKNOWN_CURRENCY = "unknown"  # an instrument the price provider has no quotes f
 
 
 def currency_exposure(
-    scope: UserScope, account_id: int | None, start: dt.date | None, end: dt.date | None
+    scope: UserScope, account_ids: frozenset[int] | None, start: dt.date | None, end: dt.date | None
 ) -> ExposureOut:
     # Grouped by plain columns (a CASE with a bound literal would differ between SELECT and GROUP BY in
     # Postgres); the currency of each group is decided below.
     is_cash = DailyValuation.instrument_id.is_(None)
     query = (
-        _valuations(scope, account_id)
+        _valuations(scope, account_ids)
         .with_only_columns(DailyValuation.date, is_cash, Account.currency, Instrument.currency,
                            func.sum(DailyValuation.value_pln))
         .select_from(DailyValuation)

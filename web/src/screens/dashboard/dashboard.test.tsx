@@ -108,7 +108,9 @@ describe("dashboard screen", () => {
     const fetchMock = mockFetch(routes());
     const { user } = renderApp("/");
 
-    await user.selectOptions(await screen.findByRole("combobox", { name: "Konto" }), "1");
+    await user.click(await screen.findByRole("button", { name: "Konta: Cały portfel" }));
+    await user.click(screen.getByRole("checkbox", { name: "XTB" }));
+    await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: "Waluta" }));
 
     expect(await screen.findByText("EUR")).toBeInTheDocument();
@@ -176,7 +178,8 @@ describe("dashboard screen", () => {
     const { user } = renderApp("/");
 
     expect(await screen.findByText("Wartość portfela")).toBeInTheDocument();
-    await user.selectOptions(screen.getByRole("combobox", { name: "Konto" }), "1");
+    await user.click(screen.getByRole("button", { name: "Konta: Cały portfel" }));
+    await user.click(screen.getByRole("checkbox", { name: "XTB" }));
 
     expect(screen.getByText("Wartość portfela")).toBeInTheDocument(); // no skeleton in between
     release();

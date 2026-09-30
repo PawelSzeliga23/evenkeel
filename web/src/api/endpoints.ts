@@ -24,7 +24,7 @@ export const api = {
   deleteTransaction: (id: number) => request<void>(`/api/transactions/${id}`, { method: "DELETE" }),
   entries: (filters: HistoryFilters, cursor: string | null) =>
     request<HistoryPage>("/api/history", {
-      query: { account_id: filters.account_id, type: filters.type, from: filters.from, to: filters.to, q: filters.q, cursor },
+      query: { account_id: filters.account_ids, type: filters.type, from: filters.from, to: filters.to, q: filters.q, cursor },
     }),
   login: (email: string, password: string) =>
     request<TokenOut>("/api/auth/login", { method: "POST", json: { email, password }, auth: false }),
@@ -40,16 +40,16 @@ export const api = {
   instruments: () => request<Instrument[]>("/api/instruments"),
   updateInstrument: (id: number, body: InstrumentUpdate) =>
     request<Instrument>(`/api/instruments/${id}`, { method: "PATCH", json: body }),
-  summary: (accountId: number | null) => request<Summary>("/api/portfolio/summary", { query: { account_id: accountId } }),
-  history: (accountId: number | null, from: IsoDate | null) =>
-    request<History>("/api/portfolio/history", { query: { account_id: accountId, from } }),
-  exposure: (accountId: number | null, day: IsoDate) =>
-    request<Exposure>("/api/portfolio/exposure", { query: { account_id: accountId, from: day, to: day } }),
-  exposureHistory: (accountId: number | null, from: IsoDate | null) =>
-    request<Exposure>("/api/portfolio/exposure", { query: { account_id: accountId, from } }),
-  closed: (accountId: number | null) => request<Closed>("/api/portfolio/closed", { query: { account_id: accountId } }),
+  summary: (ids: readonly number[]) => request<Summary>("/api/portfolio/summary", { query: { account_id: ids } }),
+  history: (ids: readonly number[], from: IsoDate | null) =>
+    request<History>("/api/portfolio/history", { query: { account_id: ids, from } }),
+  exposure: (ids: readonly number[], day: IsoDate) =>
+    request<Exposure>("/api/portfolio/exposure", { query: { account_id: ids, from: day, to: day } }),
+  exposureHistory: (ids: readonly number[], from: IsoDate | null) =>
+    request<Exposure>("/api/portfolio/exposure", { query: { account_id: ids, from } }),
+  closed: (ids: readonly number[]) => request<Closed>("/api/portfolio/closed", { query: { account_id: ids } }),
   limits: () => request<Limit[]>("/api/portfolio/limits"),
-  positions: (accountId: number | null) => request<Position[]>("/api/positions", { query: { account_id: accountId } }),
+  positions: (ids: readonly number[]) => request<Position[]>("/api/positions", { query: { account_id: ids } }),
   position: (accountId: number, instrumentId: number) =>
     request<PositionDetail>(`/api/positions/${accountId}/${instrumentId}`),
   previewImport: (files: File[]) => request<ImportResult>("/api/imports/preview", { method: "POST", form: filesForm(files) }),
