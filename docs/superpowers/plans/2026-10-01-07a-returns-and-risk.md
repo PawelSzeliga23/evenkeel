@@ -1299,7 +1299,7 @@ Append inside `describe("Analiza", …)` in `analysis.test.tsx`:
     routes(() => ANALYTICS);
     renderApp("/analiza");
 
-    expect(await screen.findByRole("img", { name: /^Obsunięcie w czasie, najgłębiej −8,2s%$/ })).toBeInTheDocument();
+    expect(await screen.findByRole("img", { name: /^Obsunięcie w czasie, najgłębiej −8,2\s%$/ })).toBeInTheDocument();
   });
 
   it("lists monthly returns per year without a second copy", async () => {
