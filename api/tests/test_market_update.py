@@ -13,8 +13,10 @@ from app.market.update import (
     MSG_FAILED,
     MSG_NOT_FOUND,
     MSG_UNMAPPED,
+    SIMULATION_FROM,
     backfill_new_instruments,
     fx_currencies,
+    fx_needed_from,
     fx_ranges_to_fetch,
     run_market_update,
     update_all_prices,
@@ -530,3 +532,23 @@ def test_conversion_target_gets_prices_although_nobody_traded_it(db: Session) ->
     backfill_new_instruments(db, FakePrices({"SXR8.DE": SXR8, "CSPX.L": cspx}), NOW)
 
     assert _stored_closes(db, target.id) == {dt.date(2026, 9, 24): Decimal("610.00000000")}
+
+
+def test_catalog_instruments_are_fetched_even_when_nobody_holds_them(db: Session) -> None:
+    catalog = Instrument(xtb_ticker="SXR8.DE", name="S&P 500", in_catalog=True, catalog_group="ETF: USA")
+    unused = Instrument(xtb_ticker="VIE.FR", name="Veolia")
+    db.add_all([catalog, unused])
+    db.commit()
+    prices = FakePrices({"SXR8.DE": SXR8})
+
+    rows, failed = backfill_new_instruments(db, prices, NOW)
+
+    assert (rows, failed, prices.calls) == (2, [], [("SXR8.DE", None)])
+
+
+def test_rates_are_needed_from_2016_once_the_catalog_has_instruments(db: Session) -> None:
+    assert fx_needed_from(db, TODAY) == TODAY - dt.timedelta(days=FX_MARGIN_DAYS)
+    db.add(Instrument(xtb_ticker="SXR8.DE", name="S&P 500", in_catalog=True))
+    db.commit()
+
+    assert fx_needed_from(db, TODAY) == SIMULATION_FROM - dt.timedelta(days=FX_MARGIN_DAYS)

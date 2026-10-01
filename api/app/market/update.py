@@ -33,6 +33,7 @@ from app.models import CorporateAction, Instrument, PositionLot, Transaction
 logger = logging.getLogger(__name__)
 
 PRICE_OVERLAP_DAYS = 5  # re-fetch recent days: a bar fetched during a session is replaced by the final close
+SIMULATION_FROM = dt.date(2016, 1, 1)  # plan 7b: scenarios may start this early, so catalog rates must reach it
 FX_MARGIN_DAYS = 10  # rates from before the first transaction, so a "last known rate" exists on day one
 ERROR_MAX_LENGTH = 200
 
@@ -63,8 +64,10 @@ class UpdateSummary:
 
 
 def _referenced() -> object:
-    """Instruments are shared across users; the worker only touches ones held, traded or converted into."""
+    """Instruments are shared across users; the worker only touches ones held, traded, converted into, or in
+    the simulator's catalog (plan 7b)."""
     return or_(
+        Instrument.in_catalog.is_(True),
         exists().where(Transaction.instrument_id == Instrument.id),
         exists().where(PositionLot.instrument_id == Instrument.id),
         exists().where(CorporateAction.target_instrument_id == Instrument.id),
@@ -215,9 +218,12 @@ def fx_ranges_to_fetch(
 
 
 def fx_needed_from(db: Session, today: dt.date) -> dt.date:
-    """Rates are needed from shortly before the earliest transaction of any user (market data is shared)."""
+    """Rates are needed from shortly before the earliest transaction of any user (market data is shared), and
+    from SIMULATION_FROM once the catalog has instruments (scenarios can start there)."""
     first = db.scalar(select(func.min(Transaction.occurred_at)))
     start = first.date() if first is not None else today
+    if db.scalar(select(exists().where(Instrument.in_catalog.is_(True)))):
+        start = min(start, SIMULATION_FROM)
     return start - dt.timedelta(days=FX_MARGIN_DAYS)
 
 

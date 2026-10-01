@@ -30,3 +30,8 @@ class Instrument(Base):
     spread_pct: Mapped[Decimal | None] = mapped_column(Numeric(6, 4))  # manual half-spread, percent (plan 6d)
     # False = the stored price history predates split events; the next update refetches it in full once.
     splits_synced: Mapped[bool] = mapped_column(server_default=true())
+    # Plan 7b: shown in the simulator's catalog even when nobody holds it; the worker keeps its prices fresh.
+    in_catalog: Mapped[bool] = mapped_column(server_default=false())
+    catalog_group: Mapped[str | None] = mapped_column(String(40))
+    accumulating: Mapped[bool | None] = mapped_column()  # an accumulating ETF: dividends stay in the price
+    catalog_seeded: Mapped[bool] = mapped_column(server_default=false())  # inserted by migration 0010
