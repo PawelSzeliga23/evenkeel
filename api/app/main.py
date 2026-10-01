@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.accounts.router import router as accounts_router
+from app.analytics.router import router as analytics_router
 from app.auth.rate_limit import RateLimiter
 from app.auth.router import router as auth_router
 from app.bonds.router import router as bonds_router
@@ -35,6 +36,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(savings_router)
     app.include_router(portfolio_router)
     app.include_router(history_router)
+    app.include_router(analytics_router)
     return app
 
 
