@@ -59,6 +59,17 @@ describe("dashboard model", () => {
 });
 
 describe("dashboard screen", () => {
+  it("explains the stats behind their question marks", async () => {
+    mockFetch(routes());
+    const { user } = renderApp("/");
+
+    await user.click(await screen.findByRole("button", { name: "Co to jest: Stopa zwrotu (TWR)" }));
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Jak liczymy: zwrot każdego dnia");
+    for (const name of ["Zysk łącznie", "Wpłacono", "Dywidendy i odsetki"]) {
+      expect(screen.getByRole("button", { name: `Co to jest: ${name}` })).toBeInTheDocument();
+    }
+  });
+
   it("shows the IKE/IKZE card with this year's contributions and links to the details", async () => {
     mockFetch(routes());
     renderApp("/");
