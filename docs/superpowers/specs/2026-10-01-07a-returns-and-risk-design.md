@@ -104,7 +104,7 @@ recalculating     bool (jak w podsumowaniu Pulpitu)
 - **`/analiza`:** tytuł, wybór kont, przyciski okresu (domyślnie „Wszystko”).
   1. Kafelki (2 kolumny na telefonie, 4 na komputerze): Zysk, TWR, XIRR, Maks. obsunięcie, Obecne obsunięcie,
      Zmienność, Sharpe, Najlepszy dzień, Najgorszy dzień. Pod liczbą podpis „za okres” / „rocznie” (i „orientacyjnie”
-     przy `short_sample`). Przycisk „?” rozwija jednozdaniowe wyjaśnienie prostym językiem.
+     przy `short_sample`). Przycisk „?” otwiera dymek (najechanie myszą; dotknięcie lub Enter/Spacja; zamyka Esc, dotknięcie obok albo przewinięcie) z jednozdaniowym wyjaśnieniem i linijką „Jak liczymy:” — wzorem prostymi słowami.
   2. Wykres obsunięcia: obszar pod zerem w kolorze `--loss`, oś czasu z `timeTicks`, bez przybliżania.
   3. Zwrot w miesiącach, bez poziomego przewijania:
      - telefon (< 900 px): osobna karta na każdy rok (najnowszy na górze), w nagłówku rok i zwrot roczny, pod nim
@@ -114,7 +114,9 @@ recalculating     bool (jak w podsumowaniu Pulpitu)
        niepełny pierwszy miesiąc w przerywanej ramce.
 - Stany: ładowanie, błąd, „za mało danych”, „wycena się przelicza” — jak na innych ekranach.
 
-Teksty „?”:
+Dymek „?” dostają też: nagłówki „Obsunięcie w czasie” i „Zwrot w miesiącach”, karta na Pulpicie (XIRR, Maks. obsunięcie) oraz istniejące miary Pulpitu (Zysk łącznie, Stopa zwrotu (TWR), Wpłacono, Dywidendy i odsetki). Pełne teksty (co znaczy + jak liczymy) są w planie, w `web/src/ui/help.ts`.
+
+Teksty „?” (co znaczy):
 - Zysk — ile zarobiłeś w okresie, nie licząc tego, co sam dopłaciłeś.
 - TWR — jak radziły sobie same inwestycje, niezależnie od terminów wpłat; tę miarę porównuje się z funduszami.
 - XIRR — Twój osobisty zwrot z uwzględnieniem tego, kiedy i ile wpłacałeś; jak oprocentowanie lokaty o tym samym wyniku.

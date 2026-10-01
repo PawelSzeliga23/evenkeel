@@ -22,6 +22,7 @@
 - The monthly table always covers the whole history, whatever the period.
 - UI copy is in Polish. The period labels are `1M`, `3M`, `1R`, `Od pocz. roku` and `Wszystko`.
 - The monthly returns never scroll horizontally.
+- Every measure has a "?" tooltip (`InfoTip`) with what it means and a "Jak liczymy:" line saying how it is counted. It opens on mouse hover, and on a tap or Enter/Space. Esc, a tap elsewhere or scrolling closes it. Measures are the Analiza tiles and section headings, the Pulpit card, and the Pulpit stats (Zysk łącznie, Stopa zwrotu (TWR), Wpłacono, Dywidendy i odsetki).
 - Test commands:
   - API: `docker compose run --rm api pytest`
   - Web: `npm test` and `npx tsc -b`, run in `web/`
@@ -51,6 +52,7 @@ API:
 - Create `api/tests/test_analytics_metrics.py` and `api/tests/test_analytics_api.py`.
 
 Web:
+- Create `web/src/ui/InfoTip.tsx`, `web/src/ui/InfoTip.module.css`, `web/src/ui/help.ts` (all tooltip texts) and `web/src/ui/InfoTip.test.tsx`.
 - Modify `web/src/api/types.ts`, `web/src/api/endpoints.ts` and `web/src/api/queryKeys.ts`.
 - Create `web/src/screens/analysis/model.ts`: periods, captions, help texts, month names and cell colour.
 - Create `web/src/screens/analysis/AnalysisScreen.tsx` and `Analysis.module.css`.
@@ -862,7 +864,263 @@ git commit -m "feat(api): GET /api/analytics with returns, risk, drawdown and mo
 
 ---
 
-### Task 3: API client and the Analiza screen with its tiles
+### Task 3: Tooltips for measures (`InfoTip`) and the Pulpit stats
+
+**Files:**
+- Create: `web/src/ui/InfoTip.tsx`, `web/src/ui/InfoTip.module.css`, `web/src/ui/help.ts`
+- Modify: `web/src/screens/dashboard/DashboardScreen.tsx` (the `<dl className={styles.stats}>` block, about lines 137–142)
+- Test: `web/src/ui/InfoTip.test.tsx`
+
+**Interfaces:**
+- Produces:
+  - `<InfoTip label={string} help={Help} />`: a "?" button labelled `Co to jest: <label>`; when open, a `role="tooltip"` bubble
+  - `Help = { what: string; how: string }` and `HELP: Record<string, Help>` in `ui/help.ts`, keyed by the visible measure name
+
+- [ ] **Step 1: Write the failing tests**
+
+Create `web/src/ui/InfoTip.test.tsx`:
+
+```tsx
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it } from "vitest";
+import { InfoTip } from "./InfoTip";
+
+function setup() {
+  const user = userEvent.setup();
+  render(<div><InfoTip label="XIRR" help={{ what: "Twój osobisty zwrot.", how: "stopa jak w Excelu." }} /><p>obok</p></div>);
+  return { user, button: screen.getByRole("button", { name: "Co to jest: XIRR" }) };
+}
+
+describe("InfoTip", () => {
+  it("opens on hover and closes when the mouse leaves", async () => {
+    const { user, button } = setup();
+
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    await user.hover(button);
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Twój osobisty zwrot.Jak liczymy: stopa jak w Excelu.");
+    expect(button).toHaveAccessibleDescription(/Twój osobisty zwrot\.\s*Jak liczymy: stopa jak w Excelu\./);
+    await user.unhover(button);
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("toggles on a tap and closes on Escape or a tap elsewhere", async () => {
+    const { user, button } = setup();
+
+    await user.click(button);
+    expect(button).toHaveAttribute("aria-expanded", "true");
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+
+    await user.click(button);
+    await user.click(screen.getByText("obok"));
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+
+    await user.click(button);
+    await user.click(button);
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("keeps the bubble inside a narrow screen", async () => {
+    window.innerWidth = 320;
+    const { user, button } = setup();
+
+    await user.click(button);
+    const bubble = screen.getByRole("tooltip");
+    expect(bubble.style.left).toBe("16px");
+    expect(bubble.style.width).toBe("260px");
+  });
+});
+```
+
+Add to the existing Pulpit test file `web/src/screens/dashboard/dashboard.test.tsx` a test that follows the file's own setup for a signed-in Pulpit with `SUMMARY` (copy its route list from the first test there):
+
+```tsx
+  it("explains the stats behind their question marks", async () => {
+    // same routes as the first test in this file
+    const { user } = renderApp("/");
+
+    await user.click(await screen.findByRole("button", { name: "Co to jest: Stopa zwrotu (TWR)" }));
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Jak liczymy: zwrot każdego dnia");
+    for (const name of ["Zysk łącznie", "Wpłacono", "Dywidendy i odsetki"]) {
+      expect(screen.getByRole("button", { name: `Co to jest: ${name}` })).toBeInTheDocument();
+    }
+  });
+```
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+Run: `npm test -- src/ui/InfoTip src/screens/dashboard` (in `web/`)
+Expected: the run FAILS, because `./InfoTip` does not exist and the Pulpit has no "Co to jest" buttons.
+
+- [ ] **Step 3: Write the texts, the component and its style**
+
+Create `web/src/ui/help.ts`:
+
+```ts
+/** What each measure means and how it is counted, in plain words; keyed by the name shown on screen (spec 7a §5). */
+export interface Help { what: string; how: string }
+
+export const HELP: Record<string, Help> = {
+  "Zysk": {
+    what: "Ile zarobiłeś w okresie, nie licząc tego, co sam dopłaciłeś.",
+    how: "wartość na koniec okresu − wartość na początku − wpłaty netto w okresie.",
+  },
+  "TWR": {
+    what: "Jak radziły sobie same inwestycje, niezależnie od terminów wpłat; tę miarę porównuje się z funduszami.",
+    how: "zwrot każdego dnia liczony bez wpływu wpłat (wpłata liczy się na początku dnia), a zwroty dni mnożone przez siebie; od roku wzwyż przeliczony na rok.",
+  },
+  "XIRR": {
+    what: "Twój osobisty zwrot z uwzględnieniem tego, kiedy i ile wpłacałeś; jak oprocentowanie lokaty o tym samym wyniku.",
+    how: "stopa, przy której Twoje wpłaty, wypłaty i dzisiejsza wartość się równoważą (jak XIRR w Excelu); dla okresu krótszego niż rok przeliczona na okres.",
+  },
+  "Maks. obsunięcie": {
+    what: "Największy spadek od szczytu do dołka w okresie.",
+    how: "z dziennych zwrotów (TWR), więc wpłaty nie zasłaniają spadków: najniższy poziom względem najwyższego wcześniejszego.",
+  },
+  "Obecne obsunięcie": {
+    what: "Ile dziś brakuje do najwyższego poziomu.",
+    how: "dzisiejszy poziom TWR względem najwyższego w okresie.",
+  },
+  "Zmienność": {
+    what: "Jak mocno wartość skacze; 15 % znaczy, że typowy rok mieści się mniej więcej w ±15 %.",
+    how: "odchylenie standardowe dziennych zwrotów × √365; potrzeba co najmniej 30 dni.",
+  },
+  "Sharpe": {
+    what: "Ile zysku przypada na jednostkę ryzyka ponad bezpieczną lokatę; powyżej 1 dobrze, poniżej 0 lokata wypadła lepiej.",
+    how: "(średni dzienny zwrot − dzienna stopa referencyjna NBP) ÷ odchylenie dziennych zwrotów × √365; potrzeba co najmniej 30 dni.",
+  },
+  "Najlepszy dzień": {
+    what: "Największy dzienny wzrost w okresie.",
+    how: "dzień z najwyższym zwrotem; kwota to zmiana wartości tego dnia bez wpłat i wypłat.",
+  },
+  "Najgorszy dzień": {
+    what: "Największy dzienny spadek w okresie.",
+    how: "dzień z najniższym zwrotem; kwota to zmiana wartości tego dnia bez wpłat i wypłat.",
+  },
+  "Obsunięcie w czasie": {
+    what: "Jak głęboko i jak długo portfel był poniżej swojego najwyższego poziomu; 0 % to nowy rekord.",
+    how: "każdego dnia poziom TWR względem najwyższego wcześniejszego w okresie.",
+  },
+  "Zwrot w miesiącach": {
+    what: "Zwrot w każdym miesiącu i roku, za całą historię, niezależnie od wybranego okresu.",
+    how: "dzienne zwroty TWR mnożone w obrębie miesiąca; rok to iloczyn jego miesięcy.",
+  },
+  "Zysk łącznie": {
+    what: "Ile zarobiłeś od początku.",
+    how: "dzisiejsza wartość do wypłaty − wpłaty netto (wpłaty minus wypłaty).",
+  },
+  "Stopa zwrotu (TWR)": {
+    what: "Jak radziły sobie same inwestycje od początku, niezależnie od terminów wpłat.",
+    how: "zwrot każdego dnia liczony bez wpływu wpłat, a zwroty dni od pierwszego dnia historii mnożone przez siebie.",
+  },
+  "Wpłacono": {
+    what: "Ile pieniędzy włożyłeś w portfel.",
+    how: "suma wpłat na wybrane konta minus wypłaty, w złotych.",
+  },
+  "Dywidendy i odsetki": {
+    what: "Dochód, który wpłynął na konta.",
+    how: "dywidendy i odsetki po pobranym podatku, w złotych po kursie NBP z dnia wpływu.",
+  },
+};
+```
+
+Create `web/src/ui/InfoTip.module.css`:
+
+```css
+.wrap { display: inline-flex; vertical-align: middle; margin-left: 6px; }
+.button { width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 1px solid var(--rule); background: none; color: var(--dim); font-size: 11px; line-height: 1; cursor: help; }
+.button[aria-expanded="true"] { color: var(--amber); border-color: var(--amber); }
+.bubble { position: fixed; z-index: 30; background: var(--slab); color: var(--ink); border: 1px solid var(--rule); border-radius: var(--r-control); padding: 8px 10px; font-size: 12px; font-weight: 400; line-height: 1.4; text-align: left; box-shadow: 0 8px 24px rgba(0, 0, 0, .45); }
+.how { display: block; margin-top: 6px; color: var(--dim); }
+```
+
+Create `web/src/ui/InfoTip.tsx`:
+
+```tsx
+import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
+import type { Help } from "./help";
+import styles from "./InfoTip.module.css";
+
+const WIDTH = 260;
+const GUTTER = 16;
+
+/** A "?" that explains a measure. A mouse opens it by hovering; a tap (or Enter/Space) pins it open until a second
+ * tap, Esc, a tap elsewhere or scrolling. The bubble is fixed to the viewport and stays 16 px inside its edges. */
+export function InfoTip({ label, help }: { label: string; help: Help }) {
+  const id = useId();
+  const button = useRef<HTMLButtonElement>(null);
+  const [pinned, setPinned] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [place, setPlace] = useState<CSSProperties>({});
+  const open = pinned || hovered;
+
+  useEffect(() => {
+    if (!open || !button.current) return;
+    const rect = button.current.getBoundingClientRect();
+    const width = Math.min(WIDTH, window.innerWidth - 2 * GUTTER);
+    const left = Math.min(Math.max(rect.right - width, GUTTER), window.innerWidth - GUTTER - width);
+    setPlace({ top: rect.bottom + 6, left, width });
+    const close = () => { setPinned(false); setHovered(false); };
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") close(); };
+    const onDown = (event: PointerEvent) => { if (!button.current?.contains(event.target as Node)) close(); };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("pointerdown", onDown);
+    window.addEventListener("scroll", close, true);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("scroll", close, true);
+    };
+  }, [open]);
+
+  return (
+    <span className={styles.wrap}>
+      <button ref={button} type="button" className={styles.button} aria-label={`Co to jest: ${label}`}
+        aria-expanded={open} aria-describedby={open ? id : undefined}
+        onClick={() => { setPinned(!pinned); setHovered(false); }}
+        onPointerEnter={(event) => { if (event.pointerType === "mouse") setHovered(true); }}
+        onPointerLeave={(event) => { if (event.pointerType === "mouse") setHovered(false); }}>
+        ?
+      </button>
+      {open && (
+        <span role="tooltip" id={id} className={styles.bubble} style={place}>
+          {help.what}
+          <span className={styles.how}>Jak liczymy: {help.how}</span>
+        </span>
+      )}
+    </span>
+  );
+}
+```
+
+A click on a hovered tip pins it (`pinned` becomes true). A second click unpins it. Leaving with the mouse while it is pinned keeps it open. If the "tap elsewhere" test fails because `user.click` sends no `pointerdown` in this jsdom, use `user.pointer({ keys: "[MouseLeft]", target: screen.getByText("obok") })` in the test instead.
+
+- [ ] **Step 4: Add the tips to the Pulpit stats**
+
+In `DashboardScreen.tsx`, import `InfoTip` from `../../ui/InfoTip` and `HELP` from `../../ui/help`. Inside each `<dt>` of the `styles.stats` list, keep the label in a `<span>` (so tests that look up the label text still find it) followed by the tip, e.g.:
+
+```tsx
+          <div><dt><span>Zysk łącznie</span><InfoTip label="Zysk łącznie" help={HELP["Zysk łącznie"]!} /></dt><dd><Money value={data.total_gain_pln} sign tone /></dd></div>
+```
+
+Do the same for `Stopa zwrotu (TWR)`, `Wpłacono` and `Dywidendy i odsetki`. Leave the `<dd>` elements unchanged.
+
+- [ ] **Step 5: Run the tests and the type check**
+
+Run: `npm test` and `npx tsc -b` (in `web/`)
+Expected: all tests PASS, including every existing Pulpit test, and there are no type errors.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add web/src/ui/InfoTip.tsx web/src/ui/InfoTip.module.css web/src/ui/help.ts web/src/ui/InfoTip.test.tsx web/src/screens/dashboard
+git commit -m "feat(web): question-mark tooltips that explain measures, on the Pulpit stats first"
+```
+
+---
+
+### Task 4: API client and the Analiza screen with its tiles
 
 **Files:**
 - Modify: `web/src/api/types.ts`, `web/src/api/endpoints.ts`, `web/src/api/queryKeys.ts`, `web/src/routes.tsx`, `web/src/test/fixtures.ts`
@@ -870,13 +1128,13 @@ git commit -m "feat(api): GET /api/analytics with returns, risk, drawdown and mo
 - Test: `web/src/screens/analysis/analysis.test.tsx`
 
 **Interfaces:**
-- Consumes: `GET /api/analytics` (Task 2); `useAccountSelection`, `AccountSelect`, `Segmented`, `BackLink`, `Money`, the `States` components and `RECALC_POLL_MS`.
+- Consumes: `GET /api/analytics` (Task 2); `InfoTip` and `HELP` (Task 3); `useAccountSelection`, `AccountSelect`, `Segmented`, `BackLink`, `Money`, the `States` components and `RECALC_POLL_MS`.
 - Produces:
   - Types `Analytics`, `AnalyticsPeriod`, `PeriodReturn`, `MonthReturns`
   - `api.analytics(ids, period)` and `keys.analytics(ids, period)`
-  - From `model.ts`: `PERIODS`, `HELP`, `MONTHS`, `shownReturn` and `cellBackground`
+  - From `model.ts`: `PERIODS`, `MONTHS`, `shownReturn` and `cellBackground`
   - The fixtures `ANALYTICS` and `ANALYTICS_EMPTY`
-  - The screen leaves a slot that Task 4 fills: the comment `{/* Task 4: drawdown chart and monthly returns */}`
+  - The screen leaves a slot that Task 5 fills: the comment `{/* Task 5: drawdown chart and monthly returns */}`
 
 - [ ] **Step 1: Add the types, endpoint, key and fixtures**
 
@@ -1000,10 +1258,13 @@ describe("Analiza", () => {
     const { user } = renderApp("/analiza");
 
     const help = await screen.findByRole("button", { name: "Co to jest: XIRR" });
-    expect(help).toHaveAttribute("aria-expanded", "false");
-    await user.click(help);
-    expect(help).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByText(/Twój osobisty zwrot/)).toBeInTheDocument();
+    await user.hover(help);
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Twój osobisty zwrot");
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Jak liczymy: stopa, przy której");
+    await user.unhover(help);
+    for (const name of ["Zysk", "TWR", "Maks. obsunięcie", "Obecne obsunięcie", "Zmienność", "Sharpe", "Najlepszy dzień", "Najgorszy dzień"]) {
+      expect(screen.getByRole("button", { name: `Co to jest: ${name}` })).toBeInTheDocument();
+    }
   });
 
   it("asks for the chosen period", async () => {
@@ -1102,19 +1363,6 @@ export const PERIODS: { value: AnalyticsPeriod; label: string }[] = [
 
 export const MONTHS = ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"];
 
-/** One plain sentence behind each tile's "?" (spec 7a §5). */
-export const HELP: Record<string, string> = {
-  "Zysk": "Ile zarobiłeś w okresie, nie licząc tego, co sam dopłaciłeś.",
-  "TWR": "Jak radziły sobie same inwestycje, niezależnie od terminów wpłat; tę miarę porównuje się z funduszami.",
-  "XIRR": "Twój osobisty zwrot z uwzględnieniem tego, kiedy i ile wpłacałeś; jak oprocentowanie lokaty o tym samym wyniku.",
-  "Maks. obsunięcie": "Największy spadek od szczytu do dołka w okresie.",
-  "Obecne obsunięcie": "Ile dziś brakuje do najwyższego poziomu.",
-  "Zmienność": "Jak mocno wartość skacze; 15 % znaczy, że typowy rok mieści się mniej więcej w ±15 %.",
-  "Sharpe": "Ile zysku przypada na jednostkę ryzyka ponad bezpieczną lokatę (stopa NBP); powyżej 1 dobrze, poniżej 0 lokata wypadła lepiej.",
-  "Najlepszy dzień": "Największy dzienny wzrost, bez wpłat.",
-  "Najgorszy dzień": "Największy dzienny spadek, bez wpłat.",
-};
-
 /** Returns are for the period below a year and annual from a year on (owner's decision 7a). */
 export function shownReturn(value: PeriodReturn, annualized: boolean): { value: Money | null; caption: string } {
   if (!annualized) return { value: value.period_pct, caption: "za okres" };
@@ -1144,11 +1392,8 @@ Create `web/src/screens/analysis/Analysis.module.css`:
 @media (min-width: 900px) { .tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .tile { background: var(--slab); border: 1px solid var(--rule); border-radius: var(--r-sheet); padding: 12px; display: grid; gap: 2px; align-content: start; }
 .tileHead { display: flex; justify-content: space-between; align-items: center; color: var(--dim); font-size: 12px; }
-.help { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--rule); background: none; color: var(--dim); font-size: 11px; cursor: pointer; }
-.help[aria-expanded="true"] { color: var(--amber); border-color: var(--amber); }
 .value { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .caption { color: var(--dim); font-size: 11px; }
-.explain { font-size: 12px; background: var(--amber-soft); border-radius: 8px; padding: 6px 8px; margin-top: 6px; }
 ```
 
 Create `web/src/screens/analysis/AnalysisScreen.tsx`:
@@ -1165,27 +1410,26 @@ import { AccountSelect } from "../../ui/AccountPicker";
 import { Money } from "../../ui/Amount";
 import { BackLink } from "../../ui/BackLink";
 import { Segmented } from "../../ui/Segmented";
+import { HELP } from "../../ui/help";
+import { InfoTip } from "../../ui/InfoTip";
 import { EmptyState, ErrorState, Recalculating, Skeleton } from "../../ui/States";
 import ui from "../../ui/ui.module.css";
 import { RECALC_POLL_MS } from "../dashboard/model";
 import styles from "./Analysis.module.css";
-import { HELP, PERIODS, shownReturn } from "./model";
+import { PERIODS, shownReturn } from "./model";
 
 const tone = (value: string | null) => (signOf(value) > 0 ? "up" : signOf(value) < 0 ? "down" : "");
 const TOO_LITTLE = "za mało danych";
 
 function Tile({ title, value, caption }: { title: string; value: ReactNode; caption: string }) {
-  const [open, setOpen] = useState(false);
   return (
     <div className={styles.tile} role="group" aria-label={title}>
       <div className={styles.tileHead}>
         <span>{title}</span>
-        <button type="button" className={styles.help} aria-label={`Co to jest: ${title}`} aria-expanded={open}
-          onClick={() => setOpen(!open)}>?</button>
+        <InfoTip label={title} help={HELP[title]!} />
       </div>
       <div className={styles.value}>{value}</div>
       <div className={styles.caption}>{caption}</div>
-      {open && <p className={styles.explain}>{HELP[title]}</p>}
     </div>
   );
 }
@@ -1252,7 +1496,7 @@ export function AnalysisScreen() {
           <>
             {analytics.data.recalculating && <Recalculating />}
             <Tiles data={analytics.data} />
-            {/* Task 4: drawdown chart and monthly returns */}
+            {/* Task 5: drawdown chart and monthly returns */}
           </>
         )}
     </div>
@@ -1278,16 +1522,16 @@ git commit -m "feat(web): Analiza screen with period, accounts and measure tiles
 
 ---
 
-### Task 4: Drawdown chart and monthly returns
+### Task 5: Drawdown chart and monthly returns
 
 **Files:**
 - Create: `web/src/charts/DrawdownChart.tsx`, `web/src/charts/DrawdownChart.module.css`
 - Create: `web/src/screens/analysis/MonthlyReturns.tsx`
-- Modify: `web/src/screens/analysis/AnalysisScreen.tsx` (replace the Task 4 comment), `web/src/screens/analysis/Analysis.module.css`
+- Modify: `web/src/screens/analysis/AnalysisScreen.tsx` (replace the Task 5 comment), `web/src/screens/analysis/Analysis.module.css`
 - Test: `web/src/screens/analysis/analysis.test.tsx` (add cases)
 
 **Interfaces:**
-- Consumes: `Analytics["drawdown_series"]` and `MonthReturns[]` (Task 3); `timeTicks(points, view, plotWidth)` from `charts/timeTicks`; `fullWindow(count)` from `charts/viewport`; `ChartPoint` from `charts/geometry`; `MONTHS` and `cellBackground` (Task 3).
+- Consumes: `InfoTip` and `HELP` (Task 3); `Analytics["drawdown_series"]` and `MonthReturns[]` (Task 4); `timeTicks(points, view, plotWidth)` from `charts/timeTicks`; `fullWindow(count)` from `charts/viewport`; `ChartPoint` from `charts/geometry`; `MONTHS` and `cellBackground` (Task 4).
 - Produces: `<DrawdownChart points={…} />` and `<MonthlyReturns rows={…} />`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -1312,6 +1556,8 @@ Append inside `describe("Analiza", …)` in `analysis.test.tsx`:
     expect(within(year).getByRole("listitem", { name: "sty 2026" })).toHaveTextContent("–");
     expect(within(year).getAllByRole("listitem")).toHaveLength(12);
     expect(screen.getAllByRole("group", { name: /^Rok / })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Co to jest: Zwrot w miesiącach" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Co to jest: Obsunięcie w czasie" })).toBeInTheDocument();
   });
 
   it("marks the partial first month", async () => {
@@ -1456,15 +1702,19 @@ export function MonthlyReturns({ rows }: { rows: MonthReturns[] }) {
 }
 ```
 
-In `AnalysisScreen.tsx`, import `DrawdownChart` from `../../charts/DrawdownChart` and `MonthlyReturns` from `./MonthlyReturns`, and replace `{/* Task 4: drawdown chart and monthly returns */}` with:
+In `AnalysisScreen.tsx`, import `DrawdownChart` from `../../charts/DrawdownChart` and `MonthlyReturns` from `./MonthlyReturns`, and replace `{/* Task 5: drawdown chart and monthly returns */}` with:
 
 ```tsx
             <section className={ui.section} aria-labelledby="drawdown-title">
-              <h2 id="drawdown-title" className={ui.sectionTitle}>Obsunięcie w czasie</h2>
+              <h2 id="drawdown-title" className={ui.sectionTitle}>
+                Obsunięcie w czasie<InfoTip label="Obsunięcie w czasie" help={HELP["Obsunięcie w czasie"]!} />
+              </h2>
               <DrawdownChart points={analytics.data.drawdown_series} />
             </section>
             <section className={ui.section} aria-labelledby="monthly-title">
-              <h2 id="monthly-title" className={ui.sectionTitle}>Zwrot w miesiącach</h2>
+              <h2 id="monthly-title" className={ui.sectionTitle}>
+                Zwrot w miesiącach<InfoTip label="Zwrot w miesiącach" help={HELP["Zwrot w miesiącach"]!} />
+              </h2>
               <MonthlyReturns rows={analytics.data.monthly} />
             </section>
 ```
@@ -1488,7 +1738,7 @@ git commit -m "feat(web): drawdown chart and monthly returns grid on the Analiza
 
 ---
 
-### Task 5: Pulpit card, e2e and roadmap
+### Task 6: Pulpit card, e2e and roadmap
 
 **Files:**
 - Create: `web/src/screens/analysis/AnalyticsCard.tsx`
@@ -1497,7 +1747,7 @@ git commit -m "feat(web): drawdown chart and monthly returns grid on the Analiza
 - Modify: `docs/superpowers/plans/2026-09-26-00-roadmap.md`
 
 **Interfaces:**
-- Consumes: `api.analytics`, `keys.analytics`, `useAccountSelection` (Task 3).
+- Consumes: `api.analytics`, `keys.analytics`, `useAccountSelection` (Task 4); `InfoTip` and `HELP` (Task 3).
 - Produces: `<AnalyticsCard />`, which hides itself when there is no data or the request fails, like `LimitsCard`. Existing Pulpit tests do not mock `/api/analytics`, so the request returns 404 there and the card stays hidden.
 
 - [ ] **Step 1: Write the failing tests**
@@ -1528,6 +1778,7 @@ describe("Pulpit card", () => {
     expect(within(card).getByText("−8,2 %")).toBeInTheDocument();
     expect(fetchMock.mock.calls.map(([url]) => String(url)).some((u) => u.includes("/api/analytics?period=all"))).toBe(true);
 
+    expect(within(card).getByRole("button", { name: "Co to jest: XIRR" })).toBeInTheDocument();
     await user.click(within(card).getByRole("link", { name: "Szczegóły analizy" }));
     expect(await screen.findByRole("heading", { name: "Analiza" })).toBeInTheDocument();
   });
@@ -1560,6 +1811,8 @@ import { useAccountSelection } from "../../accounts/AccountSelection";
 import { api } from "../../api/endpoints";
 import { keys } from "../../api/queryKeys";
 import { formatPercent, signOf } from "../../format";
+import { HELP } from "../../ui/help";
+import { InfoTip } from "../../ui/InfoTip";
 import ui from "../../ui/ui.module.css";
 import { shownReturn } from "./model";
 
@@ -1582,8 +1835,10 @@ export function AnalyticsCard() {
         <Link className={ui.sectionMore} to="/analiza" aria-label="Szczegóły analizy">Szczegóły</Link>
       </div>
       <dl className={ui.kv}>
-        <dt>XIRR</dt><dd className={tone(xirr)}>{formatPercent(xirr, { places: 1 })}</dd>
-        <dt>Maks. obsunięcie</dt><dd className={tone(fall)}>{formatPercent(fall, { places: 1 })}</dd>
+        <dt><span>XIRR</span><InfoTip label="XIRR" help={HELP.XIRR!} /></dt>
+        <dd className={tone(xirr)}>{formatPercent(xirr, { places: 1 })}</dd>
+        <dt><span>Maks. obsunięcie</span><InfoTip label="Maks. obsunięcie" help={HELP["Maks. obsunięcie"]!} /></dt>
+        <dd className={tone(fall)}>{formatPercent(fall, { places: 1 })}</dd>
       </dl>
     </section>
   );
@@ -1595,7 +1850,7 @@ In `DashboardScreen.tsx`, import `AnalyticsCard` from `../analysis/AnalyticsCard
 - [ ] **Step 4: Run all web tests and the type check**
 
 Run: `npm test` and `npx tsc -b` (in `web/`)
-Expected: all tests PASS (250 before this plan, plus the new ones), including the existing dashboard tests.
+Expected: all tests PASS, including the existing dashboard tests.
 
 - [ ] **Step 5: Extend the e2e test**
 
