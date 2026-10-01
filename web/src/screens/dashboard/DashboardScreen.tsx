@@ -11,6 +11,7 @@ import { formatDayLong, formatMoney, formatRefreshed, formatPercent, pluralPl, s
 import { RefreshIcon } from "../../shell/icons";
 import { AccountSelect } from "../../ui/AccountPicker";
 import { HeroAmount, Money } from "../../ui/Amount";
+import { AnalyticsCard } from "../analysis/AnalyticsCard";
 import { LimitsCard } from "../limits/LimitsCard";
 import { HELP } from "../../ui/help";
 import { InfoTip } from "../../ui/InfoTip";
@@ -186,6 +187,8 @@ export function DashboardScreen() {
               </>
             )}
       </section>
+
+      <AnalyticsCard />
 
       <LimitsCard />
 

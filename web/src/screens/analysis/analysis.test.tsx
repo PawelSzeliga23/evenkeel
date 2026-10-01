@@ -1,6 +1,6 @@
 import { screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { ACCOUNTS, ANALYTICS, ANALYTICS_EMPTY } from "../../test/fixtures";
+import { ACCOUNTS, ANALYTICS, ANALYTICS_EMPTY, EXPOSURE, HISTORY, POSITIONS, SUMMARY } from "../../test/fixtures";
 import { SIGNED_IN, mockFetch, renderApp } from "../../test/render";
 import { formatPercent } from "../../format";
 import { cellBackground, shownReturn } from "./model";
@@ -148,5 +148,41 @@ describe("analysis model", () => {
     expect(cellBackground("0.00")).toBe("transparent");
     expect(cellBackground("2.50")).toBe("rgba(93, 185, 138, 0.28)");
     expect(cellBackground("-9.00")).toBe("rgba(224, 103, 110, 0.55)");
+  });
+});
+describe("Pulpit card", () => {
+  function dashboard(analytics: () => unknown) {
+    return mockFetch([
+      ...SIGNED_IN,
+      { path: "/api/accounts", respond: () => ACCOUNTS },
+      { path: "/api/portfolio/summary", respond: () => SUMMARY },
+      { path: "/api/portfolio/history", respond: () => HISTORY },
+      { path: "/api/portfolio/exposure", respond: () => EXPOSURE },
+      { path: "/api/positions", respond: () => POSITIONS },
+      { path: "/api/portfolio/limits", respond: () => [] },
+      { path: "/api/analytics", respond: analytics },
+    ]);
+  }
+
+  it("shows XIRR and the max drawdown of the whole history and leads to Analiza", async () => {
+    const fetchMock = dashboard(() => ANALYTICS);
+    const { user } = renderApp("/");
+
+    const card = await screen.findByRole("region", { name: "Analiza" });
+    expect(within(card).getByText("+6,4 %")).toBeInTheDocument();
+    expect(within(card).getByText("−8,2 %")).toBeInTheDocument();
+    expect(fetchMock.mock.calls.map(([url]) => String(url)).some((u) => u.includes("/api/analytics?period=all"))).toBe(true);
+
+    expect(within(card).getByRole("button", { name: "Co to jest: XIRR" })).toBeInTheDocument();
+    await user.click(within(card).getByRole("link", { name: "Szczegóły analizy" }));
+    expect(await screen.findByRole("heading", { name: "Analiza" })).toBeInTheDocument();
+  });
+
+  it("stays hidden without valuations", async () => {
+    dashboard(() => ANALYTICS_EMPTY);
+    renderApp("/");
+
+    await screen.findByRole("img", { name: /Wykres wartości portfela/ });
+    expect(screen.queryByRole("region", { name: "Analiza" })).not.toBeInTheDocument();
   });
 });
