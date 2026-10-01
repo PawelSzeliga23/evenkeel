@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type PointerEvent } from "react";
+import { useId, useMemo, useRef, useState, type PointerEvent } from "react";
 import type { HistoryPoint } from "../api/types";
 import { formatDate, formatMoney } from "../format";
 import {
@@ -7,23 +7,9 @@ import {
 } from "./geometry";
 import { timeTicks } from "./timeTicks";
 import { useChartGestures } from "./useChartGestures";
+import { useWidth } from "./useWidth";
 import { clampWindow, drawnRange, fullWindow, type ChartWindow, type YRange } from "./viewport";
 import styles from "./ValueChart.module.css";
-
-/** Follows the element's width; jsdom has no ResizeObserver, so tests draw at FRAME.width. */
-function useWidth(element: HTMLElement | null): number {
-  const [width, setWidth] = useState(FRAME.width);
-  useEffect(() => {
-    if (!element || typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(([entry]) => {
-      const measured = Math.round(entry!.contentRect.width);
-      if (measured > 0) setWidth(measured);
-    });
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [element]);
-  return width;
-}
 
 export function ValueChart({ points, view: requested, yRange = null, onViewChange, onYRangeChange, onReset }: {
   points: HistoryPoint[];
@@ -38,7 +24,7 @@ export function ValueChart({ points, view: requested, yRange = null, onViewChang
   const marks = useMemo(() => depositMarks(data), [data]);
   const [active, setActive] = useState<number | null>(null);
   const [figure, setFigure] = useState<HTMLElement | null>(null);
-  const width = useWidth(figure);
+  const width = useWidth(figure, FRAME.width);
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const frame = frameFor(width);
   const view = clampWindow(requested ?? fullWindow(data.length), data.length);

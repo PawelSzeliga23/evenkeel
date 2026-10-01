@@ -4,6 +4,7 @@ import { useAccountSelection } from "../../accounts/AccountSelection";
 import { api } from "../../api/endpoints";
 import { keys } from "../../api/queryKeys";
 import type { Analytics, AnalyticsPeriod, DayExtreme } from "../../api/types";
+import { DrawdownChart } from "../../charts/DrawdownChart";
 import { formatDate, formatDecimal, formatMoney, formatPercent, signOf } from "../../format";
 import { AccountSelect } from "../../ui/AccountPicker";
 import { Money } from "../../ui/Amount";
@@ -15,6 +16,7 @@ import { EmptyState, ErrorState, Recalculating, Skeleton } from "../../ui/States
 import ui from "../../ui/ui.module.css";
 import { RECALC_POLL_MS } from "../dashboard/model";
 import styles from "./Analysis.module.css";
+import { MonthlyReturns } from "./MonthlyReturns";
 import { PERIODS, shownReturn } from "./model";
 
 const tone = (value: string | null) => (signOf(value) > 0 ? "up" : signOf(value) < 0 ? "down" : "");
@@ -95,7 +97,18 @@ export function AnalysisScreen() {
           <>
             {analytics.data.recalculating && <Recalculating />}
             <Tiles data={analytics.data} />
-            {/* Task 5: drawdown chart and monthly returns */}
+            <section className={ui.section} aria-labelledby="drawdown-title">
+              <h2 id="drawdown-title" className={ui.sectionTitle}>
+                Obsunięcie w czasie<InfoTip label="Obsunięcie w czasie" help={HELP["Obsunięcie w czasie"]!} />
+              </h2>
+              <DrawdownChart points={analytics.data.drawdown_series} />
+            </section>
+            <section className={ui.section} aria-labelledby="monthly-title">
+              <h2 id="monthly-title" className={ui.sectionTitle}>
+                Zwrot w miesiącach<InfoTip label="Zwrot w miesiącach" help={HELP["Zwrot w miesiącach"]!} />
+              </h2>
+              <MonthlyReturns rows={analytics.data.monthly} />
+            </section>
           </>
         )}
     </div>

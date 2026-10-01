@@ -1,0 +1,7 @@
+.chart { margin: 0; }
+.chart svg { width: 100%; height: auto; display: block; }
+.grid { stroke: var(--rule); }
+.area { fill: var(--loss-soft); }
+.line { fill: none; stroke: var(--loss); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.label { fill: var(--dim); font-size: 11px; }
+.note { color: var(--dim); font-size: 13px; }

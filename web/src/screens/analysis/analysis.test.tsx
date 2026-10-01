@@ -106,6 +106,34 @@ describe("Analiza", () => {
 
     expect(await screen.findByRole("button", { name: "Spróbuj ponownie" })).toBeInTheDocument();
   });
+  it("draws the drawdown over time", async () => {
+    routes(() => ANALYTICS);
+    renderApp("/analiza");
+
+    expect(await screen.findByRole("img", { name: /^Obsunięcie w czasie, najgłębiej −8,2\s%$/ })).toBeInTheDocument();
+  });
+
+  it("lists monthly returns per year without a second copy", async () => {
+    routes(() => ANALYTICS);
+    renderApp("/analiza");
+
+    const year = await screen.findByRole("group", { name: "Rok 2026" });
+    expect(within(year).getByText("+5,1 %")).toBeInTheDocument();
+    expect(within(year).getByRole("listitem", { name: "sie 2026" })).toHaveTextContent("−3,0 %");
+    expect(within(year).getByRole("listitem", { name: "sty 2026" })).toHaveTextContent("–");
+    expect(within(year).getAllByRole("listitem")).toHaveLength(12);
+    expect(screen.getAllByRole("group", { name: /^Rok / })).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Co to jest: Zwrot w miesiącach" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Co to jest: Obsunięcie w czasie" })).toBeInTheDocument();
+  });
+
+  it("marks the partial first month", async () => {
+    routes(() => ({ ...ANALYTICS, monthly: [{ ...ANALYTICS.monthly[0]!, first_partial_month: 3 }] }));
+    renderApp("/analiza");
+
+    const march = await screen.findByRole("listitem", { name: "mar 2026, niepełny miesiąc" });
+    expect(march).toHaveTextContent("+1,2 %");
+  });
 });
 
 describe("analysis model", () => {

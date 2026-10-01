@@ -102,7 +102,7 @@ recalculating     bool (jak w podsumowaniu Pulpitu)
 - **Pulpit:** karta „Analiza” z XIRR i maks. obsunięciem za całą historię (jedno zapytanie `period=all`) i linkiem do
   `/analiza`, w stylu karty Ekspozycji.
 - **`/analiza`:** tytuł, wybór kont, przyciski okresu (domyślnie „Wszystko”).
-  1. Kafelki (2 kolumny na telefonie, 4 na komputerze): Zysk, TWR, XIRR, Maks. obsunięcie, Obecne obsunięcie,
+  1. Kafelki (2 kolumny na telefonie, 3 na komputerze — 9 kafelków w siatce 3 × 3): Zysk, TWR, XIRR, Maks. obsunięcie, Obecne obsunięcie,
      Zmienność, Sharpe, Najlepszy dzień, Najgorszy dzień. Pod liczbą podpis „za okres” / „rocznie” (i „orientacyjnie”
      przy `short_sample`). Przycisk „?” otwiera dymek (najechanie myszą; dotknięcie lub Enter/Spacja; zamyka Esc, dotknięcie obok albo przewinięcie) z jednozdaniowym wyjaśnieniem i linijką „Jak liczymy:” — wzorem prostymi słowami.
   2. Wykres obsunięcia: obszar pod zerem w kolorze `--loss`, oś czasu z `timeTicks`, bez przybliżania.
