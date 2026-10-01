@@ -330,3 +330,23 @@ export interface Limit {
   exceeded: boolean;
   accounts: LimitAccount[];
 }
+export type AnalyticsPeriod = "1m" | "3m" | "1y" | "ytd" | "all";
+export interface PeriodReturn { period_pct: Money | null; annual_pct: Money | null }
+export interface DayExtreme { date: IsoDate; pct: Money; pln: Money }
+export interface MonthReturns { year: number; months: (Money | null)[]; year_pct: Money | null; first_partial_month: number | null }
+export interface Analytics {
+  period: { start: IsoDate; end: IsoDate; days: number; annualized: boolean } | null;
+  profit_pln: Money;
+  twr: PeriodReturn;
+  xirr: PeriodReturn;
+  volatility_pct: Money | null;
+  sharpe: Money | null;
+  short_sample: boolean;
+  max_drawdown: { pct: Money; peak_date: IsoDate; trough_date: IsoDate; recovered_on: IsoDate | null } | null;
+  current_drawdown_pct: Money | null;
+  best_day: DayExtreme | null;
+  worst_day: DayExtreme | null;
+  drawdown_series: { date: IsoDate; pct: Money }[];
+  monthly: MonthReturns[];
+  recalculating: boolean;
+}

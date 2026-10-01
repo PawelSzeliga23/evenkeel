@@ -39,6 +39,12 @@ describe("controls", () => {
     expect(onChange).toHaveBeenCalledWith("1M");
   });
 
+  it("takes an extra class for its own layout", () => {
+    render(<Segmented label="Okres" value="1M" onChange={() => {}} className="periods"
+      options={[{ value: "1M", label: "1M" }]} />);
+    expect(screen.getByRole("group", { name: "Okres" })).toHaveClass("periods");
+  });
+
   it("shows the choice on a button and opens checkboxes for the accounts", async () => {
     const onChange = vi.fn();
     render(<AccountSelect accounts={THREE} value={[]} onChange={onChange} />);

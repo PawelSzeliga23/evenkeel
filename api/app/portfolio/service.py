@@ -68,7 +68,7 @@ def _flow_sum() -> object:
     return func.coalesce(func.sum(DailyValuation.net_flow_pln), 0)
 
 
-def _daily_totals(scope: UserScope, account_ids: frozenset[int] | None) -> list[tuple[dt.date, Decimal, Decimal]]:
+def daily_totals(scope: UserScope, account_ids: frozenset[int] | None) -> list[tuple[dt.date, Decimal, Decimal]]:
     """(day, value, net external flow) of the portfolio or one account, in date order."""
     return [tuple(row) for row in scope.db.execute(
         _valuations(scope, account_ids)
@@ -158,7 +158,7 @@ def portfolio_summary(scope: UserScope, account_ids: frozenset[int] | None) -> S
         elif row.flags:
             approximate += 1
     gain = value - invested
-    index = twr_index(_daily_totals(scope, account_ids))
+    index = twr_index(daily_totals(scope, account_ids))
     return SummaryOut(
         as_of=latest, value_pln=money(value), market_value_pln=money(value + exit_cost),
         exit_cost_pln=money(exit_cost), cash_pln=money(cash), invested_pln=money(invested),
@@ -180,7 +180,7 @@ def portfolio_history(
     def inside(day: dt.date) -> bool:
         return (start is None or day >= start) and (end is None or day <= end)
 
-    grouped = _daily_totals(scope, account_ids)
+    grouped = daily_totals(scope, account_ids)
     invested = ZERO
     points = []
     for (day, value, flow), (_, factor) in zip(grouped, twr_index(grouped), strict=True):

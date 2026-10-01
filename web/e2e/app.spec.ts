@@ -41,6 +41,11 @@ test("rejestracja, import eksportu XTB, pulpit, pozycje i szczegóły pozycji", 
   await expect(page.getByRole("img", { name: /Udział walut w czasie/ })).toBeVisible();
   await page.screenshot({ path: `${SCREENS}/ekspozycja.png`, fullPage: true });
 
+  await page.goto("/");
+  await page.getByRole("link", { name: "Szczegóły analizy" }).click();
+  await expect(page.getByRole("heading", { name: "Analiza" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "TWR" })).toBeVisible();
+
   await page.goto("/limity");
   await expect(page.getByRole("heading", { name: "Limity IKE i IKZE" })).toBeVisible();
   await page.screenshot({ path: `${SCREENS}/limity.png`, fullPage: true });

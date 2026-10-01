@@ -11,7 +11,10 @@ import { formatDayLong, formatMoney, formatRefreshed, formatPercent, pluralPl, s
 import { RefreshIcon } from "../../shell/icons";
 import { AccountSelect } from "../../ui/AccountPicker";
 import { HeroAmount, Money } from "../../ui/Amount";
+import { AnalyticsCard } from "../analysis/AnalyticsCard";
 import { LimitsCard } from "../limits/LimitsCard";
+import { HELP } from "../../ui/help";
+import { InfoTip } from "../../ui/InfoTip";
 import { ListRow } from "../../ui/ListRow";
 import { Segmented } from "../../ui/Segmented";
 import { EmptyState, ErrorState, Recalculating, Skeleton } from "../../ui/States";
@@ -134,10 +137,10 @@ export function DashboardScreen() {
           </p>
         )}
         <dl className={styles.stats}>
-          <div><dt>Zysk łącznie</dt><dd><Money value={data.total_gain_pln} sign tone /></dd></div>
-          <div><dt>Stopa zwrotu (TWR)</dt><dd className={`num ${tone(data.twr_pct)}`}>{formatPercent(data.twr_pct, { places: 1 })}</dd></div>
-          <div><dt>Wpłacono</dt><dd><Money value={data.invested_pln} /></dd></div>
-          <div><dt>Dywidendy i odsetki</dt><dd><Money value={sumMoney([data.dividends_net_pln, data.interest_net_pln])} /></dd></div>
+          <div><dt><span>Zysk łącznie</span><InfoTip label="Zysk łącznie" help={HELP["Zysk łącznie"]!} /></dt><dd><Money value={data.total_gain_pln} sign tone /></dd></div>
+          <div><dt><span>Stopa zwrotu (TWR)</span><InfoTip label="Stopa zwrotu (TWR)" help={HELP["Stopa zwrotu (TWR)"]!} /></dt><dd className={`num ${tone(data.twr_pct)}`}>{formatPercent(data.twr_pct, { places: 1 })}</dd></div>
+          <div><dt><span>Wpłacono</span><InfoTip label="Wpłacono" help={HELP["Wpłacono"]!} /></dt><dd><Money value={data.invested_pln} /></dd></div>
+          <div><dt><span>Dywidendy i odsetki</span><InfoTip label="Dywidendy i odsetki" help={HELP["Dywidendy i odsetki"]!} /></dt><dd><Money value={sumMoney([data.dividends_net_pln, data.interest_net_pln])} /></dd></div>
         </dl>
         {approximate > 0 && (
           <p className="flag">
@@ -184,6 +187,8 @@ export function DashboardScreen() {
               </>
             )}
       </section>
+
+      <AnalyticsCard />
 
       <LimitsCard />
 

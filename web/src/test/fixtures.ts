@@ -1,4 +1,4 @@
-import type { Account, Closed, Exposure, History, Instrument, ImportFile, ImportResult, Limit, Position, PositionDetail, Summary } from "../api/types";
+import type { Account, Analytics, Closed, Exposure, History, Instrument, ImportFile, ImportResult, Limit, Position, PositionDetail, Summary } from "../api/types";
 
 export const ACCOUNTS: Account[] = [
   { id: 1, name: "IKE", kind: "broker", wrapper: "ike", broker: "xtb", external_account_number: "56216965",
@@ -182,4 +182,33 @@ export const EXPOSURE_HISTORY: Exposure = {
     { date: "2026-09-25", values: { PLN: "500.00", EUR: "500.00" } },
     { date: "2026-09-26", values: { PLN: "400.00", EUR: "600.00", USD: "-5.00" } },
   ],
+};
+export const ANALYTICS: Analytics = {
+  period: { start: "2026-03-01", end: "2026-09-26", days: 210, annualized: false },
+  profit_pln: "804.20",
+  twr: { period_pct: "8.04", annual_pct: null },
+  xirr: { period_pct: "6.40", annual_pct: null },
+  volatility_pct: "14.80",
+  sharpe: "0.62",
+  short_sample: true,
+  max_drawdown: { pct: "-8.20", peak_date: "2026-08-12", trough_date: "2026-08-22", recovered_on: "2026-09-18" },
+  current_drawdown_pct: "-1.30",
+  best_day: { date: "2026-08-05", pct: "2.90", pln: "48.00" },
+  worst_day: { date: "2026-08-14", pct: "-3.40", pln: "-57.00" },
+  drawdown_series: [
+    { date: "2026-08-12", pct: "0.00" }, { date: "2026-08-22", pct: "-8.20" }, { date: "2026-09-18", pct: "0.00" },
+    { date: "2026-09-26", pct: "-1.30" },
+  ],
+  monthly: [{
+    year: 2026,
+    months: [null, null, "1.20", "0.50", "-0.70", "2.00", "3.10", "-3.00", "3.80", null, null, null],
+    year_pct: "5.10", first_partial_month: null,
+  }],
+  recalculating: false,
+};
+
+export const ANALYTICS_EMPTY: Analytics = {
+  period: null, profit_pln: "0.00", twr: { period_pct: null, annual_pct: null }, xirr: { period_pct: null, annual_pct: null },
+  volatility_pct: null, sharpe: null, short_sample: false, max_drawdown: null, current_drawdown_pct: null,
+  best_day: null, worst_day: null, drawdown_series: [], monthly: [], recalculating: false,
 };
