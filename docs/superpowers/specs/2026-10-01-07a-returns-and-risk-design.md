@@ -106,9 +106,12 @@ recalculating     bool (jak w podsumowaniu Pulpitu)
      Zmienność, Sharpe, Najlepszy dzień, Najgorszy dzień. Pod liczbą podpis „za okres” / „rocznie” (i „orientacyjnie”
      przy `short_sample`). Przycisk „?” rozwija jednozdaniowe wyjaśnienie prostym językiem.
   2. Wykres obsunięcia: obszar pod zerem w kolorze `--loss`, oś czasu z `timeTicks`, bez przybliżania.
-  3. Tabela miesiące × lata: wiersze = lata (najnowszy na górze), kolumny I–XII + „Rok”; tło komórki zielone/czerwone
-     z intensywnością rosnącą z wartością (nasycenie do ±5 % miesięcznie); na telefonie poziome przewijanie z
-     przyklejoną kolumną roku.
+  3. Zwrot w miesiącach, bez poziomego przewijania:
+     - telefon (< 900 px): osobna karta na każdy rok (najnowszy na górze), w nagłówku rok i zwrot roczny, pod nim
+       siatka 4 × 3 miesięcy (skrót miesiąca + zwrot); pusty miesiąc to „–”;
+     - komputer (≥ 900 px): tabela, wiersze = lata, kolumny I–XII + „Rok”, mieści się bez przewijania;
+     - tło komórki zielone/czerwone z intensywnością rosnącą z wartością (nasycenie przy ±5 % miesięcznie);
+       niepełny pierwszy miesiąc w przerywanej ramce.
 - Stany: ładowanie, błąd, „za mało danych”, „wycena się przelicza” — jak na innych ekranach.
 
 Teksty „?”:
