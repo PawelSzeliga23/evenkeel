@@ -170,6 +170,7 @@ describe("Pulpit card", () => {
 
     const card = await screen.findByRole("region", { name: "Analiza" });
     expect(within(card).getByText("+6,4 %")).toBeInTheDocument();
+    expect(within(card).getByText("za okres")).toBeInTheDocument();
     expect(within(card).getByText("−8,2 %")).toBeInTheDocument();
     expect(fetchMock.mock.calls.map(([url]) => String(url)).some((u) => u.includes("/api/analytics?period=all"))).toBe(true);
 

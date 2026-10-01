@@ -20,6 +20,7 @@ export function AnalyticsCard() {
   const data = analytics.data;
   if (!data || data.period === null) return null;
   const xirr = shownReturn(data.xirr, data.period.annualized).value;
+  const xirrSpan = data.period.annualized ? "rocznie" : "za okres";
   const fall = data.max_drawdown?.pct ?? null;
   return (
     <section className={ui.section} aria-labelledby="analytics-title">
@@ -28,7 +29,7 @@ export function AnalyticsCard() {
         <Link className={ui.sectionMore} to="/analiza" aria-label="Szczegóły analizy">Szczegóły</Link>
       </div>
       <dl className={ui.kv}>
-        <dt><span>XIRR</span><InfoTip label="XIRR" help={HELP.XIRR!} /></dt>
+        <dt><span>XIRR</span> <small className="dim">{xirrSpan}</small><InfoTip label="XIRR" help={HELP.XIRR!} /></dt>
         <dd className={tone(xirr)}>{formatPercent(xirr, { places: 1 })}</dd>
         <dt><span>Maks. obsunięcie</span><InfoTip label="Maks. obsunięcie" help={HELP["Maks. obsunięcie"]!} /></dt>
         <dd className={tone(fall)}>{formatPercent(fall, { places: 1 })}</dd>

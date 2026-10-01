@@ -177,3 +177,24 @@ def test_rounded_accepts_numpy_floats_and_rejects_nan() -> None:
     assert rounded(pd.Series([0.05]).iloc[0]) == D("5.00")
     assert rounded(float("nan")) is None
     assert rounded(None) is None
+
+
+def test_xirr_equals_twr_with_a_single_deposit() -> None:
+    days = [(day("2026-01-01"), D("1000"), D("1000"))] + [
+        (day("2026-01-01") + dt.timedelta(days=t), D("1000"), D("0")) for t in range(1, 29)
+    ] + [(day("2026-01-30"), D("1030"), D("0"))]
+    result = analyze(days, [], "all")
+
+    assert result.twr_period_pct == D("3.00")
+    assert result.xirr_period_pct == D("3.00")
+
+
+def test_a_return_exactly_to_the_record_counts_as_recovered() -> None:
+    days = [
+        (day("2026-01-01"), D("100"), D("100")), (day("2026-01-02"), D("102"), D("0")),
+        (day("2026-01-03"), D("96.3"), D("0")), (day("2026-01-04"), D("102"), D("0")),
+    ]
+    result = analyze(days, [], "all")
+
+    assert result.max_drawdown.recovered_on == day("2026-01-04")
+    assert result.current_drawdown_pct == D("0.00")

@@ -47,4 +47,13 @@ describe("InfoTip", () => {
     expect(bubble.style.left).toBe("16px");
     expect(bubble.style.width).toBe("260px");
   });
+
+  it("opens above the button near the bottom of the screen", async () => {
+    window.innerHeight = 740;
+    const { user, button } = setup();
+    button.getBoundingClientRect = () => ({ top: 700, bottom: 722, left: 278, right: 300, width: 22, height: 22, x: 278, y: 700, toJSON: () => ({}) });
+
+    await user.click(button);
+    expect(screen.getByRole("tooltip").style.top).toBe("694px");
+  });
 });

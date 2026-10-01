@@ -21,6 +21,7 @@ Period = Literal["1m", "3m", "1y", "ytd", "all"]
 PERIOD_MONTHS = {"1m": 1, "3m": 3, "1y": 12}
 DAYS_PER_YEAR = 365
 MIN_RISK_DAYS = 30
+TOLERANCE = 1e-12  # products of float returns land a hair off a level they reach exactly
 ONE_DAY = dt.timedelta(days=1)
 PLACES = Decimal("0.01")
 ZERO = Decimal(0)
@@ -158,13 +159,14 @@ def _drawdown(returns: pd.Series, base_day: dt.date) -> tuple[Drawdown, pd.Serie
     """The deepest fall of 1 zł grown since the base day below its running record, and the fall on each day."""
     wealth = pd.concat([pd.Series([1.0], index=[pd.Timestamp(base_day)]), (1 + returns).cumprod()])
     fall = wealth / wealth.cummax() - 1
+    fall = fall.where(fall < -TOLERANCE, 0.0)  # back exactly at the record is a record, not −0.0000000001 %
     trough = fall.idxmin()
     if fall[trough] >= 0:
         record = wealth.idxmax().date()
         return Drawdown(rounded(0.0), record, record, None), fall.iloc[1:]
     peak = wealth.loc[:trough].idxmax()
     later = wealth.loc[trough:].iloc[1:]
-    back = later[later >= wealth[peak]]
+    back = later[later >= wealth[peak] * (1 - TOLERANCE)]
     recovered = back.index[0].date() if len(back) else None
     return Drawdown(rounded(fall[trough]), peak.date(), trough.date(), recovered), fall.iloc[1:]
 
@@ -215,6 +217,7 @@ def analyze(days: Sequence[Day], rates: Sequence[Rate], period: Period) -> Analy
         cash[day] -= flow
     cash[end] += end_value
     yearly = annual_xirr(dict(cash))
+    held = (end - min(cash)).days  # pyxirr's span: from the first cash flow, which is `start` itself without a base
 
     drawdown, fall = _drawdown(returns, start - ONE_DAY) if len(returns) else (None, pd.Series(dtype=float))
     return Analysis(
@@ -222,7 +225,7 @@ def analyze(days: Sequence[Day], rates: Sequence[Rate], period: Period) -> Analy
         profit_pln=profit.quantize(PLACES),
         twr_period_pct=rounded(twr),
         twr_annual_pct=rounded(annualize(twr, span)) if annualized and twr is not None else None,
-        xirr_period_pct=rounded((1 + yearly) ** (span / DAYS_PER_YEAR) - 1) if yearly is not None else None,
+        xirr_period_pct=rounded((1 + yearly) ** (held / DAYS_PER_YEAR) - 1) if yearly is not None else None,
         xirr_annual_pct=rounded(yearly) if annualized and yearly is not None else None,
         volatility_pct=rounded(volatility(returns)),
         sharpe=rounded(sharpe(returns, risk_free(returns.index, rates)), scale=1),
