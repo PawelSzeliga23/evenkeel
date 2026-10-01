@@ -3,6 +3,7 @@ import { LoginScreen } from "./auth/LoginScreen";
 import { RegisterScreen } from "./auth/RegisterScreen";
 import { GuestOnly, RequireAuth } from "./auth/RequireAuth";
 import { AddScreen } from "./screens/add/AddScreen";
+import { AnalysisScreen } from "./screens/analysis/AnalysisScreen";
 import { BondDetailScreen } from "./screens/bonds/BondDetailScreen";
 import { BondForm } from "./screens/add/BondForm";
 import { CashForm } from "./screens/add/CashForm";
@@ -42,6 +43,7 @@ export const appRoutes: RouteObject[] = [
           { path: "/pozycje/:accountId/:instrumentId", element: <PositionDetailScreen /> },
           { path: "/ekspozycja", element: <ExposureScreen /> },
           { path: "/limity", element: <LimitsScreen /> },
+          { path: "/analiza", element: <AnalysisScreen /> },
           { path: "/historia", element: <HistoryScreen /> },
           { path: "/dodaj", element: <AddScreen /> },
           { path: "/dodaj/xtb", element: <ImportScreen /> },

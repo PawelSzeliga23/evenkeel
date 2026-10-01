@@ -10,6 +10,7 @@ export const keys = {
   exposureHistory: (ids: readonly number[], from: string | null) => ["portfolio", "exposure-history", ids, from] as const,
   closed: (ids: readonly number[]) => ["portfolio", "closed", ids] as const,
   limits: ["portfolio", "limits"] as const,
+  analytics: (ids: readonly number[], period: string) => ["portfolio", "analytics", ids, period] as const,
   positions: (ids: readonly number[]) => ["portfolio", "positions", ids] as const,
   position: (accountId: number, instrumentId: number) => ["portfolio", "position", accountId, instrumentId] as const,
   bond: (id: number) => ["portfolio", "bond", id] as const,
