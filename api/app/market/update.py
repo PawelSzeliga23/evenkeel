@@ -217,14 +217,19 @@ def fx_ranges_to_fetch(
     return ranges
 
 
+def _portfolios_need_from(db: Session, today: dt.date) -> dt.date:
+    """Shortly before the earliest transaction of any user: older rates cannot change any portfolio."""
+    first = db.scalar(select(func.min(Transaction.occurred_at)))
+    return (first.date() if first is not None else today) - dt.timedelta(days=FX_MARGIN_DAYS)
+
+
 def fx_needed_from(db: Session, today: dt.date) -> dt.date:
     """Rates are needed from shortly before the earliest transaction of any user (market data is shared), and
     from SIMULATION_FROM once the catalog has instruments (scenarios can start there)."""
-    first = db.scalar(select(func.min(Transaction.occurred_at)))
-    start = first.date() if first is not None else today
+    start = _portfolios_need_from(db, today)
     if db.scalar(select(exists().where(Instrument.in_catalog.is_(True)))):
-        start = min(start, SIMULATION_FROM)
-    return start - dt.timedelta(days=FX_MARGIN_DAYS)
+        start = min(start, SIMULATION_FROM - dt.timedelta(days=FX_MARGIN_DAYS))
+    return start
 
 
 def fx_currencies(db: Session) -> list[str]:
@@ -241,6 +246,7 @@ def update_fx(
     db: Session, provider: FxProvider, today: dt.date, changed: dict[str, dt.date] | None = None
 ) -> tuple[int, list[str]]:
     needed_from = fx_needed_from(db, today)
+    portfolios_from = _portfolios_need_from(db, today)
     rows, failed = 0, []
     for currency in fx_currencies(db):
         stored_min, stored_max = fx_date_bounds(db, currency)
@@ -260,7 +266,8 @@ def update_fx(
         db.commit()
         rows += written
         if written:
-            _note(changed, currency, ranges[0][0])
+            # Rates older than any portfolio (fetched for the simulator) leave every valuation as it was.
+            _note(changed, currency, max(ranges[0][0], portfolios_from))
     return rows, failed
 
 

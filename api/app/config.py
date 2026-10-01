@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     invite_codes: str = ""
     login_rate_limit_per_minute: int = 10
     register_rate_limit_per_minute: int = 5
+    catalog_add_rate_limit_per_minute: int = 10  # each new ticker is fetched now and by the worker for good
     market_daily_at: str = Field(default="23:00", pattern=HH_MM)
     market_timezone: str = "Europe/Warsaw"
     market_intraday_minutes: int = Field(default=30, ge=5)

@@ -552,3 +552,14 @@ def test_rates_are_needed_from_2016_once_the_catalog_has_instruments(db: Session
     db.commit()
 
     assert fx_needed_from(db, TODAY) == SIMULATION_FROM - dt.timedelta(days=FX_MARGIN_DAYS)
+
+
+def test_catalog_rates_before_any_transaction_do_not_reach_back_for_users(db: Session) -> None:
+    """Rates fetched back to 2016 only for the simulator must not mark portfolios stale from 2016."""
+    _instrument(db, "SXR8.DE", currency="EUR", in_catalog=True)
+    _first_transaction_at(db, dt.datetime(2026, 9, 1, 10, 0, tzinfo=dt.UTC))
+    changed: dict[str, dt.date] = {}
+
+    update_fx(db, FakeFx(), TODAY, changed)
+
+    assert changed == {"EUR": dt.date(2026, 9, 1) - dt.timedelta(days=FX_MARGIN_DAYS)}

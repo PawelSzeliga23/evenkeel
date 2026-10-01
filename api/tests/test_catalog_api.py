@@ -130,3 +130,28 @@ def test_add_rejects_malformed_tickers(client: TestClient, anna: dict, prices: F
 def test_catalog_needs_a_session(client: TestClient) -> None:
     assert client.get("/api/catalog").status_code == 401
     assert client.post("/api/catalog", json={"ticker": "VWCE.DE"}).status_code == 401
+
+
+def test_the_catalog_takes_at_most_50_added_instruments(client: TestClient, anna: dict, prices: FakePrices,
+                                                         engine: Engine) -> None:
+    _catalog(engine, *(Instrument(xtb_ticker=f"X{i}.DE", name=f"X{i}", in_catalog=True, catalog_group="Dodane przez Ciebie")
+                       for i in range(50)))
+
+    response = client.post("/api/catalog", json={"ticker": "VWCE.DE"}, headers=anna)
+
+    assert (response.status_code, response.json()["code"]) == (422, "catalog_full")
+    assert prices.calls == []
+
+
+def test_adding_is_rate_limited_per_user(make_app: Callable, login_as: LoginAs) -> None:
+    client = TestClient(make_app(catalog_add_rate_limit_per_minute=2))
+    fake = FakePrices({"VWCE.DE": VWCE})
+    client.app.dependency_overrides[get_market_providers] = lambda: fake_providers(prices=fake)
+    password = "bardzo-tajne-haslo"
+    client.post("/api/auth/register", json={"email": "anna@portfolio.dev", "password": password})
+    token = client.post("/api/auth/login", json={"email": "anna@portfolio.dev", "password": password}).json()
+    anna = {"Authorization": f"Bearer {token['access_token']}"}
+
+    codes = [client.post("/api/catalog", json={"ticker": "VWCE.DE"}, headers=anna).status_code for _ in range(3)]
+
+    assert codes == [201, 200, 429]

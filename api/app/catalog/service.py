@@ -13,6 +13,8 @@ from app.market.types import PriceProvider, ProviderError, SymbolNotFound
 from app.models import Instrument, Price
 from app.scoping import UserScope
 
+MAX_ADDED = 50  # the catalog is shared and the worker refreshes every instrument in it on each run
+
 
 def _prices_from(db: Session, ids: list[int]) -> dict[int, dt.date]:
     rows = db.execute(select(Price.instrument_id, func.min(Price.date)).where(Price.instrument_id.in_(ids))
@@ -52,6 +54,10 @@ def add_ticker(db: Session, provider: PriceProvider, ticker: str, now: dt.dateti
             existing.in_catalog, existing.catalog_group = True, existing.catalog_group or ADDED_GROUP
             db.commit()
         return _item(existing, existing.catalog_group, _prices_from(db, [existing.id])), False
+    added = db.scalar(select(func.count()).select_from(Instrument)
+                      .where(Instrument.in_catalog.is_(True), Instrument.catalog_group == ADDED_GROUP))
+    if added >= MAX_ADDED:
+        raise ApiError(422, "catalog_full", f"W katalogu jest już {MAX_ADDED} dodanych instrumentów, więcej nie można dodać.")
     try:
         history = provider.history(symbol, None)
     except SymbolNotFound:

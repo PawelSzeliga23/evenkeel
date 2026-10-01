@@ -24,6 +24,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="Portfolio API")
     app.state.login_limiter = RateLimiter(settings.login_rate_limit_per_minute)
     app.state.register_limiter = RateLimiter(settings.register_rate_limit_per_minute)
+    app.state.catalog_limiter = RateLimiter(settings.catalog_add_rate_limit_per_minute)
     register_error_handlers(app)
     app.include_router(health_router)
     app.include_router(auth_router)
