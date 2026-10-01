@@ -13,6 +13,7 @@ CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
 # XTB ticker suffix -> Yahoo suffix, verified in the 2026-09-26 spike. Other exchanges: manual override.
 SUFFIXES = {"DE": ".DE", "UK": ".L", "FR": ".PA", "PL": ".WA", "US": ""}
 PENCE_CURRENCIES = frozenset({"GBp", "GBX"})
+KINDS = {"ETF": "etf", "EQUITY": "stock"}
 PRICE_PLACES = Decimal("0.0001")  # Yahoo sends float32 artefacts (711.719970703125 -> 711.7200)
 PAUSE_SECONDS = 0.5
 ONE_DAY_SECONDS = 86_400
@@ -76,9 +77,11 @@ def parse_chart(symbol: str, content: bytes) -> PriceHistory:
         adj = adjusted[index] if index < len(adjusted) else None
         day = dt.datetime.fromtimestamp(int(timestamp) + offset, dt.UTC).date()
         bars[day] = PriceBar(day, _price(close, divisor), None if adj is None else _price(adj, divisor))
+    name = meta.get("longName") or meta.get("shortName")
     return PriceHistory(
         symbol=symbol, currency=currency, bars=tuple(bars[day] for day in sorted(bars)),
         splits=_splits(symbol, result, offset),
+        name=str(name) if name else None, kind=KINDS.get(str(meta.get("instrumentType") or "")),
     )
 
 

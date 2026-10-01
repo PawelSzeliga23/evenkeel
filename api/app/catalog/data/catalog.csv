@@ -1,0 +1,39 @@
+xtb_ticker,name,category,currency,catalog_group,accumulating
+SXR8.DE,iShares Core S&P 500 UCITS ETF USD (Acc),etf,EUR,ETF: USA,true
+VUAA.DE,Vanguard S&P 500 UCITS ETF USD Accumulating,etf,EUR,ETF: USA,true
+SXRV.DE,iShares NASDAQ 100 UCITS ETF USD (Acc),etf,EUR,ETF: USA,true
+EQQQ.DE,Invesco EQQQ NASDAQ-100 UCITS ETF (Dist),etf,EUR,ETF: USA,false
+QDVE.DE,iShares S&P 500 Information Technology Sector UCITS ETF USD (Acc),etf,EUR,ETF: USA,true
+EUNL.DE,iShares Core MSCI World UCITS ETF USD (Acc),etf,EUR,ETF: świat,true
+VWCE.DE,Vanguard FTSE All-World UCITS ETF USD Accumulating,etf,EUR,ETF: świat,true
+SPYI.DE,SPDR MSCI All Country World Investable Market UCITS ETF (Acc),etf,EUR,ETF: świat,true
+XDWD.DE,Xtrackers MSCI World UCITS ETF 1C,etf,EUR,ETF: świat,true
+IUSQ.DE,iShares MSCI ACWI UCITS ETF USD (Acc),etf,EUR,ETF: świat,true
+IS3N.DE,iShares Core MSCI EM IMI UCITS ETF USD (Acc),etf,EUR,ETF: rynki wschodzące i Europa,true
+EIMI.UK,iShares Core MSCI EM IMI UCITS ETF USD (Acc),etf,USD,ETF: rynki wschodzące i Europa,true
+MEUD.FR,Amundi Core Stoxx Europe 600 UCITS ETF Acc,etf,EUR,ETF: rynki wschodzące i Europa,true
+EXSA.DE,iShares STOXX Europe 600 UCITS ETF (DE) (Dist),etf,EUR,ETF: rynki wschodzące i Europa,false
+ETFBW20TR.PL,Beta ETF WIG20TR,etf,PLN,ETF: Polska,true
+ETFBM40TR.PL,Beta ETF mWIG40TR,etf,PLN,ETF: Polska,true
+ETFBS80TR.PL,Beta ETF sWIG80TR,etf,PLN,ETF: Polska,true
+ETFBSPXPL.PL,Beta ETF S&P 500 PLN-Hedged,etf,PLN,ETF: Polska,true
+ETFBNDXPL.PL,Beta ETF Nasdaq-100 PLN-Hedged,etf,PLN,ETF: Polska,true
+AAPL.US,Apple Inc.,stock,USD,Akcje USA,
+MSFT.US,Microsoft Corporation,stock,USD,Akcje USA,
+NVDA.US,NVIDIA Corporation,stock,USD,Akcje USA,
+AMZN.US,"Amazon.com, Inc.",stock,USD,Akcje USA,
+GOOGL.US,Alphabet Inc. (A),stock,USD,Akcje USA,
+META.US,"Meta Platforms, Inc.",stock,USD,Akcje USA,
+TSLA.US,"Tesla, Inc.",stock,USD,Akcje USA,
+BRK.B.US,Berkshire Hathaway Inc. (B),stock,USD,Akcje USA,
+PKO.PL,PKO Bank Polski,stock,PLN,Akcje GPW,
+PKN.PL,Orlen,stock,PLN,Akcje GPW,
+PZU.PL,PZU,stock,PLN,Akcje GPW,
+PEO.PL,Bank Pekao,stock,PLN,Akcje GPW,
+KGH.PL,KGHM Polska Miedź,stock,PLN,Akcje GPW,
+CDR.PL,CD Projekt,stock,PLN,Akcje GPW,
+DNP.PL,Dino Polska,stock,PLN,Akcje GPW,
+ALE.PL,Allegro.eu,stock,PLN,Akcje GPW,
+LPP.PL,LPP,stock,PLN,Akcje GPW,
+4GLD.DE,Xetra-Gold,etf,EUR,Surowce,
+SGLN.UK,iShares Physical Gold ETC,etf,GBP,Surowce,

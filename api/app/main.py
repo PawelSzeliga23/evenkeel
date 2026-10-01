@@ -5,6 +5,7 @@ from app.analytics.router import router as analytics_router
 from app.auth.rate_limit import RateLimiter
 from app.auth.router import router as auth_router
 from app.bonds.router import router as bonds_router
+from app.catalog.router import router as catalog_router
 from app.config import Settings, get_settings
 from app.corporate_actions.router import router as corporate_actions_router
 from app.errors import register_error_handlers
@@ -23,6 +24,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="Portfolio API")
     app.state.login_limiter = RateLimiter(settings.login_rate_limit_per_minute)
     app.state.register_limiter = RateLimiter(settings.register_rate_limit_per_minute)
+    app.state.catalog_limiter = RateLimiter(settings.catalog_add_rate_limit_per_minute)
     register_error_handlers(app)
     app.include_router(health_router)
     app.include_router(auth_router)
@@ -32,6 +34,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(instruments_router)
     app.include_router(corporate_actions_router)
     app.include_router(bonds_router)
+    app.include_router(catalog_router)
     app.include_router(savings_create_router)
     app.include_router(savings_router)
     app.include_router(portfolio_router)
