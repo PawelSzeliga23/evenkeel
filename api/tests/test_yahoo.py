@@ -185,3 +185,23 @@ def test_malformed_split_event_is_a_provider_error() -> None:
     payload = _with_split(_chart([NVDA_JUN_10], [121.79], currency="USD", gmtoffset=-14400), NVDA_JUN_10, "abc", 1)
     with pytest.raises(ProviderError):
         _provider(_serving(payload)).history("NVDA", None)
+
+
+def test_parse_takes_the_name_and_kind_from_meta() -> None:
+    payload = _chart([SEP_01_0700], [100.0])
+    payload["chart"]["result"][0]["meta"].update({"longName": "Vanguard FTSE All-World UCITS ETF", "instrumentType": "ETF"})
+    history = _provider(_serving(payload)).history("VWCE.DE", None)
+
+    assert (history.name, history.kind) == ("Vanguard FTSE All-World UCITS ETF", "etf")
+
+
+@pytest.mark.parametrize(("meta", "expected"), [
+    ({"shortName": "Apple Inc.", "instrumentType": "EQUITY"}, ("Apple Inc.", "stock")),
+    ({"instrumentType": "INDEX"}, (None, None)),
+])
+def test_parse_falls_back_to_the_short_name_and_unknown_kinds(meta: dict, expected: tuple) -> None:
+    payload = _chart([SEP_01_0700], [100.0])
+    payload["chart"]["result"][0]["meta"].update(meta)
+    history = _provider(_serving(payload)).history("X", None)
+
+    assert (history.name, history.kind) == expected

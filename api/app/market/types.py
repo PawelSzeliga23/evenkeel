@@ -36,6 +36,8 @@ class PriceHistory:
     currency: str
     bars: tuple[PriceBar, ...]
     splits: tuple[SplitEvent, ...] = ()
+    name: str | None = None  # the instrument's long (or short) name, for instruments added from the catalog
+    kind: str | None = None  # "etf" / "stock" / None
 
 
 @dataclass(frozen=True)
