@@ -89,7 +89,7 @@ export function AnalysisScreen() {
       <BackLink to="/" label="Pulpit" />
       <h1 className={ui.pageTitle}>Analiza</h1>
       {accounts.data && <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} />}
-      <Segmented label="Okres" options={PERIODS} value={period} onChange={setPeriod} />
+      <Segmented label="Okres" options={PERIODS} value={period} onChange={setPeriod} className={styles.periods} />
       {analytics.isPending ? <Skeleton rows={4} />
         : analytics.isError ? <ErrorState error={analytics.error} onRetry={() => void analytics.refetch()} />
         : analytics.data.period === null ? <EmptyState title="Nie ma jeszcze wyceny do pokazania." />
