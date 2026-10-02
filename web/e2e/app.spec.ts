@@ -47,6 +47,19 @@ test("rejestracja, import eksportu XTB, pulpit, pozycje i szczegóły pozycji", 
   await expect(priceChart.getByRole("status")).toContainText("zapłacone");
   await priceChart.screenshot({ path: `${SCREENS}/wykres-ceny.png` });
 
+  const tags = page.getByRole("region", { name: "Tagi" });
+  await tags.getByRole("button", { name: "+ Dodaj tag" }).click();
+  await tags.getByPlaceholder("Nowy tag…").fill("emerytura");
+  await tags.getByPlaceholder("Nowy tag…").press("Enter");
+  await expect(tags.getByRole("group", { name: "Walor — na wszystkich kontach" }).getByText("emerytura")).toBeVisible();
+  await page.goto("/analiza/tagi");
+  const shares = page.getByRole("list", { name: "Udział w portfelu" });
+  await expect(shares.getByRole("listitem").filter({ hasText: "emerytura" })).toContainText("1 walor");
+  await expect(shares.getByRole("listitem").filter({ hasText: "Gotówka" })).toBeVisible();
+  await expect(shares.getByText("bez tagu")).toHaveCount(0);
+  await expect(page.getByRole("status", { name: "Wczytuję Evenkeel" })).toHaveCount(0, { timeout: 10_000 }); // the startup splash after goto
+  await page.screenshot({ path: `${SCREENS}/tagi.png`, fullPage: true });
+
   await page.goto("/ekspozycja");
   await expect(page.getByRole("img", { name: /Udział walut w czasie/ })).toBeVisible();
   await page.screenshot({ path: `${SCREENS}/ekspozycja.png`, fullPage: true });

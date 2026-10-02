@@ -57,6 +57,12 @@ export function SettingsScreen() {
         <Link className={`${ui.secondary} ${styles.start}`} to="/ustawienia/zrodla-cen">Zobacz źródła cen</Link>
       </section>
 
+      <section className={ui.section} aria-labelledby="tags-title">
+        <h2 id="tags-title" className={ui.sectionTitle}>Tagi walorów</h2>
+        <p className="dim">Nazwy i kolory tagów. Tagi dodajesz w szczegółach pozycji.</p>
+        <Link className={`${ui.secondary} ${styles.start}`} to="/ustawienia/tagi">Tagi</Link>
+      </section>
+
       <section className={styles.about} aria-label="O aplikacji">
         <Logo layout="inline" />
         <small className="dim">Wersja {__APP_VERSION__}</small>
