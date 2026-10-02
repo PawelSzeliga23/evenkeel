@@ -1,0 +1,15 @@
+.chart { margin: 0; display: grid; gap: 8px; }
+.svg { width: 100%; height: auto; display: block; overflow: visible; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.svg:focus-visible { outline: 2px solid var(--amber); outline-offset: 4px; border-radius: 4px; }
+/* Fixed cells: moving across the chart never reflows the readout or shifts the page. */
+.readout { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 2px 16px; font-size: 12.5px; color: var(--dim); }
+.cell { display: inline-flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cell b { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+.day { color: var(--ink); }
+.swatch { width: 14px; height: 3px; border-radius: 2px; flex: none; }
+.grid { stroke: var(--rule); stroke-width: 1; }
+.axis { fill: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
+.line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.capital { fill: none; stroke: var(--dim); stroke-width: 1.2; stroke-opacity: .7; }
+.cursor { stroke: var(--ink); stroke-opacity: .35; stroke-width: 1; }
+.note { color: var(--dim); font-size: 14px; padding: 24px 0; }
