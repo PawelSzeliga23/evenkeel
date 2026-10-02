@@ -371,11 +371,15 @@ def position_detail(scope: UserScope, account: Account, instrument: Instrument, 
     lots = []
     for lot in view.lots if view else ():
         stored = stops.get(lot.position_id) if lot.position_id else None
+        # XTB's own open price first, as the owner sees it in XTB (same units only: no split since); the engine's
+        # price is the PLN paid ÷ NBP rate, i.e. with XTB's conversion margin, shown beside it for foreign instruments.
         open_price = lot.open_price
-        if open_price is None and stored is not None and stored.quantity == lot.quantity:
-            open_price = stored.open_price  # XTB's own open price, quote currency; same units only (no split since)
+        if stored is not None and stored.quantity == lot.quantity:
+            open_price = stored.open_price.quantize(PRICE_PLACES, rounding=ROUND_HALF_UP)
+        foreign = instrument.currency not in (None, account.currency)
         lots.append(LotOut(
             position_id=lot.position_id, opened_on=lot.opened_on, quantity=lot.quantity, open_price=open_price,
+            open_price_with_fx=lot.open_price if foreign else None,
             cost_pln=lot.cost_pln, value_pln=lot.value_pln, exit_cost_pln=lot.exit_cost_pln,
             gain_pln=lot.value_pln - lot.exit_cost_pln - lot.cost_pln,
             price_effect_pln=lot.price_effect_pln, fx_effect_pln=lot.fx_effect_pln,

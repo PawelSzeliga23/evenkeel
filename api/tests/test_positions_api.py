@@ -292,3 +292,17 @@ def test_a_manual_spread_shows_in_the_position_and_its_payout(client: TestClient
 
     assert (position["spread_pct"], position["exit_fx_pln"], position["exit_spread_pln"], position["exit_cost_pln"],
             position["payout_pln"]) == ("0.1000", "25.50", "5.10", "30.60", "5069.40")
+
+
+def test_lot_shows_the_xtb_price_and_the_price_with_xtb_conversion(
+    client: TestClient, world: dict, engine: Engine,
+) -> None:
+    with Session(engine) as db:  # XTB converted at its own rate: 0.5 % above the NBP mid of 4.30
+        db.execute(update(Transaction).where(Transaction.type == "buy").values(amount=Decimal("-4325.82")))
+        db.commit()
+
+    detail = _detail(client, world)
+
+    (lot,) = detail["lots"]
+    assert (lot["open_price"], lot["open_price_with_fx"]) == ("500.5000", "503.0023")  # 4325.82 / 2 / 4.30
+    assert detail["average_price"] == "500.5000"
