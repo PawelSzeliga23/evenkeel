@@ -1,6 +1,6 @@
 import { request } from "./client";
 import type {
-  Account, AccountCreate, Analytics, AnalyticsPeriod, AccountUpdate, AccountUsage, CatalogGroup, CatalogItem, Instrument, InstrumentUpdate, Scenario, ScenarioIn, ScenarioResult, BondDetail, BondIn, BondOut, Closed, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Limit, Position, PositionDetail, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, TokenOut, Transaction, TransactionIn, UserOut,
+  Account, AccountCreate, Analytics, AnalyticsPeriod, AccountUpdate, AccountUsage, CatalogGroup, CatalogItem, Review, ReviewListItem, Instrument, InstrumentUpdate, Scenario, ScenarioIn, ScenarioResult, BondDetail, BondIn, BondOut, Closed, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Limit, Position, PositionDetail, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, TokenOut, Transaction, TransactionIn, UserOut,
 } from "./types";
 
 function filesForm(files: File[]): FormData {
@@ -72,6 +72,13 @@ export const api = {
     request<ScenarioResult>(`/api/scenarios/${id}/result`, { query: { account_id: ids, period } }),
   previewScenario: (body: ScenarioIn, ids: readonly number[]) =>
     request<ScenarioResult>("/api/scenarios/preview", { method: "POST", json: body, query: { account_id: ids, period: "all" } }),
+  reviews: () => request<ReviewListItem[]>("/api/reviews"),
+  review: (id: number) => request<Review>(`/api/reviews/${id}`),
+  saveReview: (content: string, ids: readonly number[]) =>
+    request<Review>("/api/reviews", { method: "POST", json: { content, account_ids: ids } }),
+  deleteReview: (id: number) => request<void>(`/api/reviews/${id}`, { method: "DELETE" }),
+  reviewPackage: (ids: readonly number[]) =>
+    request<string>("/api/reviews/package", { query: { account_id: ids }, text: true }),
   createSavingsAccount: (body: SavingsAccountCreate) =>
     request<SavingsAccountOut>("/api/savings-accounts", { method: "POST", json: body }),
 };

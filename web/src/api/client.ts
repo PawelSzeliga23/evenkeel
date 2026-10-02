@@ -90,6 +90,8 @@ export interface RequestOptions {
   form?: FormData;
   /** false for login, register and logout: a 401 there is an answer, not an expired session */
   auth?: boolean;
+  /** true: the body is text (e.g. a Markdown file), not JSON */
+  text?: boolean;
 }
 
 function withQuery(path: string, query: Query | undefined): string {
@@ -142,5 +144,5 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   }
   if (!response.ok) throw await toApiError(response);
   if (response.status === 204) return undefined as T;
-  return (await response.json()) as T;
+  return (options.text ? await response.text() : await response.json()) as T;
 }
