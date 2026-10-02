@@ -8,7 +8,6 @@ import { DrawdownChart } from "../../charts/DrawdownChart";
 import { formatDate, formatDecimal, formatMoney, formatPercent, signOf } from "../../format";
 import { AccountSelect } from "../../ui/AccountPicker";
 import { Money } from "../../ui/Amount";
-import { BackLink } from "../../ui/BackLink";
 import { Segmented } from "../../ui/Segmented";
 import { HELP } from "../../ui/help";
 import { InfoTip } from "../../ui/InfoTip";
@@ -87,7 +86,6 @@ export function AnalysisScreen() {
 
   return (
     <div className={ui.page}>
-      <BackLink to="/" label="Pulpit" />
       <h1 className={ui.pageTitle}>Analiza</h1>
       {accounts.data && <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} />}
       <Segmented label="Okres" options={PERIODS} value={period} onChange={setPeriod} className={styles.periods} />
