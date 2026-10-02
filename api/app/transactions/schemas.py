@@ -4,8 +4,6 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-MANUAL_TYPES = ("deposit", "withdrawal", "interest", "fee")
-
 
 class TransactionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)

@@ -162,7 +162,7 @@ def _drawdown(returns: pd.Series, base_day: dt.date) -> tuple[Drawdown, pd.Serie
     fall = fall.where(fall < -TOLERANCE, 0.0)  # back exactly at the record is a record, not −0.0000000001 %
     trough = fall.idxmin()
     if fall[trough] >= 0:
-        record = wealth.idxmax().date()
+        record = (wealth.iloc[1:] if len(wealth) > 1 else wealth).idxmax().date()  # not the base day before the history
         return Drawdown(rounded(0.0), record, record, None), fall.iloc[1:]
     peak = wealth.loc[:trough].idxmax()
     later = wealth.loc[trough:].iloc[1:]
@@ -188,7 +188,7 @@ def monthly_returns(returns: pd.Series) -> list[MonthRow]:
 
 
 def _extreme(frame: pd.DataFrame, at: pd.Timestamp) -> DayExtreme:
-    return DayExtreme(at.date(), rounded(frame.at[at, "r"]), frame.at[at, "gain"].quantize(PLACES))
+    return DayExtreme(at.date(), rounded(frame.at[at, "r"]), frame.at[at, "gain"].quantize(PLACES, rounding=ROUND_HALF_UP))
 
 
 def analyze(days: Sequence[Day], rates: Sequence[Rate], period: Period) -> Analysis | None:

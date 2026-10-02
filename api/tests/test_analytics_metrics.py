@@ -198,3 +198,20 @@ def test_a_return_exactly_to_the_record_counts_as_recovered() -> None:
 
     assert result.max_drawdown.recovered_on == day("2026-01-04")
     assert result.current_drawdown_pct == D("0.00")
+
+
+def test_day_amounts_round_half_up() -> None:
+    days = [(day("2026-01-01"), D("1000"), D("1000")), (day("2026-01-02"), D("1000.005"), D("0"))]
+    assert analyze(days, [], "all").best_day.pln == D("0.01")
+
+
+def test_a_flat_series_has_its_drawdown_inside_the_history() -> None:
+    days = [(day("2026-01-01"), D("100"), D("100")), (day("2026-01-02"), D("100"), D("0"))]
+    fall = analyze(days, [], "all").max_drawdown
+    assert (fall.pct, fall.peak_date, fall.trough_date) == (D("0.00"), day("2026-01-01"), day("2026-01-01"))
+
+
+def test_a_flow_on_the_last_day_counts_in_xirr() -> None:
+    # 1 000 zł grows to 1 100 zł in a year and 1 000 zł more is paid in on the last day: +10 % a year
+    days = [(day("2025-01-01"), D("1000"), D("1000")), (day("2026-01-01"), D("2100"), D("1000"))]
+    assert analyze(days, [], "all").xirr_annual_pct == D("10.00")

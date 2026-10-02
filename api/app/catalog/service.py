@@ -2,6 +2,7 @@
 import datetime as dt
 
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.catalog.schemas import CatalogGroupOut, CatalogItemOut
@@ -72,7 +73,14 @@ def add_ticker(db: Session, provider: PriceProvider, ticker: str, now: dt.dateti
         in_catalog=True, catalog_group=ADDED_GROUP,
     )
     db.add(instrument)
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError:  # another request saved the same ticker while this one fetched its history
+        db.rollback()
+        winner = db.scalar(select(Instrument).where(Instrument.xtb_ticker == ticker))
+        if winner is None:
+            raise
+        return _item(winner, winner.catalog_group or ADDED_GROUP, _prices_from(db, [winner.id])), False
     upsert_prices(db, instrument.id, history.bars, provider.name)
     replace_provider_splits(db, instrument.id, history.splits, None)
     db.commit()

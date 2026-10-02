@@ -127,3 +127,23 @@ def test_user_without_history_gets_an_empty_result(client: TestClient, world: di
     body = preview(client, world["bartek"], {"base": "portfolio"}).json()
 
     assert body == {"points": [], "portfolio": None, "scenario": None, "notes": [], "recalculating": False}
+
+
+def test_invested_follows_the_period(client: TestClient, world: dict) -> None:
+    month = preview(client, world["anna"], {"base": "portfolio"}, period="1m").json()
+    whole = preview(client, world["anna"], {"base": "portfolio"}).json()
+
+    assert month["portfolio"]["invested_pln"] == "0.00"  # the only deposit was on 2026-03-01
+    assert whole["portfolio"]["invested_pln"] == "10000.00"
+
+
+def test_unknown_dividend_policy_gets_the_note(client: TestClient, world: dict, engine: Engine) -> None:
+    with Session(engine) as db:
+        nasdaq = db.get(Instrument, world["nasdaq"])
+        nasdaq.accumulating, nasdaq.catalog_group = None, "Dodane przez Ciebie"
+        db.commit()
+    step = {"kind": "replace", "from_instrument_id": world["sxr8"], "to_instrument_id": world["nasdaq"]}
+
+    body = preview(client, world["anna"], {"base": "portfolio", "steps": [step]}).json()
+
+    assert body["notes"] == ["Dywidendy udawanych instrumentów nie są liczone."]

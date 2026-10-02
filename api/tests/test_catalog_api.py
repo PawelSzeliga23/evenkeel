@@ -155,3 +155,21 @@ def test_adding_is_rate_limited_per_user(make_app: Callable, login_as: LoginAs) 
     codes = [client.post("/api/catalog", json={"ticker": "VWCE.DE"}, headers=anna).status_code for _ in range(3)]
 
     assert codes == [201, 200, 429]
+
+
+def test_add_racing_another_add_returns_the_existing(client: TestClient, anna: dict, engine: Engine) -> None:
+    class Racing(FakePrices):
+        def history(self, symbol: str, start: dt.date | None) -> PriceHistory:
+            with Session(engine) as db:  # another request saves the same ticker while ours fetches
+                db.add(Instrument(xtb_ticker="VWCE.DE", name="Vanguard", currency="EUR", price_symbol="VWCE.DE",
+                                  in_catalog=True, catalog_group="Dodane przez Ciebie"))
+                db.commit()
+            return super().history(symbol, start)
+
+    fake = Racing({"VWCE.DE": VWCE})
+    client.app.dependency_overrides[get_market_providers] = lambda: fake_providers(prices=fake)
+
+    response = client.post("/api/catalog", json={"ticker": "VWCE.DE"}, headers=anna)
+
+    assert (response.status_code, response.json()["ticker"]) == (200, "VWCE.DE")
+    assert client.get("/api/catalog", headers=anna).status_code == 200
