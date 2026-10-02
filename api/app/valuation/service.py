@@ -92,18 +92,20 @@ def _actions(db: Session, user_id: int, instrument_ids: set[int]) -> list[Action
     return list(found.values())
 
 
-def load_inputs(scope: UserScope) -> Inputs:
-    """The user's transactions and the market data the engine may look up for them (from the first transaction)."""
+def load_inputs(scope: UserScope, extra: Iterable[int] = (), since: dt.date | None = None) -> Inputs:
+    """The user's transactions and the market data the engine may look up for them (from the first transaction).
+    The simulator adds `extra` instruments it may buy (with their corporate actions) and an earlier `since` day."""
     db = scope.db
     entries = [
         Entry(t.id, t.account_id, t.instrument_id, t.type, local_day(t.occurred_at), t.amount, t.currency,
               t.quantity, t.price, t.xtb_position_id)
         for t in db.scalars(scope.transactions()).unique()
     ]
-    if not entries:
+    days = [entry.day for entry in entries] + ([since] if since is not None else [])
+    if not days:
         return Inputs(entries, [], MarketData())
-    first_day = min(entry.day for entry in entries)
-    traded = {entry.instrument_id for entry in entries if entry.instrument_id is not None}
+    first_day = min(days)
+    traded = {entry.instrument_id for entry in entries if entry.instrument_id is not None} | set(extra)
     splits, conversions = resolve(_actions(db, scope.user.id, traded))
     instrument_ids = sorted(traded | {conversion.target_instrument_id for conversion in conversions})
     market = MarketData()

@@ -10,7 +10,7 @@ from app.db import get_db
 from app.errors import ApiError
 from app.models import (
     Account, BondHolding, CorporateAction, DailyValuation, ImportRecord, Instrument, PositionLot, SavingsAccount,
-    Transaction, User, XtbSnapshot,
+    Scenario, Transaction, User, XtbSnapshot,
 )
 
 # Path parameter type for any database id: keeps Postgres int4 range errors
@@ -125,6 +125,18 @@ class UserScope:
 
     def daily_valuations(self) -> Select[tuple[DailyValuation]]:
         return select(DailyValuation).where(DailyValuation.user_id == self.user.id)
+
+    def scenarios(self) -> Select[tuple[Scenario]]:
+        return (
+            select(Scenario).where(Scenario.user_id == self.user.id)
+            .order_by(Scenario.updated_at.desc(), Scenario.id.desc())
+        )
+
+    def get_scenario(self, scenario_id: int) -> Scenario:
+        scenario = self.db.scalar(self.scenarios().where(Scenario.id == scenario_id))
+        if scenario is None:
+            raise not_found()
+        return scenario
 
 
 def get_scope(db: Session = Depends(get_db), user: User = Depends(get_current_user)) -> UserScope:
