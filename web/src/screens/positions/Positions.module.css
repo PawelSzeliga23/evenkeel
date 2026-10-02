@@ -32,3 +32,5 @@
   background: var(--slab); font-size: 14px;
 }
 .hint { margin: 0; color: var(--dim); font-size: 12.5px; }
+.rowTags { margin-top: 4px; }
+.groupDot { display: inline-block; margin-right: 6px; vertical-align: middle; }

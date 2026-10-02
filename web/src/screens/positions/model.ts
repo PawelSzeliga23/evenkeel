@@ -17,6 +17,32 @@ export function groupPositions(positions: Position[]): PositionGroup[] {
   });
 }
 
+export interface TagGroup { key: string; title: string; color: string | null; total: string; items: Position[] }
+
+/** Pozycje by tag: a holding sits in each of its tags' groups (largest group first), then „bez tagu”, then cash. */
+export function groupByTag(positions: Position[]): TagGroup[] {
+  const byTag = new Map<number, TagGroup>();
+  const untagged: Position[] = [];
+  const cash: Position[] = [];
+  for (const p of positions) {
+    if (p.kind === "cash") cash.push(p);
+    else if (p.tags.length === 0) untagged.push(p);
+    for (const tag of p.kind === "cash" ? [] : p.tags) {
+      const group = byTag.get(tag.id) ?? { key: `tag-${tag.id}`, title: tag.name, color: tag.color, total: "0", items: [] };
+      if (!group.items.includes(p)) group.items.push(p);
+      byTag.set(tag.id, group);
+    }
+  }
+  const total = (items: Position[]) => sumMoney(items.map((p) => p.payout_pln));
+  const tagged = [...byTag.values()].map((g) => ({ ...g, total: total(g.items) }))
+    .sort((a, b) => Number(b.total) - Number(a.total) || a.title.localeCompare(b.title, "pl"));
+  const rest: TagGroup[] = [
+    { key: "untagged", title: "bez tagu", color: null, total: total(untagged), items: untagged },
+    { key: "cash", title: "Gotówka", color: null, total: total(cash), items: cash },
+  ];
+  return [...tagged, ...rest.filter((g) => g.items.length > 0)];
+}
+
 const FLAG_LABELS: Record<string, string> = {
   xtb_price: "cena z XTB",
   fx_missing: "brak kursu waluty",
