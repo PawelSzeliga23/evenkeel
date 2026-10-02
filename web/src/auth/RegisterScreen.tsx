@@ -4,7 +4,7 @@ import { ApiError } from "../api/client";
 import { errorMessage } from "../api/messages";
 import { Logo } from "../brand/Logo";
 import styles from "./AuthScreens.module.css";
-import { useSession } from "./session";
+import { REGISTERED_SIGN_IN_FAILED, useSession } from "./session";
 
 const MIN_PASSWORD = 10;
 const PASSWORD_TOO_SHORT = `Hasło musi mieć co najmniej ${MIN_PASSWORD} znaków.`;
@@ -26,6 +26,7 @@ export function RegisterScreen() {
   const [needsInvite, setNeedsInvite] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [registered, setRegistered] = useState(false);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -34,11 +35,16 @@ export function RegisterScreen() {
       setError(PASSWORD_TOO_SHORT);
       return;
     }
+    if (needsInvite && !inviteCode.trim()) {
+      setError("Podaj kod zaproszenia.");
+      return;
+    }
     setBusy(true);
     try {
       await register({ email: email.trim(), password, ...(needsInvite ? { invite_code: inviteCode.trim() } : {}) });
     } catch (err) {
       if (err instanceof ApiError && err.code === "invite_required") setNeedsInvite(true);
+      if (err instanceof ApiError && err.code === REGISTERED_SIGN_IN_FAILED) setRegistered(true);
       setError(registrationError(err));
       setBusy(false);
     }
@@ -67,7 +73,9 @@ export function RegisterScreen() {
           </div>
         )}
         {error && <p className={styles.error} role="alert">{error}</p>}
-        <button className={styles.primary} type="submit" disabled={busy}>Załóż konto</button>
+        {registered
+          ? <Link className={styles.primary} to="/logowanie">Przejdź do logowania</Link>
+          : <button className={styles.primary} type="submit" disabled={busy}>Załóż konto</button>}
         <p className={styles.switch}>Masz już konto? <Link to="/logowanie">Zaloguj się</Link></p>
       </form>
     </main>

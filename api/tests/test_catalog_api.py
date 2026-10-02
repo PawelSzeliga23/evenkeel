@@ -173,3 +173,21 @@ def test_add_racing_another_add_returns_the_existing(client: TestClient, anna: d
 
     assert (response.status_code, response.json()["ticker"]) == (200, "VWCE.DE")
     assert client.get("/api/catalog", headers=anna).status_code == 200
+
+
+def test_add_racing_an_import_puts_the_winner_in_the_catalog(client: TestClient, anna: dict, engine: Engine) -> None:
+    class Racing(FakePrices):
+        def history(self, symbol: str, start: dt.date | None) -> PriceHistory:
+            with Session(engine) as db:  # an XTB import saves the same ticker meanwhile, outside the catalog
+                db.add(Instrument(xtb_ticker="VWCE.DE", name="Vanguard", currency="EUR"))
+                db.commit()
+            return super().history(symbol, start)
+
+    fake = Racing({"VWCE.DE": VWCE})
+    client.app.dependency_overrides[get_market_providers] = lambda: fake_providers(prices=fake)
+
+    client.post("/api/catalog", json={"ticker": "VWCE.DE"}, headers=anna)
+
+    groups = {group["group"]: [item["ticker"] for item in group["items"]]
+              for group in client.get("/api/catalog", headers=anna).json()}
+    assert groups["Dodane przez Ciebie"] == ["VWCE.DE"]

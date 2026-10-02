@@ -1,5 +1,5 @@
 import { screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { NETWORK_MESSAGE } from "../../api/client";
 import { IMPORT_FILE, PREVIEW } from "../../test/fixtures";
 import { SIGNED_IN, json, mockFetch, renderApp } from "../../test/render";
@@ -52,7 +52,7 @@ describe("import screen", () => {
     await user.upload(await screen.findByLabelText("Wybierz pliki"), [xlsx(), xlsx("zepsuty.xlsx")]);
 
     expect(await screen.findByText("zepsuty.xlsx: Plik nie jest eksportem XTB.")).toBeInTheDocument();
-    expect(screen.getByText("Pominięto plik notatki.txt, bo nie jest plikiem XLSX.")).toBeInTheDocument();
+    expect(screen.getByText("Pominięto plik notatki.txt: to nie jest eksport XTB (XLSX).")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: IMPORT_FILE.filename })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Zapisz import" })).toBeDisabled();
     expect(screen.getByText("Niektórych plików nie da się odczytać. Wybierz pliki bez nich, żeby zapisać import.")).toBeInTheDocument();
@@ -106,5 +106,35 @@ describe("re-import that fixes stored operations", () => {
     await user.click(save);
 
     expect(await screen.findByText(/Poprawiono 2 operacje zapisane wcześniej jako nierozpoznane\./)).toBeInTheDocument();
+  });
+});
+
+describe("import screen details", () => {
+  it("lists two chosen files with one name and explains a skipped file", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockFetch([...SIGNED_IN, { method: "POST", path: "/api/imports/preview", respond: () => ({ ...PREVIEW, skipped: ["._IKE.xlsx"] }) }]);
+    const { user } = renderApp("/dodaj/xtb");
+
+    await user.upload(await screen.findByLabelText("Wybierz pliki"), [xlsx("a.xlsx"), xlsx("a.xlsx")]);
+
+    expect(await screen.findByText("Pominięto plik ._IKE.xlsx: to nie jest eksport XTB (XLSX).")).toBeInTheDocument();
+    expect(errors.mock.calls.some((call) => String(call[0]).includes("same key"))).toBe(false);
+    errors.mockRestore();
+  });
+
+  it("keeps the preview and shows the API's message when saving fails", async () => {
+    mockFetch([
+      ...SIGNED_IN,
+      { method: "POST", path: "/api/imports/preview", respond: () => PREVIEW },
+      { method: "POST", path: "/api/imports", status: 500, respond: () => ({ code: "internal_error", message: "Nie udało się zapisać importu.", details: {} }) },
+    ]);
+    const { user } = renderApp("/dodaj/xtb");
+
+    await user.upload(await screen.findByLabelText("Wybierz pliki"), [xlsx()]);
+    await user.click(await screen.findByRole("button", { name: "Zapisz import" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Nie udało się zapisać importu.");
+    expect(screen.getByRole("button", { name: "Zapisz import" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: IMPORT_FILE.filename })).toBeInTheDocument();
   });
 });

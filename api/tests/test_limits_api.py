@@ -105,3 +105,14 @@ def test_limits_api_lists_only_the_users_own_wrappers(client: TestClient, login_
     assert [(item["wrapper"], item["year"], item["paid_pln"]) for item in own if item["year"] == 2026] == [
         ("ike", 2026, "10000.00")]
     assert other == []
+
+
+def test_a_year_without_a_known_limit_still_shows_the_contributions(db: Session) -> None:
+    user_id = seed_user(db)  # no WrapperLimit rows at all, e.g. the new year before its limit is announced
+    account = _account(db, user_id, "XTB IKE", "ike", "11111111")
+    _cash(db, account, "1", "deposit", "500", dt.datetime(2026, 2, 1, 10, 0, tzinfo=dt.UTC))
+
+    (item,) = wrapper_limits(UserScope(db, db.get(User, user_id)), TODAY)
+
+    assert (item.year, item.paid_pln, item.limit_pln, item.remaining_pln, item.exceeded) == (
+        2026, Decimal("500.00"), None, None, False)

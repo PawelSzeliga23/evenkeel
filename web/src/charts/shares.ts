@@ -14,7 +14,8 @@ const positive = (value: string | undefined) => Math.max(Number(value ?? 0), 0);
 
 /** Today's order first (largest value), then currencies seen only in the past by their largest value. */
 export function shareSeries(exposure: Exposure): ShareSeries[] {
-  const order = exposure.current.map((c) => c.currency);
+  // by today's value here, not by the order the API happens to send
+  const order = [...exposure.current].sort((a, b) => Number(b.value_pln) - Number(a.value_pln)).map((c) => c.currency);
   const past = new Map<string, number>();
   for (const point of exposure.history) {
     for (const [currency, value] of Object.entries(point.values)) {

@@ -131,7 +131,7 @@ export function ImportScreen() {
 
       {files.length > 0 && (
         <ul className={styles.chosen} aria-label="Wybrane pliki">
-          {files.map((f) => <li key={f.name}>{f.name}</li>)}
+          {files.map((f, i) => <li key={`${i}-${f.name}`}>{f.name}</li>)}
         </ul>
       )}
 
@@ -141,7 +141,7 @@ export function ImportScreen() {
       {result && (
         <>
           {result.errors.map((e) => <p key={e.filename} className="down">{`${e.filename}: ${e.message}`}</p>)}
-          {result.skipped.map((name) => <p key={name} className="dim">{`Pominięto plik ${name}, bo nie jest plikiem XLSX.`}</p>)}
+          {result.skipped.map((name) => <p key={name} className="dim">{`Pominięto plik ${name}: to nie jest eksport XTB (XLSX).`}</p>)}
           {result.files.map((file) => <FileCard key={`${file.filename}-${file.account_number}`} file={file} />)}
           <div className={styles.commit}>
             {reason && <p className="dim">{reason}</p>}

@@ -79,4 +79,4 @@ a.row:hover b { color: var(--amber); }
 .back { display: inline-flex; align-items: center; gap: 6px; color: var(--dim); font-size: 14px; min-height: 44px; justify-self: start; }
 .notice { color: var(--ink); background: var(--amber-soft); border-radius: var(--r-control); padding: 10px 14px; }
 /* A heading with its "?" beside it, so the button does not join the heading's name. */
-.titleRow { display: flex; align-items: center; gap: 4px; }
+.titleRow { display: flex; align-items: center; gap: 0; } /* InfoTip's own margin gives the usual 6 px */

@@ -143,3 +143,10 @@ describe("toBody amount cap", () => {
     expect(toBody(draft).errors).toEqual({ "steps.0.amount": "Najwyżej 1 000 000 zł miesięcznie." });
   });
 });
+
+describe("toBody IKE flag", () => {
+  it("sends ike only for bonds", () => {
+    const draft = named({ steps: [{ kind: "recurring", amount: "100", day: "1", start: "2024-01", end: "", target: "20", ike: true }] });
+    expect(toBody(draft).body?.steps[0]).toMatchObject({ ike: false });
+  });
+});

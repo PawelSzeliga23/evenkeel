@@ -21,6 +21,7 @@ interface Session {
 }
 
 export const SESSION_CHANNEL = "portfolio-session";
+export const REGISTERED_SIGN_IN_FAILED = "registered_sign_in_failed";
 
 function announceSignOut() {
   if (typeof BroadcastChannel === "undefined") return;
@@ -44,8 +45,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     });
     let cancelled = false;
     (async () => {
+      let asked = "refresh";
       try {
         if (await refreshSession()) {
+          asked = "me";
           const user = await api.me();
           if (!cancelled) setState({ status: "signedIn", user });
         } else if (!cancelled) {
@@ -53,7 +56,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         if (cancelled) return;
-        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        // /me not finding its user means no account behind the session: sign in again. A 404 anywhere else
+        // (e.g. a misrouted /refresh) is a server problem.
+        const refused = error instanceof ApiError
+          && (error.status === 401 || error.status === 403 || (error.status === 404 && asked === "me"));
+        if (refused) {
           setAccessToken(null);
           setState({ status: "anonymous", expired: false });
         } else if (error instanceof ApiError && error.status !== 0) {
@@ -101,7 +108,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(async (body: RegisterIn) => {
     await api.register(body);
-    await signIn(body.email, body.password);
+    try {
+      await signIn(body.email, body.password);
+    } catch (error) {
+      // The account exists now: a retry of the form would only hit "email taken", so send the person to sign in.
+      const status = error instanceof ApiError ? error.status : 0;
+      throw new ApiError(status, REGISTERED_SIGN_IN_FAILED, "Konto zostało założone, ale nie udało się zalogować. Zaloguj się.");
+    }
   }, [signIn]);
 
   const signOut = useCallback(async () => {
