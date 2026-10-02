@@ -4,6 +4,8 @@ import { api } from "../../api/endpoints";
 import { keys } from "../../api/queryKeys";
 import { useSession } from "../../auth/session";
 import { Logo } from "../../brand/Logo";
+import shell from "../../shell/shell.module.css";
+import { BackLink } from "../../ui/BackLink";
 import { ListRow } from "../../ui/ListRow";
 import { ErrorState, Skeleton } from "../../ui/States";
 import ui from "../../ui/ui.module.css";
@@ -18,6 +20,7 @@ export function SettingsScreen() {
 
   return (
     <div className={ui.page}>
+      <div className={shell.phoneOnly}><BackLink to="/" label="Pulpit" /></div>
       <h1 className={ui.pageTitle}>Ustawienia</h1>
       {notice && <p className={ui.notice} role="status">{notice}</p>}
 
