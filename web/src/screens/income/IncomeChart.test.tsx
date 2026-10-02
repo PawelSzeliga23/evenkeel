@@ -29,6 +29,13 @@ describe("IncomeChart", () => {
     expect(screen.getByRole("button", { name: /^2026-08/ })).toHaveAttribute("aria-pressed", "true");
   });
 
+  it("keeps a month with a negative part inside the plot", () => {
+    const { container } = render(<IncomeChart buckets={[{ ...bucket("2026-08", 5, 0), interest: -5, dividends: 10 }]}
+      selected={null} onSelect={() => {}} />);
+
+    for (const rect of container.querySelectorAll("rect")) expect(Number(rect.getAttribute("y"))).toBeGreaterThanOrEqual(0);
+  });
+
   it("draws an empty period without broken numbers", () => {
     const { container } = render(<IncomeChart buckets={[bucket("2026-08", 0, 0)]} selected={null} onSelect={() => {}} />);
 

@@ -137,7 +137,7 @@ def test_a_bond_bought_in_the_period_earns_only_its_interest(client: TestClient,
     body = _get(client, world["anna"], period="all")
     bond = next(s for s in body["sources"] if s["kind"] == "bond")
 
-    assert bond["key"] == "b:EDO0336"
+    assert bond["key"].startswith("b:EDO0336:") and bond["name"] == "EDO0336 · Obligacje"
     assert Decimal("0") < Decimal(bond["gross_pln"]) < Decimal("40")  # ~6.25 % of 1000 zł for 7 months, not 1000
 
 
@@ -192,3 +192,42 @@ def test_no_data_and_unknown_period(client: TestClient, world: dict) -> None:
         "period": None, "totals": {"income_pln": "0.00", "costs_pln": "0.00", "balance_pln": "0.00"},
         "months": [], "sources": [], "costs": [], "recalculating": False}
     assert client.get(URL, params={"period": "5y"}, headers=world["anna"]).status_code == 422
+
+
+def test_a_eur_account_buying_a_eur_instrument_pays_no_conversion(
+    client: TestClient, world: dict, engine: Engine,
+) -> None:
+    with Session(engine) as db:
+        eur = Account(user_id=world["user_id"], name="XTB EUR", kind="broker", wrapper="regular", broker="xtb",
+                      external_account_number="99999999", currency="EUR")
+        db.add(eur)
+        db.flush()
+        db.add(Transaction(account_id=eur.id, instrument_id=world["sxr8"], type="buy", xtb_type="buy",
+                           occurred_at=dt.datetime(2026, 9, 21, 10, tzinfo=dt.UTC), amount=Decimal("-600"),
+                           currency="EUR", quantity=Decimal("1"), price=Decimal("600"), external_id="eur", comment="",
+                           raw={}))
+        db.commit()
+
+    assert _get(client, world["anna"], period="all")["costs"][0]["count"] == 1  # only the PLN account's purchase
+
+
+def test_one_bond_series_on_ike_and_a_regular_account_are_two_sources(
+    client: TestClient, world: dict, engine: Engine,
+) -> None:
+    with Session(engine) as db:
+        db.add(BondSeries(series="EDO0336", bond_type="EDO", issue_month=dt.date(2026, 3, 1), maturity_months=120,
+                          first_period_rate=Decimal("6.25"), margin=Decimal("2.00"),
+                          early_redemption_fee=Decimal("3.00"), interest_mode="capitalized", rate_basis="cpi"))
+        for name, wrapper in (("EDO IKE", "ike"), ("EDO zwykłe", "regular")):
+            account = Account(user_id=world["user_id"], name=name, kind="bonds", wrapper=wrapper, currency="PLN")
+            db.add(account)
+            db.flush()
+            db.add(BondHolding(account_id=account.id, bond_type="EDO", series="EDO0336", quantity=10,
+                               purchase_date=dt.date(2026, 3, 2)))
+        db.commit()
+        valuate(db, world["user_id"])
+
+    bonds = {s["name"]: s for s in _get(client, world["anna"], period="all")["sources"] if s["kind"] == "bond"}
+
+    assert (bonds["EDO0336 · EDO IKE"]["taxed"], bonds["EDO0336 · EDO IKE"]["tax_pln"]) == (False, "0.00")
+    assert bonds["EDO0336 · EDO zwykłe"]["taxed"] is True and Decimal(bonds["EDO0336 · EDO zwykłe"]["tax_pln"]) > 0

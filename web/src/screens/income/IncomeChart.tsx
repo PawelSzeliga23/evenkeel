@@ -31,8 +31,10 @@ export function IncomeChart({ buckets, selected, onSelect }: {
 }) {
   const [box, setBox] = useState<HTMLElement | null>(null);
   const W = useWidth(box, DEFAULT_W);
-  const up = Math.max(0, ...buckets.map((b) => b.interest + b.dividends));
-  const down = Math.max(0, ...buckets.map((b) => b.fx + b.taxes + b.fees));
+  // Only positive parts are drawn, so only they size the plot.
+  const drawn = (b: Bucket, parts: readonly { key: keyof Bucket }[]) => parts.reduce((sum, p) => sum + Math.max(0, b[p.key] as number), 0);
+  const up = Math.max(0, ...buckets.map((b) => drawn(b, PARTS.income)));
+  const down = Math.max(0, ...buckets.map((b) => drawn(b, PARTS.costs)));
   const span = up + down;
   const zero = TOP + (span > 0 ? (up / span) * PLOT_H : PLOT_H / 2);
   const scale = span > 0 ? PLOT_H / span : 0;

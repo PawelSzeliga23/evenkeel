@@ -19,7 +19,6 @@ from app.portfolio.service import amount_pln
 from app.scoping import UserScope
 from app.valuation.engine import ONE_DAY, ZERO, money
 from app.valuation.exit_costs import XTB_FX_FEE
-from app.valuation.market_data import BASE_CURRENCY
 from app.valuation.service import local_day, local_today
 
 IncomePeriod = Literal["12m", "ytd", "all"]
@@ -135,7 +134,9 @@ def income(scope: UserScope, account_ids: frozenset[int] | None, period: IncomeP
         month.taxes += gross - net
         costs["interest_tax"][0] += gross - net
         if row.bond_holding_id is not None:
-            item = source(f"b:{series[row.bond_holding_id]}", "bond", series[row.bond_holding_id], taxed)
+            # per account: one series on IKE and on a regular account is taxed differently
+            name = f"{series[row.bond_holding_id]} · {accounts[row.account_id].name}"
+            item = source(f"b:{series[row.bond_holding_id]}:{row.account_id}", "bond", name, taxed)
         else:
             item = source(f"s:{row.savings_account_id}", "savings", accounts[row.account_id].name, taxed)
         item.gross += gross
@@ -152,9 +153,9 @@ def income(scope: UserScope, account_ids: frozenset[int] | None, period: IncomeP
         kind = transaction.type
         if kind in ("buy", "sell"):
             instrument = instruments.get(transaction.instrument_id)
-            foreign = {instrument.currency if instrument else None, transaction.currency, account.currency} - {
-                None, BASE_CURRENCY}
-            cost = fx_cost(amount, XTB_FX_FEE if account.broker == XTB and foreign else ZERO)
+            # XTB converts only when the quote currency differs from the account's (a EUR account buying a EUR ETF pays none)
+            quote = instrument.currency if instrument and instrument.currency else transaction.currency
+            cost = fx_cost(amount, XTB_FX_FEE if account.broker == XTB and quote != account.currency else ZERO)
             if cost:
                 month.fx += cost
                 costs["fx"][0] += cost
@@ -172,7 +173,8 @@ def income(scope: UserScope, account_ids: frozenset[int] | None, period: IncomeP
                 costs["withholding_tax"][0] -= amount
                 costs["withholding_tax"][1] += 1
         elif kind in ("interest", "interest_tax"):
-            item = source(f"x:{account.id}", "xtb_interest", f"Odsetki od wolnych środków · {account.name}",
+            label = "Odsetki od wolnych środków" if account.broker == XTB else "Odsetki"
+            item = source(f"x:{account.id}", "xtb_interest", f"{label} · {account.name}",
                           account.wrapper == "regular")
             if kind == "interest":
                 month.interest += amount
