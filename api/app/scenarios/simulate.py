@@ -9,10 +9,10 @@ import datetime as dt
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from app.bonds import edo
-from app.valuation.engine import ONE, ONE_DAY, ZERO, Book, Entry, Split
+from app.valuation.engine import CENT, ONE, ONE_DAY, ZERO, Book, Entry, Split
 from app.valuation.exit_costs import XTB_FX_FEE
 from app.valuation.fixed_income import Holding
 from app.valuation.market_data import BASE_CURRENCY, MarketData
@@ -22,6 +22,7 @@ PRETEND_ACCOUNT = 0  # new money of the blocks lands here: PLN, exit costs like 
 FIRST_ID = -(2**40)
 HUNDRED = Decimal(100)
 NO_DIVIDENDS = "Dywidendy udawanych instrumentów nie są liczone."
+NEGATIVE_CASH = "Wypłaty przekraczają wartość scenariusza; brakująca kwota jest liczona jako ujemna gotówka."
 
 
 @dataclass(frozen=True)
@@ -189,6 +190,47 @@ class _Simulator:
             self.note(NO_DIVIDENDS)
         return units
 
+    def sell(self, account_id: int, currency: str, instrument_id: int, day: dt.date, units: Decimal) -> Decimal:
+        """Sells current units at the day's close less the conversion fee; returns the proceeds (account
+        currency), 0 when nothing could be sold."""
+        quote = self.quote(instrument_id, day)
+        rate = self.world.market.rate(currency, day)
+        if quote is None or not rate or units <= 0:
+            return ZERO
+        close, unit_pln = quote
+        proceeds = units * unit_pln * (ONE - self._fee(instrument_id, currency)) / rate
+        factor = self.basis.factor(instrument_id, day)
+        self._add(account_id, instrument_id, "sell", day, proceeds, currency, units / factor, close * factor)
+        return proceeds
+
+    def replace(self, real: Sequence[Entry], steps: Sequence[Replace]) -> list[Entry]:
+        """The real transactions with every purchase of a replaced instrument made in its stand-in (the same money,
+        the same day), each sale selling the same fraction of the stand-in, and its dividends gone."""
+        swaps = {step.from_id: step.to_id for step in steps}
+        held: dict[tuple[int, int], Decimal] = defaultdict(Decimal)  # (account, instrument) → current units
+        kept: list[Entry] = []
+        for entry in sorted(real, key=lambda e: (e.day, e.id)):
+            to = swaps.get(entry.instrument_id) if entry.instrument_id is not None else None
+            if to is None:
+                kept.append(entry)
+            elif entry.type == "buy" and entry.quantity:
+                assert entry.instrument_id is not None
+                held[(entry.account_id, entry.instrument_id)] += (
+                    entry.quantity * self.basis.factor(entry.instrument_id, entry.day))
+                held[(entry.account_id, to)] += self.buy(entry.account_id, entry.currency, to, entry.day, -entry.amount)
+            elif entry.type == "sell" and entry.quantity:
+                assert entry.instrument_id is not None
+                source, target = (entry.account_id, entry.instrument_id), (entry.account_id, to)
+                sold = entry.quantity * self.basis.factor(entry.instrument_id, entry.day)
+                fraction = min(ONE, sold / held[source]) if held[source] > 0 else ONE
+                held[source] = max(ZERO, held[source] - sold)
+                units = held[target] * fraction
+                if self.sell(entry.account_id, entry.currency, to, entry.day, units):
+                    held[target] -= units
+            elif entry.type not in ("dividend", "withholding_tax"):
+                kept.append(entry)
+        return kept
+
     def buy_bonds(self, day: dt.date, amount: Decimal, taxed: bool) -> Decimal:
         """Whole EDO bonds of the month's issue for `amount`; returns what they cost (0 without the issue)."""
         count = int(amount // edo.NOMINAL)
@@ -222,6 +264,43 @@ class _Simulator:
                 self.units[instrument_id] += units
                 self.cash -= amount
 
+    def _bond_payout(self, bond: _Bond, day: dt.date) -> Decimal:
+        """One bond redeemed early on `day`, after the fee and tax."""
+        schedule = edo.periods(bond.purchase_date, bond.series, self.world.cpi)
+        return edo.redemption_value(edo.value(schedule, day), bond.series.early_redemption_fee, bond.taxed)
+
+    def withdraw(self, day: dt.date, amount: Decimal) -> None:
+        """A real withdrawal (`amount` > 0) taken from the pretend account in proportion: the same fraction of
+        every instrument sold and of the live EDO bonds redeemed early (whole bonds), the rest from cash. The bonds
+        pay out through `bond_rows` (leaving the next day), so the cash withdrawal is the amount less their payout."""
+        held = [(instrument_id, units, self.quote(instrument_id, day))
+                for instrument_id, units in self.units.items() if units > 0]
+        live = [(bond, self._bond_payout(bond, day)) for bond in self.bonds
+                if bond.redeemed_at is None and day < edo.anniversary(bond.purchase_date, edo.YEARS)]
+        total = (self.cash + sum((units * quote[1] for _, units, quote in held if quote), ZERO)
+                 + sum((bond.quantity * payout for bond, payout in live), ZERO))
+        fraction = min(ONE, amount / total) if total > 0 else ONE
+        for instrument_id, units, _ in held:
+            sold = units * fraction
+            proceeds = self.sell(PRETEND_ACCOUNT, BASE_CURRENCY, instrument_id, day, sold)
+            if proceeds:
+                self.units[instrument_id] -= sold
+                self.cash += proceeds
+        paid = ZERO
+        for bond, payout in live:
+            count = int((bond.quantity * fraction).to_integral_value(rounding=ROUND_HALF_UP))
+            if count >= bond.quantity:
+                count, bond.redeemed_at = bond.quantity, day
+            elif count:
+                bond.quantity -= count
+                self.bonds.append(_Bond(self._id(), bond.purchase_date, count, bond.series, bond.taxed, day))
+            paid += count * payout
+        if amount != paid:
+            self._add(PRETEND_ACCOUNT, None, "withdrawal", day, paid - amount, BASE_CURRENCY)
+            self.cash -= amount - paid
+        if self.cash < -CENT:
+            self.note(NEGATIVE_CASH)
+
     def holdings(self) -> list[Holding]:
         return [Holding(bond.id, PRETEND_ACCOUNT, bond.purchase_date, bond.quantity, bond.redeemed_at, bond.series,
                         bond.taxed) for bond in self.bonds]
@@ -232,7 +311,8 @@ def simulate(plan: Plan, world: World, real: Sequence[Entry], flows: Sequence[tu
     at `deposits` only the real flows are used, each split by the allocation. Events run in date order, the
     real flows of a day before its top-ups."""
     sim = _Simulator(world)
-    kept = list(real) if plan.base == PORTFOLIO else []
+    replaces = [step for step in plan.steps if isinstance(step, Replace)]
+    kept = sim.replace(real, replaces) if plan.base == PORTFOLIO else []
     events: list[tuple[dt.date, int, Decimal, Recurring | None]] = []
     if plan.base == DEPOSITS:
         events += [(day, 0, amount, None) for day, amount in flows if amount]
@@ -244,4 +324,6 @@ def simulate(plan: Plan, world: World, real: Sequence[Entry], flows: Sequence[tu
             sim.invest(day, [(step.target, amount)], taxed=not step.ike)
         elif amount > 0:
             sim.invest(day, [(share.target, amount * share.pct / HUNDRED) for share in plan.allocation])
+        else:
+            sim.withdraw(day, -amount)
     return Simulated(kept + sim.entries, sim.holdings(), sim.notes)

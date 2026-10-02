@@ -117,3 +117,77 @@ def test_portfolio_base_keeps_the_real_transactions() -> None:
 
     assert result.entries[0] == real[0]
     assert kinds(result.entries[1:]) == [("deposit", MAR3, D(100)), ("buy", MAR3, D(-100))]
+
+
+def real_trades(buy_day: dt.date = MAR2) -> list[Entry]:
+    return [
+        Entry(1, 7, None, "deposit", dt.date(2026, 3, 1), D(10000), "PLN"),
+        Entry(2, 7, SP500, "buy", buy_day, D("-4304.30"), "PLN", D(2), D("500.5"), "777"),
+        Entry(3, 7, SP500, "dividend", dt.date(2026, 6, 15), D(40), "PLN"),
+        Entry(4, 7, SP500, "withholding_tax", dt.date(2026, 6, 15), D(-6), "PLN"),
+        Entry(5, 7, SP500, "fee", dt.date(2026, 6, 16), D(-1), "PLN"),
+        Entry(6, 7, SP500, "sell", FRI, D(2550), "PLN", D(1), D(600)),
+    ]
+
+
+def test_replace_buys_the_stand_in_and_sells_the_same_fraction() -> None:
+    plan = Plan(PORTFOLIO, steps=(Replace(SP500, NASDAQ),))
+
+    result = simulate(plan, world(), real_trades(), [])
+
+    deposit, buy, fee, sell = sorted(result.entries, key=lambda e: (e.day, e.id))
+    assert (deposit.id, fee.id) == (1, 5)  # the deposit and the fee stay; the dividend and its tax are gone
+    units = D("4304.30") / (D("1000") * D("4.30") * D("1.005"))
+    assert (buy.account_id, buy.instrument_id, buy.day, buy.amount, buy.quantity) == (
+        7, NASDAQ, MAR2, D("-4304.30"), units)
+    sold = units * D("0.5")  # 1 of 2 SP500 sold
+    assert (sell.instrument_id, sell.day, sell.quantity) == (NASDAQ, FRI, sold)
+    assert sell.amount == sold * (D("1200") * D("4.30")) * D("0.995")
+    assert result.notes == []
+
+
+def test_replace_before_the_stand_in_has_quotes_keeps_the_money() -> None:
+    plan = Plan(PORTFOLIO, steps=(Replace(SP500, NASDAQ),))
+
+    result = simulate(plan, world(), real_trades(buy_day=dt.date(2026, 2, 27)), [])
+
+    assert [entry.id for entry in result.entries] == [1, 5]  # no pretend buy, nothing to sell later
+    assert result.notes == ["SXRV.DE ma notowania od 03.2026; wcześniejsze kwoty zostały w gotówce."]
+
+
+def test_deposits_are_split_and_a_withdrawal_takes_the_same_fraction_of_everything() -> None:
+    plan = Plan(DEPOSITS, allocation=(Share(Target(PKO), D(50)), Share(Target(bond="EDO"), D(50))))
+
+    result = simulate(plan, world(), [], [(MAR2, D(10000)), (FRI, D(-2000))])
+
+    schedule = edo.periods(MAR2, EDO0336, {})
+    payout = edo.redemption_value(edo.value(schedule, FRI), EDO0336.early_redemption_fee, True)
+    fraction = D(2000) / (D(5000) + 50 * payout)  # PKO 100 × 50 zł, 50 bonds, no cash
+    assert kinds(result.entries) == [
+        ("deposit", MAR2, D(5000)), ("buy", MAR2, D(-5000)),
+        ("sell", FRI, D(100) * fraction * D(50)), ("withdrawal", FRI, 10 * payout - D(2000)),
+    ]
+    kept, redeemed = result.holdings
+    assert (kept.quantity, kept.redeemed_at, redeemed.quantity, redeemed.redeemed_at) == (40, None, 10, FRI)
+    assert (redeemed.purchase_date, redeemed.taxed) == (MAR2, True)
+
+
+def test_withdrawal_larger_than_the_value_leaves_negative_cash_and_a_note() -> None:
+    plan = Plan(DEPOSITS, allocation=(Share(Target(PKO), D(100)),))
+
+    result = simulate(plan, world(), [], [(MAR2, D(1000)), (MAR3, D(-5000))])
+
+    assert kinds(result.entries) == [("deposit", MAR2, D(1000)), ("buy", MAR2, D(-1000)),
+                                     ("sell", MAR3, D(1000)), ("withdrawal", MAR3, D(-5000))]
+    assert result.notes == [NO_DIVIDENDS,
+                            "Wypłaty przekraczają wartość scenariusza; brakująca kwota jest liczona jako ujemna gotówka."]
+
+
+def test_a_withdrawal_sells_what_earlier_top_ups_bought() -> None:
+    plan = Plan(DEPOSITS, allocation=(Share(Target(PKO), D(100)),),
+                steps=(Recurring(D(500), 3, dt.date(2026, 3, 1), dt.date(2026, 3, 1), Target(PKO)),))
+
+    result = simulate(plan, world(), [], [(MAR2, D(500)), (dt.date(2026, 3, 4), D(-1000))])
+
+    sells = [entry for entry in result.entries if entry.type == "sell"]
+    assert [(entry.day, entry.quantity) for entry in sells] == [(dt.date(2026, 3, 4), D(20))]  # 10 + 10 units
