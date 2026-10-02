@@ -18,6 +18,7 @@ import { RECALC_POLL_MS } from "../dashboard/model";
 import styles from "./Analysis.module.css";
 import { MonthlyReturns } from "./MonthlyReturns";
 import { PERIODS, shownReturn } from "./model";
+import { SimulatorCard } from "../simulator/SimulatorCard";
 
 const tone = (value: string | null) => (signOf(value) > 0 ? "up" : signOf(value) < 0 ? "down" : "");
 const TOO_LITTLE = "za mało danych";
@@ -111,6 +112,7 @@ export function AnalysisScreen() {
             </section>
           </>
         )}
+      <SimulatorCard />
     </div>
   );
 }
