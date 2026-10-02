@@ -4,7 +4,10 @@ from collections.abc import Callable
 from datetime import datetime
 
 from fastapi.testclient import TestClient
+from sqlalchemy import Engine, func, select, update
+from sqlalchemy.orm import Session
 
+from app.models import Transaction
 from tests import xtb_factory as xf
 
 LoginAs = Callable[[str], dict[str, str]]
@@ -220,3 +223,21 @@ def test_other_user_sees_nothing_and_gets_own_account(client: TestClient, login_
     assert client.get("/api/transactions", params={"account_id": anna_account}, headers=bartek).status_code == 404
     preview = client.post("/api/imports/preview", files=_files((IKE_NAME, _ike())), headers=bartek).json()
     assert (preview["files"][0]["new_account"], preview["files"][0]["duplicate_transactions"]) == (True, 0)
+
+
+def test_a_reimport_that_only_fixes_stored_operations_can_be_saved(
+    client: TestClient, login_as: LoginAs, engine: Engine,
+) -> None:
+    anna = login_as("anna@portfolio.dev")
+    client.post("/api/imports", files=_files((IKE_NAME, _ike())), headers=anna)
+    with Session(engine) as db:  # what an older importer left behind
+        db.execute(update(Transaction).where(Transaction.type == "buy").values(type="unknown", quantity=None, price=None))
+        db.commit()
+
+    (preview,) = client.post("/api/imports/preview", files=_files((IKE_NAME, _ike())), headers=anna).json()["files"]
+    assert (preview["new_transactions"], preview["reclassified_transactions"]) == (0, 1)
+    (saved,) = client.post("/api/imports", files=_files((IKE_NAME, _ike())), headers=anna).json()["files"]
+
+    assert saved["reclassified_transactions"] == 1
+    with Session(engine) as db:
+        assert db.scalar(select(func.count()).select_from(Transaction).where(Transaction.type == "unknown")) == 0

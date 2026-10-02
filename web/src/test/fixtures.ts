@@ -119,7 +119,7 @@ export const DETAIL: PositionDetail = {
 export const IMPORT_FILE: ImportFile = {
   filename: "IKE_56216965_2006-01-01_2026-09-26.xlsx", account_number: "56216965", wrapper: "ike", currency: "PLN",
   account_id: null, account_name: "IKE 56216965", new_account: true, report_from: "2006-01-01T00:00:00",
-  report_to: "2026-09-26T00:00:00", new_transactions: 42, duplicate_transactions: 3, unknown_transactions: 1,
+  report_to: "2026-09-26T00:00:00", new_transactions: 42, duplicate_transactions: 3, unknown_transactions: 1, reclassified_transactions: 0,
   open_lots: 5, closed_lots: 2, warnings: [{ code: "quantity_mismatch", message: "Ilość SXR8.DE różni się od XTB.", details: {} }],
   import_id: null,
 };

@@ -167,6 +167,7 @@ export interface ImportFile {
   new_transactions: number;
   duplicate_transactions: number;
   unknown_transactions: number;
+  reclassified_transactions: number;
   open_lots: number;
   closed_lots: number;
   warnings: ImportWarning[];
