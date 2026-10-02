@@ -95,7 +95,7 @@ export function toBody(draft: Draft): { body: ScenarioIn | null; errors: Record<
     } else if (step.end && step.end < step.start) { fail("end", "Koniec nie może być przed początkiem."); ok = false; }
     if (ok && amount !== null) {
       steps.push({ kind: "recurring", amount_pln: amount, day_of_month: Number(step.day), start: step.start,
-                   end: step.end || null, target: targetOf(step.target), ike: step.ike });
+                   end: step.end || null, target: targetOf(step.target), ike: step.target === EDO && step.ike });
     }
   });
   if (Object.keys(errors).length > 0) return { body: null, errors };

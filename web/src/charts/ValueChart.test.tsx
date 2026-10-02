@@ -167,3 +167,10 @@ describe("ValueChart", () => {
     expect(screen.getByText(`1${S}140`)).toBeInTheDocument();
   });
 });
+
+describe("ValueChart readout", () => {
+  it("is not announced on every pointer move", () => {
+    const { container } = render(<ValueChart points={TWO} />);
+    expect(container.querySelector('[aria-live="polite"]')).toBeNull();
+  });
+});

@@ -8,12 +8,17 @@ export function TargetSelect({ id, label, catalog, value, onChange, bonds = fals
   bonds?: boolean; groups?: string[]; error?: string;
 }) {
   const shown = groups ? catalog.filter((group) => groups.includes(group.group)) : catalog;
-  const missing = value !== "" && value !== EDO && !shown.some((group) => group.items.some((item) => String(item.id) === value));
+  const has = (groups: CatalogGroup[]) => groups.some((group) => group.items.some((item) => String(item.id) === value));
+  const chosen = value !== "" && value !== EDO && !has(shown);
+  // Outside the shown groups but still in the catalog (e.g. no longer held): its own name; else it left the catalog.
+  const known = chosen ? catalog.flatMap((group) => group.items).find((item) => String(item.id) === value) : undefined;
+  const missing = chosen && known === undefined;
   return (
     <Field id={id} label={label} error={error}>
       <select id={id} value={value} onChange={(event) => onChange(event.target.value)} aria-invalid={Boolean(error)}>
         {value === "" && <option value="">Wybierz…</option>}
         {missing && <option value={value}>Instrument niedostępny (id {value})</option>}
+        {known && <option value={value}>{known.name} ({known.ticker})</option>}
         {bonds && <option value={EDO}>Obligacje EDO</option>}
         {shown.map((group) => (
           <optgroup key={group.group} label={group.group}>

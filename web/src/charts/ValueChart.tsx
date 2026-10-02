@@ -70,7 +70,7 @@ export function ValueChart({ points, view: requested, yRange = null, onViewChang
   return (
     <figure className={styles.chart} ref={setFigure}>
       {gestures.hint && <p className={styles.hint} role="status">Ctrl + kółko przybliża</p>}
-      <div className={styles.readout} aria-live="polite">
+      <div className={styles.readout} aria-live="off">
         {shown ? (
           <>
             <span className={styles.day}>{formatDate(shown.date)}</span>

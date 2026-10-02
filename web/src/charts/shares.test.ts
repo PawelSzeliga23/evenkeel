@@ -63,3 +63,14 @@ describe("currency shares", () => {
     expect(rows.map((r) => r.date)).toEqual(["2026-08-31", "2026-09-26"]);
   });
 });
+
+describe("currency share order", () => {
+  it("orders by today's value even when the API lists currencies in another order", () => {
+    const ascending: Exposure = {
+      as_of: "2026-09-26",
+      current: [{ currency: "PLN", value_pln: "10", share_pct: null }, { currency: "EUR", value_pln: "90", share_pct: null }],
+      history: [],
+    };
+    expect(shareSeries(ascending).map((s) => s.key)).toEqual(["EUR", "PLN"]);
+  });
+});

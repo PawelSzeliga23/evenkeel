@@ -217,3 +217,15 @@ describe("Scenario editor small fixes", () => {
     expect(screen.getByRole("button", { name: "Zapisz scenariusz" })).toBeDisabled();
   });
 });
+
+describe("target picker names", () => {
+  it("names a catalog instrument outside the shown groups", async () => {
+    routes([{ path: "/api/scenarios/5", respond: () => scenario(5, "Z katalogu",
+      { steps: [{ kind: "replace", from_instrument_id: 20, to_instrument_id: 10 }] }) }]);
+    renderApp("/analiza/symulator/5");
+
+    expect(await screen.findByLabelText("Zamiast")).toHaveValue("20");
+    expect(screen.getAllByRole("option", { name: "iShares NASDAQ 100 (SXRV.DE)" }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("option", { name: /Instrument niedostępny/ })).not.toBeInTheDocument();
+  });
+});
