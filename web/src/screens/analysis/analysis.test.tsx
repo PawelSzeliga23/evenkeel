@@ -198,3 +198,13 @@ describe("Analiza headings", () => {
     expect(screen.getByRole("button", { name: "Co to jest: Obsunięcie w czasie" })).toBeInTheDocument();
   });
 });
+
+describe("Analiza as a tab", () => {
+  it("has no back link to Pulpit, since it sits in the bar", async () => {
+    routes(() => ANALYTICS);
+    renderApp("/analiza");
+
+    await screen.findByRole("heading", { name: "Analiza" });
+    expect(screen.getAllByRole("link", { name: "Pulpit" }).every((link) => link.closest("nav"))).toBe(true);
+  });
+});
