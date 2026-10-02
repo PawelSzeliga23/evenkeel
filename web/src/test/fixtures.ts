@@ -65,7 +65,7 @@ export function position(overrides: Partial<Position>): Position {
     exit_cost_pln: "0.00", payout_pln: value, cost_pln: "900.00",
     unrealized_pln: "100.00", unrealized_pct: "11.11", price_effect_pln: "80.00", fx_effect_pln: "20.00",
     dividends_net_pln: "0.00", fees_pln: "0.00", realized_pln: "0.00", day_change_pln: "0.00", share_pct: "10.00",
-    flags: [], spread_pct: null, bond_holding_id: null, savings_account_id: null,
+    flags: [], spread_pct: null, bond_holding_id: null, savings_account_id: null, tags: [],
     ...overrides,
   };
 }
@@ -114,6 +114,7 @@ export const DETAIL: PositionDetail = {
   ],
   reconciliation: { status: "mismatch", taken_at: "2026-09-26T12:00:00", xtb_quantity: "50", calculated_quantity: "48" },
   average_price: "192.2338",
+  tags: [],
 };
 
 export const IMPORT_FILE: ImportFile = {

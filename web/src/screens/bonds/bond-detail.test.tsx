@@ -11,6 +11,7 @@ const DETAIL = {
     { number: 1, start: "2026-09-15", end: "2027-09-15", rate: "5.3500", estimated: false },
     { number: 2, start: "2027-09-15", end: "2028-09-15", rate: "4.5000", estimated: true },
   ],
+  tags: [],
 };
 
 describe("bond detail", () => {

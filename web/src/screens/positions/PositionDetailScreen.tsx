@@ -8,6 +8,7 @@ import { formatDate, formatDateTime, formatDays, formatDecimal, formatPercent, s
 import { HeroAmount, Money } from "../../ui/Amount";
 import { ErrorState, Skeleton } from "../../ui/States";
 import ui from "../../ui/ui.module.css";
+import { TagsSection } from "../../tags/TagsSection";
 import { PriceSection } from "./PriceSection";
 import { transactionLabel } from "./model";
 import styles from "./Positions.module.css";
@@ -83,6 +84,9 @@ function Detail({ detail, accountId, instrumentId }: { detail: PositionDetail; a
 
       <PriceSection accountId={accountId} instrumentId={instrumentId} firstBuy={firstBuy(detail)}
         average={signOf(p.quantity) > 0 ? detail.average_price : null} />
+
+      <TagsSection tags={detail.tags} target={{ instrument_id: instrumentId }} accountId={accountId}
+        accountName={p.account_name} />
 
       <Section title="Podsumowanie">
         <dl className={ui.kv}>

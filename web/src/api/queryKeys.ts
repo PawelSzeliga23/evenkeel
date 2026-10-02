@@ -23,6 +23,7 @@ export const keys = {
   catalog: ["catalog"] as const,
   reviews: ["reviews"] as const,
   review: (id: number) => ["reviews", id] as const,
+  tags: ["portfolio", "tags"] as const,
   scenarios: ["scenarios"] as const,
   scenario: (id: number) => ["scenarios", id] as const,
   scenarioResults: (id: number) => ["portfolio", "scenario-result", id] as const,
