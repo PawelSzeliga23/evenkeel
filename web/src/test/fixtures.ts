@@ -1,4 +1,4 @@
-import type { Account, Analytics, CatalogGroup, Closed, Exposure, History, Instrument, ImportFile, ImportResult, Limit, Money, Position, PositionDetail, PriceChartData, Scenario, ScenarioMeasures, ScenarioResult, Summary , Holdings, IncomeMonth, IncomeReport} from "../api/types";
+import type { Account, Analytics, CatalogGroup, Closed, Exposure, History, Instrument, ImportFile, ImportResult, Limit, Money, Position, PositionDetail, PriceChartData, Scenario, ScenarioMeasures, ScenarioResult, Summary , Holdings, IncomeMonth, IncomeReport, TagsReport } from "../api/types";
 import { fromCents, toCents } from "../format";
 
 export const ACCOUNTS: Account[] = [
@@ -328,4 +328,24 @@ export const PRICE_CHART: PriceChartData = {
     { date: "2026-06-20", kind: "dividend", price: null, price_with_fx: null, quantity: null, amount_pln: "60.00" },
   ],
   first_buy: "2025-05-12",
+};
+
+export const TAGS_REPORT: TagsReport = {
+  period: { start: "2026-03-01", end: "2026-09-26" },
+  total_pln: "10000.00",
+  tags: [
+    { id: 1, name: "USA", color: "#F0A43A", value_pln: "4697.00", share_pct: "46.97", gain_pln: "804.20", gain_pct: "18.68", holdings: 1 },
+    { id: 2, name: "emerytura", color: "#7FB6E6", value_pln: "3000.00", share_pct: "30.00", gain_pln: "-12.50", gain_pct: "-0.41", holdings: 4 },
+  ],
+  untagged: { value_pln: "1000.00", share_pct: "10.00", gain_pln: "5.00", gain_pct: "0.50", holdings: 2 },
+  cash: { value_pln: "1303.00", share_pct: "13.03" },
+  history: {
+    dates: ["2026-09-24", "2026-09-25", "2026-09-26"],
+    series: [
+      { key: "1", share_pct: ["40.00", "45.00", "46.97"] },
+      { key: "2", share_pct: ["30.00", "30.00", "30.00"] },
+      { key: "untagged", share_pct: ["10.00", "10.00", "10.00"] },
+    ],
+  },
+  recalculating: false,
 };

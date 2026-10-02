@@ -12,6 +12,7 @@ export const keys = {
   limits: ["portfolio", "limits"] as const,
   analytics: (ids: readonly number[], period: string) => ["portfolio", "analytics", ids, period] as const,
   holdings: (ids: readonly number[], period: string) => ["portfolio", "holdings", ids, period] as const,
+  tagAnalytics: (ids: readonly number[], period: string) => ["portfolio", "tag-analytics", ids, period] as const,
   income: (ids: readonly number[], period: string) => ["portfolio", "income", ids, period] as const,
   positions: (ids: readonly number[]) => ["portfolio", "positions", ids] as const,
   position: (accountId: number, instrumentId: number) => ["portfolio", "position", accountId, instrumentId] as const,

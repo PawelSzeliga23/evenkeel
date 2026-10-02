@@ -6,6 +6,7 @@ import { AddScreen } from "./screens/add/AddScreen";
 import { AnalysisScreen } from "./screens/analysis/AnalysisScreen";
 import { ScenarioEditor } from "./screens/simulator/ScenarioEditor";
 import { HoldingsScreen } from "./screens/holdings/HoldingsScreen";
+import { TagsScreen } from "./screens/tags/TagsScreen";
 import { IncomeScreen } from "./screens/income/IncomeScreen";
 import { SimulatorScreen } from "./screens/simulator/SimulatorScreen";
 import { ReviewScreen } from "./screens/review/ReviewScreen";
@@ -51,6 +52,7 @@ export const appRoutes: RouteObject[] = [
           { path: "/limity", element: <LimitsScreen /> },
           { path: "/analiza", element: <AnalysisScreen /> },
           { path: "/analiza/walory", element: <HoldingsScreen /> },
+          { path: "/analiza/tagi", element: <TagsScreen /> },
           { path: "/analiza/dochod", element: <IncomeScreen /> },
           { path: "/analiza/symulator", element: <SimulatorScreen /> },
           { path: "/analiza/przeglad", element: <ReviewScreen /> },

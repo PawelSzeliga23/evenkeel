@@ -488,3 +488,17 @@ export interface Tag { id: number; name: string; color: string; links: number }
 export interface TagOn { id: number; name: string; color: string; link_id: number; own: boolean }
 /** A link target: a holding (with `account_id` only on that account), or a savings account by `account_id` alone. */
 export interface TagLinkIn { instrument_id?: number; bond_series?: string; account_id?: number }
+
+export interface TagRow {
+  id: number; name: string; color: string; value_pln: Money; share_pct: string | null; gain_pln: Money;
+  gain_pct: string | null; holdings: number;
+}
+export interface TagsReport {
+  period: { start: IsoDate; end: IsoDate } | null;
+  total_pln: Money;
+  tags: TagRow[];
+  untagged: { value_pln: Money; share_pct: string | null; gain_pln: Money; gain_pct: string | null; holdings: number } | null;
+  cash: { value_pln: Money; share_pct: string | null };
+  history: { dates: IsoDate[]; series: { key: string; share_pct: string[] }[] };
+  recalculating: boolean;
+}

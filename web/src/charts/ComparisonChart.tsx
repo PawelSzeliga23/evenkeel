@@ -34,9 +34,11 @@ function linePath(values: (number | null)[], x: (i: number) => number, y: (v: nu
   return d;
 }
 
-/** Several value lines over the same days, without zoom (spec 7b §5); hover or ←/→ reads one day out. */
-export function ComparisonChart({ dates, lines, invested }: {
-  dates: IsoDate[]; lines: ComparisonLine[]; invested: (Money | null)[];
+/** Several value lines over the same days, without zoom (spec 7b §5); hover or ←/→ reads one day out. Without
+ * `invested` there is no invested line; `unit="percent"` writes the axis in percent and `format` the readout. */
+export function ComparisonChart({ dates, lines, invested = [], format = formatMoney, unit = "money" }: {
+  dates: IsoDate[]; lines: ComparisonLine[]; invested?: (Money | null)[];
+  format?: (value: Money) => string; unit?: "money" | "percent";
 }) {
   const [figure, setFigure] = useState<HTMLElement | null>(null);
   const width = useWidth(figure, DEFAULT_W);
@@ -68,7 +70,9 @@ export function ComparisonChart({ dates, lines, invested }: {
     event.preventDefault();
     setHover(Math.min(Math.max(at + (event.key === "ArrowLeft" ? -1 : 1), 0), last));
   };
-  const money = (value: Money | null | undefined) => (value == null ? "—" : formatMoney(value));
+  const money = (value: Money | null | undefined) => (value == null ? "—" : format(value));
+  const label = (tick: number) => (unit === "percent" ? `${axisLabel(tick, step)} %` : axisLabel(tick, step));
+  const withInvested = invested.length > 0;
 
   return (
     <figure ref={setFigure} className={styles.chart}>
@@ -80,20 +84,22 @@ export function ComparisonChart({ dates, lines, invested }: {
             <span className={styles.name}>{line.label}</span> <b>{money(line.values[at])}</b>
           </span>
         ))}
-        <span className={styles.cell} data-readout-cell>
-          <i className={styles.swatch} style={swatchStyle("var(--dim)")} /><span className={styles.name}>Wpłacono (portfel)</span> <b>{money(invested[at])}</b>
-        </span>
+        {withInvested && (
+          <span className={styles.cell} data-readout-cell>
+            <i className={styles.swatch} style={swatchStyle("var(--dim)")} /><span className={styles.name}>Wpłacono (portfel)</span> <b>{money(invested[at])}</b>
+          </span>
+        )}
       </div>
       <svg className={styles.svg} viewBox={`0 0 ${width} ${H}`} role="img" tabIndex={0}
-        aria-label={`Porównanie wartości: ${lines.map((line) => line.label).join(", ")}`}
+        aria-label={`${unit === "percent" ? "Udział w portfelu" : "Porównanie wartości"}: ${lines.map((line) => line.label).join(", ")}`}
         onPointerMove={move} onPointerLeave={() => setHover(null)} onKeyDown={key} onBlur={() => setHover(null)}>
         {domain.ticks.map((tick) => (
           <g key={tick}>
             <line className={styles.grid} x1={0} x2={plotW} y1={y(tick)} y2={y(tick)} />
-            <text className={styles.axis} x={plotW + 6} y={y(tick) + 4}>{axisLabel(tick, step)}</text>
+            <text className={styles.axis} x={plotW + 6} y={y(tick) + 4}>{label(tick)}</text>
           </g>
         ))}
-        <path className={styles.capital} d={linePath(invested.map(toNumber), x, y)} data-line="invested" />
+        {withInvested && <path className={styles.capital} d={linePath(invested.map(toNumber), x, y)} data-line="invested" />}
         {lines.map((line) => (
           <path key={line.key} className={styles.line} d={linePath(line.values.map(toNumber), x, y)} stroke={line.color}
             strokeDasharray={line.dashed ? DASH : undefined} data-line={line.key} />

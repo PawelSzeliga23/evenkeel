@@ -1,6 +1,6 @@
 import { request } from "./client";
 import type {
-  Account, AccountCreate, Analytics, AnalyticsPeriod, Holdings, HoldingsPeriod, IncomePeriod, IncomeReport, AccountUpdate, AccountUsage, CatalogGroup, CatalogItem, Review, ReviewListItem, Instrument, InstrumentUpdate, Scenario, ScenarioIn, ScenarioResult, BondDetail, BondIn, BondOut, Closed, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Limit, Position, PositionDetail, PriceChartData, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, Tag, TagLinkIn, TokenOut, Transaction, TransactionIn, UserOut,
+  Account, AccountCreate, Analytics, AnalyticsPeriod, Holdings, HoldingsPeriod, IncomePeriod, IncomeReport, AccountUpdate, AccountUsage, CatalogGroup, CatalogItem, Review, ReviewListItem, Instrument, InstrumentUpdate, Scenario, ScenarioIn, ScenarioResult, BondDetail, BondIn, BondOut, Closed, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Limit, Position, PositionDetail, PriceChartData, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, Tag, TagLinkIn, TagsReport, TokenOut, Transaction, TransactionIn, UserOut,
 } from "./types";
 
 function filesForm(files: File[]): FormData {
@@ -52,6 +52,8 @@ export const api = {
   limits: () => request<Limit[]>("/api/portfolio/limits"),
   income: (ids: readonly number[], period: IncomePeriod) =>
     request<IncomeReport>("/api/analytics/income", { query: { account_id: ids, period } }),
+  tagAnalytics: (ids: readonly number[], period: HoldingsPeriod) =>
+    request<TagsReport>("/api/analytics/tags", { query: { account_id: ids, period } }),
   holdings: (ids: readonly number[], period: HoldingsPeriod) =>
     request<Holdings>("/api/analytics/holdings", { query: { account_id: ids, period } }),
   analytics: (ids: readonly number[], period: AnalyticsPeriod) =>
