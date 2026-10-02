@@ -74,3 +74,58 @@ describe("Przegląd portfela", () => {
     expect(within(row).getByText("9/9 sekcji")).toBeInTheDocument();
   });
 });
+
+const CONTENT = [
+  "## Ocena ogólna", "", "Dobrze.", "", "## Ryzyka", "", "| Ryzyko | Skala |", "|---|---|", "| USD | duże |", "",
+  "## Źródła", "", "- [Analiza](https://example.com/a)", "", "<script>alert(1)</script> <b>x</b>",
+].join("\n");
+
+function viewRoutes(review: object) {
+  return mockFetch([
+    ...SIGNED_IN,
+    { path: "/api/reviews/5", respond: () => review },
+    { method: "DELETE", path: "/api/reviews/5", respond: () => new Response(null, { status: 204 }) },
+    { path: "/api/reviews", respond: () => [] },
+    { path: "/api/accounts", respond: () => ACCOUNTS },
+  ]);
+}
+
+describe("Reading a review", () => {
+  it("renders the answer like a README with marked sections, tables and outside links", async () => {
+    viewRoutes({ ...SAVED, id: 5, content: CONTENT });
+    renderApp("/analiza/przeglad/5");
+
+    const risks = await screen.findByRole("heading", { name: "Ryzyka", level: 2 });
+    expect(risks).toHaveAttribute("data-section", "Ryzyka");
+    expect(screen.getByRole("table").parentElement).toHaveAttribute("data-scroll", "x");
+    const source = screen.getAllByRole("link", { name: "Analiza" }).find((a) => a.getAttribute("href") === "https://example.com/a")!;
+    expect(source).toHaveAttribute("target", "_blank");
+    expect(source).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("shows pasted HTML as text, never runs it", async () => {
+    viewRoutes({ ...SAVED, id: 5, content: CONTENT });
+    renderApp("/analiza/przeglad/5");
+
+    await screen.findByRole("heading", { name: "Ryzyka" });
+    expect(document.querySelector("article script, article b")).toBeNull();
+  });
+
+  it("warns when no section was recognised", async () => {
+    viewRoutes({ ...SAVED, id: 5, sections: 0, content: "zwykły tekst" });
+    renderApp("/analiza/przeglad/5");
+
+    expect(await screen.findByText("Nie rozpoznano sekcji przeglądu. Czy to na pewno odpowiedź na pakiet?")).toBeInTheDocument();
+  });
+
+  it("deletes a review after a confirmation", async () => {
+    const fetchMock = viewRoutes({ ...SAVED, id: 5, content: CONTENT });
+    const { user } = renderApp("/analiza/przeglad/5");
+
+    await user.click(await screen.findByRole("button", { name: "Usuń przegląd" }));
+    await user.click(screen.getByRole("button", { name: "Usuń" }));
+
+    expect(await screen.findByRole("heading", { name: "Przegląd portfela" })).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([url, init]) => String(url) === "/api/reviews/5" && init?.method === "DELETE")).toBe(true);
+  });
+});

@@ -60,6 +60,17 @@ test("rejestracja, import eksportu XTB, pulpit, pozycje i szczegóły pozycji", 
   await expect(page.getByRole("img", { name: /Porównanie wartości: Mój portfel, Wszystko w EDO/ })).toBeVisible();
   await page.screenshot({ path: `${SCREENS}/symulator.png`, fullPage: true });
 
+  await page.goto("/analiza/przeglad");
+  await expect(page.getByRole("heading", { name: "Przegląd portfela" })).toBeVisible();
+  const answer = ["Ocena ogólna", "Mocne strony", "Ryzyka", "Rynek", "Twoje instrumenty", "Pomysły do rozważenia",
+    "Propozycje", "Pytania do przemyślenia", "Źródła"].map((s) => `## ${s}\n\nTreść.`).join("\n\n");
+  const fence = "`".repeat(4);
+  await page.getByLabel("Wklej odpowiedź Claude").fill(`${fence}markdown\n${answer}\n${fence}`);
+  await page.getByRole("button", { name: "Zapisz przegląd" }).click();
+  await expect(page.getByRole("heading", { name: "Ryzyka" })).toBeVisible();
+  await expect(page.getByRole("status", { name: "Wczytuję Evenkeel" })).toHaveCount(0, { timeout: 10_000 }); // the startup splash after goto
+  await page.screenshot({ path: `${SCREENS}/przeglad.png`, fullPage: true });
+
   await page.goto("/limity");
   await expect(page.getByRole("heading", { name: "Limity IKE i IKZE" })).toBeVisible();
   await page.screenshot({ path: `${SCREENS}/limity.png`, fullPage: true });
