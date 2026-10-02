@@ -16,7 +16,7 @@
 
 - **Ceny:**
   - dzienne zamknięcia z tabeli `prices` (waluta instrumentu, jak w wycenie);
-  - jeśli aktualna cena pozycji (np. z importu XTB) ma nowszą datę niż ostatnie zamknięcie, dokładamy ją jako ostatni punkt;
+  - ceny z importu XTB nie dokładamy: to wartość w zł na sztukę, a nie cena w walucie instrumentu (ustalone przy planie);
   - przy długich zakresach serwer przerzedza punkty do najwyżej 800: co n-ty dzień, zawsze z pierwszym i ostatnim.
 - **Znaczniki:**
   - transakcje `buy` / `sell` tej pozycji (konto + instrument) z ich ceną (`price`, waluta instrumentu) i ilością;
@@ -24,14 +24,14 @@
   - ceny i ilości sprzed splitu przeliczamy przez współczynnik splitów, tak samo jak partie (ceny z dostawcy są już po splitach), żeby znacznik leżał na linii;
   - transakcja bez ceny dostaje cenę zamknięcia z jej dnia;
   - pozycja po konwersji (z innego tickera) pokazuje tylko operacje na bieżącym instrumencie.
-- **Cena z przewalutowaniem XTB:** jak w partiach, `open_price_with_fx`: cena × 1,005 przy zakupie i × 0,995 przy sprzedaży, gdy XTB przewalutowuje (waluta instrumentu ≠ waluta konta).
+- **Cena z przewalutowaniem XTB:** jak w partiach (`open_price_with_fx`): zapłacone zł ÷ ilość ÷ kurs NBP z dnia, gdy waluta instrumentu ≠ waluta konta.
 - **Średnia cena:** `average_price` ze szczegółów pozycji. Brak przy pozycji zamkniętej, wtedy linii nie ma.
 - **„Od zakupu”:** od 14 dni przed pierwszym zakupem tej pozycji do dziś. Bez zakupów: 1R.
 - **Zmiana w nagłówku sekcji:** ostatnia cena względem pierwszego punktu zakresu. Podpis „od 1. zakupu” dla zakresu „Od zakupu” (wtedy względem ceny pierwszego zakupu), „w zakresie” dla pozostałych.
 
 ## API
 
-`GET /api/positions/{account_id}/{instrument_id}/prices?from=YYYY-MM-DD` (brak `from` = cała historia; cudze konto lub instrument bez pozycji na koncie → 404):
+`GET /api/positions/{account_id}/{instrument_id}/prices?from=YYYY-MM-DD` (aplikacja pyta raz bez `from` i sama przycina okno do zakresu) (brak `from` = cała historia; cudze konto lub instrument bez pozycji na koncie → 404):
 
 ```
 currency: "EUR"
@@ -58,7 +58,6 @@ first_buy: date | null
 
 - **API:**
   - punkty z `prices` w zakresie `from`, przerzedzenie do 800 z zachowaniem końców;
-  - dołożona nowsza cena XTB;
   - znaczniki zakupu, sprzedaży i dywidendy z ceną z przewalutowaniem tylko przy obcej walucie;
   - split przelicza cenę i ilość znacznika;
   - transakcja bez ceny dostaje zamknięcie dnia;
