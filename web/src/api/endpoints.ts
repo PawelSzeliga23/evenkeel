@@ -1,6 +1,6 @@
 import { request } from "./client";
 import type {
-  Account, AccountCreate, Analytics, AnalyticsPeriod, AccountUpdate, AccountUsage, Instrument, InstrumentUpdate, BondDetail, BondIn, BondOut, Closed, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Limit, Position, PositionDetail, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, TokenOut, Transaction, TransactionIn, UserOut,
+  Account, AccountCreate, Analytics, AnalyticsPeriod, AccountUpdate, AccountUsage, CatalogGroup, CatalogItem, Instrument, InstrumentUpdate, Scenario, ScenarioIn, ScenarioResult, BondDetail, BondIn, BondOut, Closed, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Limit, Position, PositionDetail, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, TokenOut, Transaction, TransactionIn, UserOut,
 } from "./types";
 
 function filesForm(files: File[]): FormData {
@@ -60,6 +60,18 @@ export const api = {
   createAccount: (body: AccountCreate) => request<Account>("/api/accounts", { method: "POST", json: body }),
   addTransaction: (body: TransactionIn) => request<Transaction>("/api/transactions", { method: "POST", json: body }),
   buyBonds: (body: BondIn) => request<BondOut>("/api/bonds", { method: "POST", json: body }),
+  catalog: () => request<CatalogGroup[]>("/api/catalog"),
+  addTicker: (ticker: string) => request<CatalogItem>("/api/catalog", { method: "POST", json: { ticker } }),
+  scenarios: () => request<Scenario[]>("/api/scenarios"),
+  scenario: (id: number) => request<Scenario>(`/api/scenarios/${id}`),
+  createScenario: (body: ScenarioIn) => request<Scenario>("/api/scenarios", { method: "POST", json: body }),
+  updateScenario: (id: number, body: ScenarioIn) =>
+    request<Scenario>(`/api/scenarios/${id}`, { method: "PATCH", json: body }),
+  deleteScenario: (id: number) => request<void>(`/api/scenarios/${id}`, { method: "DELETE" }),
+  scenarioResult: (id: number, ids: readonly number[], period: AnalyticsPeriod) =>
+    request<ScenarioResult>(`/api/scenarios/${id}/result`, { query: { account_id: ids, period } }),
+  previewScenario: (body: ScenarioIn, ids: readonly number[]) =>
+    request<ScenarioResult>("/api/scenarios/preview", { method: "POST", json: body, query: { account_id: ids, period: "all" } }),
   createSavingsAccount: (body: SavingsAccountCreate) =>
     request<SavingsAccountOut>("/api/savings-accounts", { method: "POST", json: body }),
 };

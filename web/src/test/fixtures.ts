@@ -1,4 +1,5 @@
-import type { Account, Analytics, Closed, Exposure, History, Instrument, ImportFile, ImportResult, Limit, Position, PositionDetail, Summary } from "../api/types";
+import type { Account, Analytics, CatalogGroup, Closed, Exposure, History, Instrument, ImportFile, ImportResult, Limit, Money, Position, PositionDetail, Scenario, ScenarioMeasures, ScenarioResult, Summary } from "../api/types";
+import { fromCents, toCents } from "../format";
 
 export const ACCOUNTS: Account[] = [
   { id: 1, name: "IKE", kind: "broker", wrapper: "ike", broker: "xtb", external_account_number: "56216965",
@@ -212,3 +213,44 @@ export const ANALYTICS_EMPTY: Analytics = {
   volatility_pct: null, sharpe: null, short_sample: false, max_drawdown: null, current_drawdown_pct: null,
   best_day: null, worst_day: null, drawdown_series: [], monthly: [], recalculating: false,
 };
+
+export const CATALOG: CatalogGroup[] = [
+  { group: "Twój portfel", items: [{ id: 10, ticker: "SXR8.DE", name: "Core S&P 500", currency: "EUR",
+    group: "Twój portfel", accumulating: true, prices_from: "2016-01-04" }] },
+  { group: "ETF: USA", items: [{ id: 20, ticker: "SXRV.DE", name: "iShares NASDAQ 100", currency: "EUR",
+    group: "ETF: USA", accumulating: true, prices_from: "2016-01-04" }] },
+];
+
+function measures(value: Money, xirr: Money): ScenarioMeasures {
+  return {
+    period: { start: "2026-03-01", end: "2026-09-26", days: 210, annualized: false },
+    value_pln: value, invested_pln: "10000.00", profit_pln: fromCents(toCents(value) - 1_000_000n),
+    twr: { period_pct: "8.04", annual_pct: null }, xirr: { period_pct: xirr, annual_pct: null },
+    volatility_pct: "14.80", sharpe: "0.62", short_sample: true,
+    max_drawdown: { pct: "-8.20", peak_date: "2026-08-12", trough_date: "2026-08-22", recovered_on: null },
+    current_drawdown_pct: "-1.30", best_day: null, worst_day: null,
+  };
+}
+
+/** The real portfolio ends at 10 804,20 zł with XIRR 6,40 %; the scenario at `value` with `xirr`. */
+export function scenarioResult(value: Money, xirr: Money, notes: string[] = []): ScenarioResult {
+  return {
+    points: [
+      { date: "2026-09-24", portfolio_pln: "10700.00", scenario_pln: "10900.00", invested_pln: "10000.00",
+        scenario_invested_pln: "10000.00" },
+      { date: "2026-09-25", portfolio_pln: "10750.00", scenario_pln: "11000.00", invested_pln: "10000.00",
+        scenario_invested_pln: "10000.00" },
+      { date: "2026-09-26", portfolio_pln: "10804.20", scenario_pln: value, invested_pln: "10000.00",
+        scenario_invested_pln: "10000.00" },
+    ],
+    portfolio: measures("10804.20", "6.40"), scenario: measures(value, xirr), notes, recalculating: false,
+  };
+}
+
+export function scenario(id: number, name: string, overrides: Partial<Scenario> = {}): Scenario {
+  return {
+    id, name, base: "portfolio", allocation: [],
+    steps: [{ kind: "replace", from_instrument_id: 10, to_instrument_id: 20 }],
+    created_at: "2026-10-01T10:00:00Z", updated_at: "2026-10-01T10:00:00Z", ...overrides,
+  };
+}
