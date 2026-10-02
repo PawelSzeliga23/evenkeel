@@ -64,7 +64,7 @@ journal_entries  id, user_id → users (CASCADE), entry_date date, body text,
 
   Cudzy wpis albo cudza teza też dają 404.
 - **Usunięcie:**
-  - konto oszczędnościowe usunięte razem z kontem zabiera swoje notatki (kaskada). Potwierdzenie usunięcia konta oszczędnościowego dostaje zdanie: „Znikną też jego notatki.”;
+  - konto oszczędnościowe usunięte razem z kontem zabiera swoje notatki (kaskada). `GET /api/accounts/{id}/usage` dostaje pole `notes` (teza i wpisy konta), więc potwierdzenie usunięcia konta wymienia je jak resztę („…, 3 notatki”);
   - instrumentów się nie usuwa;
   - seria obligacji jest wspólna, więc notatki serii zostają, nawet gdy użytkownik nie ma już jej obligacji. W dzienniku są wtedy widoczne jako walor zamknięty.
 
@@ -83,12 +83,12 @@ journal_entries  id, user_id → users (CASCADE), entry_date date, body text,
   ```
   id, entry_date, body, created_at, updated_at
   target: {key, label, sublabel?, closed, link} | null      (null = portfel)
-    label     ticker, a bez tickera nazwa instrumentu; seria (np. „EDO0936”); nazwa konta oszczędnościowego
+    label     ticker XTB instrumentu (sublabel: nazwa); seria (np. „EDO0936”); nazwa konta oszczędnościowego
     closed    instrument: brak otwartej pozycji na żadnym koncie; seria: brak niewykupionej obligacji;
               konto oszczędnościowe: nigdy
-    link      instrument: {account_id, instrument_id} ostatniego konta z operacją na tym walorze;
-              seria: {bond_holding_id} najnowszej obligacji tej serii; konto oszcz.: {account_id};
-              null, gdy nie da się ustalić (np. seria bez obligacji)
+    link      {kind: position | bond | savings, account_id?, instrument_id?, bond_holding_id?}:
+              instrument — ostatnie konto z operacją na tym walorze; seria — najnowsza obligacja tej serii;
+              konto oszcz. — to konto; null, gdy nie da się ustalić (np. seria bez obligacji)
   ```
 - **Cele do wyboru:** `GET /api/journal/targets` → `[{key, label, sublabel, closed}]`. Zawiera walory, które użytkownik ma albo miał:
   - instrumenty z jego operacjami;
@@ -96,7 +96,7 @@ journal_entries  id, user_id → users (CASCADE), entry_date date, body text,
   - jego konta oszczędnościowe.
 
   Najpierw otwarte, potem zamknięte, w każdej grupie alfabetycznie.
-- **Notatki w szczegółach:** pole `notes: {thesis: {body, updated_at} | null, recent: [JournalEntryOut] (najwyżej 3), count}`. Dochodzi do:
+- **Notatki w szczegółach:** pole `notes: {thesis: {body, updated_at} | null, recent: [{id, entry_date, body, created_at, updated_at}] (najwyżej 3, bez `target` — to ten walor), count}`. Dochodzi do:
   - `GET /api/positions/{a}/{i}` (także dla pozycji zamkniętej);
   - szczegółów obligacji (seria tej obligacji);
   - szczegółów konta oszczędnościowego.
@@ -104,7 +104,7 @@ journal_entries  id, user_id → users (CASCADE), entry_date date, body text,
   - wpisy danego instrumentu z zakresu wykresu, zgrupowane według dnia;
   - **dzień bez notowania** (weekend, święto) przesuwa się na najbliższy następny dzień z ceną;
   - wpis późniejszy niż ostatnie notowanie trafia na ostatni dzień z ceną;
-  - wpis sprzed pierwszego notowania w zakresie jest pomijany.
+  - wpis sprzed początku zakresu (`from`) jest pomijany, a przy „Maks” wpis sprzed pierwszego notowania. Wpis między `from` a pierwszym notowaniem trafia na pierwsze notowanie.
 - **Przegląd AI:** `GET /api/reviews/package?…&notes=true|false`, domyślnie `true`. Przy `true` paczka dostaje sekcję **„## Notatki właściciela”** przed sekcją scenariuszy:
   - **„### Tezy”:** lista `- **SXR8.DE — Core S&P 500:** treść`, tylko dla walorów obecnych w paczce, czyli otwartych pozycji, obligacji i kont oszczędnościowych z wybranych kont;
   - **„### Dziennik (ostatnie 12 miesięcy)”:** lista `- 03.10.2026 · SXR8.DE: treść` albo `- 01.10.2026 · portfel: treść`, chronologicznie od najstarszego. Obejmuje wpisy o portfelu i o walorach obecnych w paczce, z datą od dziś minus 12 miesięcy;
@@ -128,7 +128,7 @@ journal_entries  id, user_id → users (CASCADE), entry_date date, body text,
   - **dotknięcie wpisu** otwiera go w miejscu do edycji, z „Zapisz”, „Anuluj” i „Usuń”. Usunięcie potwierdza się w aplikacji, bez okna przeglądarki: „Usunąć wpis z {data}?”.
 - **Więcej → Dziennik** (`/ustawienia/dziennik`):
   - na ekranie Ustawień jest sekcja „Dziennik” z opisem „Teza i decyzje przy walorach oraz wpisy o całym portfelu.” i linkiem, tak jak „Tagi walorów”;
-  - link powrotny „Więcej”, tytuł „Dziennik”;
+  - link powrotny „Ustawienia” (jak w Tagach: ekran żyje pod `/ustawienia`), tytuł „Dziennik”;
   - **filtr:** lista „Wszystkie / Portfel / walory” z `GET /api/journal/targets`, zamknięte walory z dopiskiem „zamknięty”. Wartość filtra jest w adresie (`?target=`);
   - **„+ Wpis”** otwiera formularz z polami data, treść i „Dotyczy” (lista jak filtr, bez „Wszystkie”). Domyślnie „Dotyczy” to walor z filtra, a przy „Wszystkie” portfel;
   - **oś czasu:**
@@ -144,7 +144,8 @@ journal_entries  id, user_id → users (CASCADE), entry_date date, body text,
   - znacznik „N” w kółku w kolorze `#C98BD9`, nad linią ceny w dniu wpisu, obok ▲ ▼ „D”;
   - kilka wpisów jednego dnia daje jeden znacznik;
   - znacznik jest przyciskiem z etykietą dostępności „Notatka {data}”;
-  - wybrany dzień w panelu pod wykresem pokazuje najpierw wpisy („N” + treść), potem operacje tego dnia, tak jak dziś;
+  - po dotknięciu „N” panel pod wykresem pokazuje wpisy tego dnia („N” + treść), a pod nimi operacje z tego samego dnia; dotknięcie znacznika operacji działa jak dziś;
+  - legenda dostaje „N Notatka”, gdy na wykresie są wpisy;
   - gesty, zakresy i zoom się nie zmieniają.
 - **Przegląd AI** (Analiza → Przegląd):
   - przy „Przygotuj paczkę” jest przełącznik „Dołącz notatki” z podpisem „tezy + wpisy z 12 miesięcy”, domyślnie włączony;
