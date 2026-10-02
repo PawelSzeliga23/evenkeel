@@ -227,3 +227,24 @@ class LimitOut(BaseModel):
     remaining_pln: Decimal | None
     exceeded: bool
     accounts: list[LimitAccountOut]
+
+
+class PricePointOut(BaseModel):
+    date: dt.date
+    close: Decimal
+
+
+class PriceMarkerOut(BaseModel):
+    date: dt.date
+    kind: Literal["buy", "sell", "dividend"]
+    price: Decimal | None  # quote currency, after later splits
+    price_with_fx: Decimal | None  # PLN paid ÷ quantity ÷ NBP rate (XTB's conversion inside), foreign only
+    quantity: Decimal | None  # after later splits
+    amount_pln: Decimal
+
+
+class PriceChartOut(BaseModel):
+    currency: str | None
+    points: list[PricePointOut]
+    markers: list[PriceMarkerOut]
+    first_buy: dt.date | None

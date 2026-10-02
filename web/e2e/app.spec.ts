@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { execSync } from "node:child_process";
 import { resolve } from "node:path";
 
 const EXPORT = resolve(import.meta.dirname, "../../api/.e2e/IKE_56216965_2006-01-01_2026-09-26.xlsx");
@@ -32,10 +33,19 @@ test("rejestracja, import eksportu XTB, pulpit, pozycje i szczegóły pozycji", 
   await expect(page.getByRole("heading", { name: "Akcje i ETF-y" })).toBeVisible();
   await page.screenshot({ path: `${SCREENS}/pozycje.png`, fullPage: true });
 
+  // The e2e API has no market provider: weekly closes for the price chart are written straight to its database.
+  execSync("docker compose --profile e2e exec -T api-e2e python -m tests.e2e_prices", { cwd: resolve(import.meta.dirname, "../..") });
+
   await page.getByRole("link", { name: /CD Projekt/ }).click();
   await expect(page.getByRole("heading", { name: "CD Projekt" })).toBeVisible();
   await expect(page.getByText("Zgodne z XTB")).toBeVisible();
+  const priceChart = page.getByRole("region", { name: "Wykres ceny" });
+  await expect(priceChart.getByRole("img", { name: /^Wykres ceny/ })).toBeVisible({ timeout: 45_000 });
+  await expect(priceChart.getByRole("button", { name: /^Zakup/ }).first()).toBeVisible();
   await page.screenshot({ path: `${SCREENS}/pozycja.png`, fullPage: true });
+  await priceChart.getByRole("button", { name: /^Zakup/ }).first().click();
+  await expect(priceChart.getByRole("status")).toContainText("zapłacone");
+  await priceChart.screenshot({ path: `${SCREENS}/wykres-ceny.png` });
 
   await page.goto("/ekspozycja");
   await expect(page.getByRole("img", { name: /Udział walut w czasie/ })).toBeVisible();

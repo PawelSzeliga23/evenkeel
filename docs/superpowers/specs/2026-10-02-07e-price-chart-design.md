@@ -31,7 +31,7 @@
 
 ## API
 
-`GET /api/positions/{account_id}/{instrument_id}/prices?from=YYYY-MM-DD` (aplikacja pyta raz bez `from` i sama przycina okno do zakresu) (brak `from` = cała historia; cudze konto lub instrument bez pozycji na koncie → 404):
+`GET /api/positions/{account_id}/{instrument_id}/prices?from=YYYY-MM-DD` (aplikacja pyta osobno o każdy zakres: `from` = początek zakresu, „Od zakupu” od daty pierwszego zakupu ze szczegółów pozycji, Maks bez `from`; krótki zakres ma każdy dzień, długi jest przerzedzony do 800 — ustalone po przeglądzie) (brak `from` = cała historia; cudze konto lub instrument bez pozycji na koncie → 404):
 
 ```
 currency: "EUR"

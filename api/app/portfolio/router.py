@@ -10,8 +10,10 @@ from app.market.update import MarketProviders, update_fx, update_prices
 from app.portfolio.closed import closed_investments
 from app.portfolio.exposure import currency_exposure
 from app.portfolio.limits import wrapper_limits
+from app.portfolio.price_chart import price_chart
 from app.portfolio.schemas import (
-    ClosedOut, ExposureOut, HistoryOut, LimitOut, PositionDetailOut, PositionOut, RefreshOut, SummaryOut,
+    ClosedOut, ExposureOut, HistoryOut, LimitOut, PositionDetailOut, PositionOut, PriceChartOut, RefreshOut,
+    SummaryOut,
 )
 from app.portfolio.service import (
     list_positions, portfolio_history, portfolio_summary, position_detail, prices_refreshed_at,
@@ -53,6 +55,15 @@ def get_position(
 ) -> PositionDetailOut:
     account, instrument = scope.get_account(account_id), scope.get_instrument(instrument_id)
     return position_detail(scope, account, instrument, day or local_today())
+
+
+@router.get("/positions/{account_id}/{instrument_id}/prices", response_model=PriceChartOut)
+def get_position_prices(
+    account_id: DbId, instrument_id: DbId, scope: UserScope = Depends(get_scope),
+    start: Annotated[dt.date | None, Query(alias="from")] = None,
+) -> PriceChartOut:
+    account, instrument = scope.get_account(account_id), scope.get_instrument(instrument_id)
+    return price_chart(scope, account, instrument, start)
 
 
 @router.get("/portfolio/closed", response_model=ClosedOut)

@@ -1,0 +1,23 @@
+.chart { position: relative; margin: 0; }
+.stage { position: relative; }
+.svg { width: 100%; height: auto; display: block; overflow: visible; touch-action: pan-y; user-select: none; -webkit-user-select: none; }
+.grid { stroke: var(--rule); stroke-width: 1; }
+.axis { fill: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
+.axisStrong { fill: var(--ink); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.price { fill: none; stroke: var(--ink); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.average { stroke-width: 1.2; stroke-dasharray: 5 4; }
+.averageLabel { fill: #F0A43A; font-size: 11px; font-variant-numeric: tabular-nums; }
+.dividend { fill: #0b1220; font-size: 9px; font-weight: 700; text-anchor: middle; pointer-events: none; }
+/* A 28 × 28 px tap target over each drawn marker; the mark itself is in the SVG. */
+.hit {
+  position: absolute; width: 28px; height: 28px; margin: 0; padding: 0; transform: translate(-50%, -50%);
+  border: 0; border-radius: 50%; background: transparent; cursor: pointer;
+}
+.hit:focus-visible { outline: 2px solid var(--amber); outline-offset: 0; }
+.hit[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--ink) inset; }
+.hint {
+  position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 1; margin: 0; pointer-events: none;
+  padding: 6px 12px; border-radius: var(--r-control); background: var(--slab); border: 1px solid var(--rule);
+  color: var(--ink); font-size: 13px; white-space: nowrap;
+}
+.note { color: var(--dim); font-size: 14px; padding: 24px 0; }

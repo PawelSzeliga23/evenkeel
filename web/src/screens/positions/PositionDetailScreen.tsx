@@ -8,6 +8,7 @@ import { formatDate, formatDateTime, formatDays, formatDecimal, formatPercent, s
 import { HeroAmount, Money } from "../../ui/Amount";
 import { ErrorState, Skeleton } from "../../ui/States";
 import ui from "../../ui/ui.module.css";
+import { PriceSection } from "./PriceSection";
 import { transactionLabel } from "./model";
 import styles from "./Positions.module.css";
 
@@ -58,7 +59,13 @@ function reconciliationText(r: Reconciliation): { title: string; subtitle: strin
   return { title: "Brak stanu z XTB do porównania", subtitle: "Wgraj eksport z zakładką Open Positions.", tone: "dim" };
 }
 
-function Detail({ detail }: { detail: PositionDetail }) {
+/** The day of the position's first purchase; a day off near midnight only moves „Od zakupu” by a day of its 14. */
+function firstBuy(detail: PositionDetail): string | null {
+  const days = detail.transactions.filter((t) => t.type === "buy").map((t) => t.occurred_at.slice(0, 10)).sort();
+  return days[0] ?? null;
+}
+
+function Detail({ detail, accountId, instrumentId }: { detail: PositionDetail; accountId: number; instrumentId: number }) {
   const p = detail.position;
   const check = reconciliationText(detail.reconciliation);
   const gainTone = signOf(p.unrealized_pln) > 0 ? "up" : signOf(p.unrealized_pln) < 0 ? "down" : "";
@@ -73,6 +80,9 @@ function Detail({ detail }: { detail: PositionDetail }) {
           <Money value={p.unrealized_pln} sign /> ({formatPercent(p.unrealized_pct)})
         </p>
       </section>
+
+      <PriceSection accountId={accountId} instrumentId={instrumentId} firstBuy={firstBuy(detail)}
+        average={signOf(p.quantity) > 0 ? detail.average_price : null} />
 
       <Section title="Podsumowanie">
         <dl className={ui.kv}>
@@ -187,7 +197,7 @@ export function PositionDetailScreen() {
       <Back />
       {detail.isPending ? <Skeleton rows={6} />
         : detail.isError ? <ErrorState error={detail.error} onRetry={() => void detail.refetch()} />
-          : <Detail detail={detail.data} />}
+          : <Detail detail={detail.data} accountId={accountId} instrumentId={instrumentId} />}
     </div>
   );
 }
