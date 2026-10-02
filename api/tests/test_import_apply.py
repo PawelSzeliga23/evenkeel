@@ -245,3 +245,32 @@ def test_failure_leaves_nothing_behind(scope: UserScope) -> None:
         apply_import(scope, plans)
 
     assert (_count(scope, Account), _count(scope, Transaction), _count(scope, ImportRecord)) == (0, 0, 0)
+
+
+def test_reimport_fixes_an_operation_stored_as_unknown(scope: UserScope) -> None:
+    file = (xf.filename("IKE", IKE), _ike([BUY], [SUMMARY, LOT]))
+    _import(scope, file)
+    stored = scope.db.scalar(select(Transaction))
+    stored.type, stored.quantity, stored.price, stored.implied_fx_rate = "unknown", None, None, None  # an older importer
+    scope.db.commit()
+
+    (plan,) = plan_import(scope, [parse_report(*file)])
+    assert [w["code"] for w in plan.warnings] == ["reclassified_operations"]  # holdings agree: no mismatch warning
+    (record,) = apply_import(scope, [plan])
+
+    scope.db.refresh(stored)
+    assert (stored.type, stored.quantity, stored.price, stored.implied_fx_rate) == (
+        "buy", Decimal("2"), Decimal("500.5"), Decimal("4.3"))
+    assert (record.rows_added, record.rows_duplicate, _count(scope, Transaction)) == (0, 1, 1)
+    assert scope.db.scalar(select(User.valuations_stale_from)) == AT.date()  # set in SQL, not on the loaded object
+
+
+def test_reimport_leaves_operations_it_still_cannot_read(scope: UserScope) -> None:
+    odd = xf.cash_row("Stock purchase", -10.0, "2001", AT, comment="coś innego", ticker="SXR8.DE")
+    file = (xf.filename("IKE", IKE), _ike([odd]))
+    _import(scope, file)
+
+    (plan,) = plan_import(scope, [parse_report(*file)])
+
+    assert "reclassified_operations" not in [w["code"] for w in plan.warnings]
+    assert scope.db.scalar(select(Transaction.type)) == "unknown"

@@ -70,3 +70,19 @@ def test_valid_numbers_with_trailing_whitespace_separated_text() -> None:
     assert result.type == "buy"
     assert result.quantity == Decimal("2")
     assert result.price == Decimal("500.5")
+
+
+def test_purchase_comment_with_the_ticker_parses() -> None:
+    # XTB's format since 2026-10: the ticker sits between BUY and the quantity
+    assert classify("Stock purchase", "OPEN BUY SXR8.DE 0.0614 @ 740.00") == Classified(
+        "buy", Decimal("0.0614"), Decimal("740.00"))
+    assert classify("Stock purchase", "OPEN BUY SNT.PL 0.2927 @ 341.60") == Classified(
+        "buy", Decimal("0.2927"), Decimal("341.60"))
+
+
+def test_sale_comment_with_the_ticker_parses() -> None:
+    assert classify("Stock sale", "CLOSE BUY SXR8.DE 1/2 @ 750.00") == Classified("sell", Decimal("1"), Decimal("750.00"))
+
+
+def test_a_number_in_the_ticker_place_is_not_a_ticker() -> None:
+    assert classify("Stock purchase", "OPEN BUY 3 2 @ 500.00").type == "unknown"

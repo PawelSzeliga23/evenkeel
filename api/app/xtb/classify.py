@@ -3,8 +3,10 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 _NUMBER = r"(\d+(?:\.\d+)?)(?![\d.,])"
-_OPEN = re.compile(rf"^OPEN\s+BUY\s+{_NUMBER}(?:/{_NUMBER})?\s+@\s+{_NUMBER}", re.IGNORECASE)
-_CLOSE = re.compile(rf"^CLOSE\s+BUY\s+{_NUMBER}(?:/{_NUMBER})?\s+@\s+{_NUMBER}", re.IGNORECASE)
+# Since 2026-10 XTB writes the ticker before the quantity ("OPEN BUY SXR8.DE 0.0614 @ 740.00"); a ticker has a letter.
+_TICKER = r"(?:(?=\S*[A-Za-z])\S+\s+)?"
+_OPEN = re.compile(rf"^OPEN\s+BUY\s+{_TICKER}{_NUMBER}(?:/{_NUMBER})?\s+@\s+{_NUMBER}", re.IGNORECASE)
+_CLOSE = re.compile(rf"^CLOSE\s+BUY\s+{_TICKER}{_NUMBER}(?:/{_NUMBER})?\s+@\s+{_NUMBER}", re.IGNORECASE)
 _TRANSFER = re.compile(r"Transfer\s+(in|out)\s+operation\s+on\s+account\s+with\s+id\s+(\d+)", re.IGNORECASE)
 
 _BY_TYPE = {
