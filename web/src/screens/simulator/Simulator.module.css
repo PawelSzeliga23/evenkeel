@@ -1,0 +1,30 @@
+.head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; }
+.legend button {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; max-width: 100%; padding: 0 12px;
+  background: var(--slab); border: 1px solid var(--rule); border-radius: 999px; color: var(--dim);
+  font: inherit; font-size: 13.5px; cursor: pointer;
+}
+.legend button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.legend button[aria-pressed="true"] { color: var(--ink); border-color: var(--dim); }
+.legend button:disabled { opacity: .45; cursor: default; }
+.swatch { width: 14px; height: 3px; border-radius: 2px; flex: none; }
+.hint { color: var(--dim); font-size: 12.5px; }
+.lead { width: 18px; height: 18px; }
+/* One DOM: a card per line, stacked on a phone, side by side from 900 px (reads as a table of measures × lines). */
+.columns { display: grid; gap: 8px; }
+@media (min-width: 900px) { .columns { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); } }
+.column { background: var(--slab); border: 1px solid var(--rule); border-radius: var(--r-sheet); padding: 12px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.columnHead { display: flex; align-items: center; gap: 8px; font-weight: 600; min-width: 0; }
+.columnHead span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.label { display: inline-flex; align-items: center; gap: 2px; }
+.diff { color: var(--dim); font-size: 12.5px; }
+.notes { margin: 0; padding-left: 18px; color: var(--dim); font-size: 13px; display: grid; gap: 4px; }
+.block { border: 1px solid var(--rule); border-radius: var(--r-sheet); padding: 12px 14px; display: grid; gap: 14px; margin: 0; min-width: 0; }
+.block legend { padding: 0 6px; font-weight: 600; color: var(--ink); }
+.shareRow { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: 10px; align-items: start; }
+.check { display: flex; align-items: center; gap: 10px; min-height: 44px; color: var(--ink); font-size: 14px; }
+.check input { width: 18px; height: 18px; accent-color: var(--amber); }
+.addTicker { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: start; }
+.addTicker button { margin-top: 26px; }
+.stale { opacity: .45; transition: opacity .2s; }

@@ -16,4 +16,11 @@ export const keys = {
   bond: (id: number) => ["portfolio", "bond", id] as const,
   savings: (accountId: number) => ["portfolio", "savings", accountId] as const,
   entries: (filters: object) => ["portfolio", "entries", filters] as const,
+  catalog: ["catalog"] as const,
+  scenarios: ["scenarios"] as const,
+  scenario: (id: number) => ["scenarios", id] as const,
+  scenarioResults: (id: number) => ["portfolio", "scenario-result", id] as const,
+  scenarioResult: (id: number, ids: readonly number[], period: string) =>
+    ["portfolio", "scenario-result", id, ids, period] as const,
+  scenarioPreview: (body: object, ids: readonly number[]) => ["portfolio", "scenario-preview", body, ids] as const,
 };

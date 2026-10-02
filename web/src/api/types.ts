@@ -350,3 +350,44 @@ export interface Analytics {
   monthly: MonthReturns[];
   recalculating: boolean;
 }
+
+export interface CatalogItem {
+  id: number; ticker: string; name: string; currency: string | null; group: string; accumulating: boolean | null;
+  prices_from: IsoDate | null;
+}
+export interface CatalogGroup { group: string; items: CatalogItem[] }
+
+export type ScenarioBase = "portfolio" | "deposits";
+export interface ScenarioTarget { instrument_id: number | null; bond: "EDO" | null }
+export interface ScenarioShare { target: ScenarioTarget; share_pct: Money }
+export interface ReplaceStep { kind: "replace"; from_instrument_id: number; to_instrument_id: number }
+export interface RecurringStep {
+  kind: "recurring"; amount_pln: Money; day_of_month: number; start: string; end: string | null; target: ScenarioTarget;
+  ike: boolean;
+}
+export type ScenarioStep = ReplaceStep | RecurringStep;
+export interface ScenarioIn { name: string; base: ScenarioBase; allocation: ScenarioShare[]; steps: ScenarioStep[] }
+export interface Scenario extends ScenarioIn { id: number; created_at: IsoDateTime; updated_at: IsoDateTime }
+export interface ScenarioPoint {
+  date: IsoDate; portfolio_pln: Money | null; scenario_pln: Money | null; invested_pln: Money | null;
+  scenario_invested_pln: Money | null;
+}
+export interface ScenarioMeasures {
+  period: { start: IsoDate; end: IsoDate; days: number; annualized: boolean };
+  value_pln: Money;
+  invested_pln: Money;
+  profit_pln: Money;
+  twr: PeriodReturn;
+  xirr: PeriodReturn;
+  volatility_pct: Money | null;
+  sharpe: Money | null;
+  short_sample: boolean;
+  max_drawdown: Analytics["max_drawdown"];
+  current_drawdown_pct: Money | null;
+  best_day: DayExtreme | null;
+  worst_day: DayExtreme | null;
+}
+export interface ScenarioResult {
+  points: ScenarioPoint[]; portfolio: ScenarioMeasures | null; scenario: ScenarioMeasures | null; notes: string[];
+  recalculating: boolean;
+}

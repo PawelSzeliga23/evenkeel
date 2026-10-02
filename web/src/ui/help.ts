@@ -58,6 +58,10 @@ export const HELP: Record<string, Help> = {
     what: "Ile pieniędzy włożyłeś w portfel.",
     how: "suma wpłat na wybrane konta minus wypłaty, w złotych.",
   },
+  "Wartość": {
+    what: "Ile byłoby do wypłaty na koniec okresu.",
+    how: "wartość do wypłaty ostatniego dnia: po kosztach sprzedaży i przewalutowania, tak jak na Pulpicie.",
+  },
   "Dywidendy i odsetki": {
     what: "Dochód, który wpłynął na konta.",
     how: "dywidendy i odsetki po pobranym podatku, w złotych po kursie NBP z dnia wpływu.",
