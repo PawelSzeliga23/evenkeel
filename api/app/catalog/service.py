@@ -80,6 +80,9 @@ def add_ticker(db: Session, provider: PriceProvider, ticker: str, now: dt.dateti
         winner = db.scalar(select(Instrument).where(Instrument.xtb_ticker == ticker))
         if winner is None:
             raise
+        if not winner.in_catalog:  # e.g. saved by an XTB import meanwhile: the caller asked for it in the catalog
+            winner.in_catalog, winner.catalog_group = True, winner.catalog_group or ADDED_GROUP
+            db.commit()
         return _item(winner, winner.catalog_group or ADDED_GROUP, _prices_from(db, [winner.id])), False
     upsert_prices(db, instrument.id, history.bars, provider.name)
     replace_provider_splits(db, instrument.id, history.splits, None)
