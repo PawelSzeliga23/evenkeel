@@ -4,6 +4,7 @@ import { useAccountSelection } from "../../accounts/AccountSelection";
 import { api } from "../../api/endpoints";
 import { keys } from "../../api/queryKeys";
 import ui from "../../ui/ui.module.css";
+import { RECALC_POLL_MS } from "../dashboard/model";
 import { HeatMap } from "./HeatMap";
 
 export const HOLDINGS_PATH = "/analiza/walory";
@@ -14,6 +15,7 @@ export function HoldingsCard() {
   const navigate = useNavigate();
   const holdings = useQuery({
     queryKey: keys.holdings(accountIds, "1d"), queryFn: () => api.holdings(accountIds, "1d"), enabled: ready,
+    refetchInterval: (query) => (query.state.data?.recalculating ? RECALC_POLL_MS : false),
   });
   const data = holdings.data;
   if (!data || data.period === null) return null;
@@ -23,7 +25,7 @@ export function HoldingsCard() {
         <h2 id="holdings-title" className={ui.sectionTitle}>Walory</h2>
         <Link className={ui.sectionMore} to={HOLDINGS_PATH}>Walory</Link>
       </div>
-      <HeatMap items={data.items} period="1d" selected={null} onSelect={() => navigate(HOLDINGS_PATH)} height={140} />
+      <HeatMap items={data.items} period="1d" onSelect={() => navigate(HOLDINGS_PATH)} height={140} />
     </section>
   );
 }

@@ -57,9 +57,9 @@ def test_whole_history_gain_is_the_summary_gain(client: TestClient, world: dict)
 def test_day_gain_is_the_change_since_the_previous_session(client: TestClient, world: dict) -> None:
     body = _get(client, world["anna"], period="1d")
 
-    assert body["period"] == {"start": "2026-09-25", "end": "2026-09-26"}
+    assert body["period"] == {"start": "2026-09-25", "end": "2026-09-25"}  # up to the last session, as on Pulpit
     (item,) = body["items"]
-    assert item["gain_pln"] == "796.00"  # Sat 5074.50 − Thu 4278.50 (2 × 500 × 4.30 − 0.5 %)
+    assert item["gain_pln"] == "796.00"  # Fri 5074.50 − Thu 4278.50 (2 × 500 × 4.30 − 0.5 %)
 
 
 def test_a_purchase_in_the_period_is_not_a_gain(client: TestClient, world: dict, engine: Engine) -> None:
@@ -149,3 +149,33 @@ def test_savings_gain_is_the_interest(client: TestClient, world: dict, engine: E
     assert (item["kind"], item["name"], item["category"]) == ("savings", "Konto oszcz.", "savings")
     assert Decimal(item["gain_pln"]) == Decimal(item["value_pln"]) - 10000  # the deposit is not a gain
     assert [group["key"] for group in body["by_kind"]] == ["etf", "savings"]
+
+
+def test_a_conversion_in_the_period_moves_the_value_not_a_gain(client: TestClient, world: dict) -> None:
+    created = client.post("/api/corporate-actions", headers=world["anna"], json={
+        "instrument_id": world["sxr8"], "type": "conversion", "effective_date": "2026-09-25", "ratio_from": "1",
+        "ratio_to": "1", "target_ticker": "CSPX.UK"})
+    assert created.status_code == 201
+
+    items = {item["ticker"]: item for item in _get(client, world["anna"], period="all")["items"]}
+
+    assert (items["SXR8.DE"]["value_pln"], items["SXR8.DE"]["gain_pln"]) == ("0.00", "8.20")  # 4278.50 − 4304.30 + 34
+    target = items["CSPX.UK"]
+    assert Decimal(target["gain_pln"]) == Decimal(target["value_pln"]) - Decimal("4278.50")  # from the value it got
+
+
+def test_a_closed_savings_account_is_left_out(client: TestClient, world: dict, engine: Engine) -> None:
+    with Session(engine) as db:
+        account = Account(user_id=world["user_id"], name="Stare konto", kind="savings", currency="PLN")
+        db.add(account)
+        db.flush()
+        savings = SavingsAccount(account_id=account.id, capitalization="monthly")
+        db.add(savings)
+        db.flush()
+        db.add(SavingsBalance(savings_account_id=savings.id, as_of_date=dt.date(2026, 9, 1), balance=Decimal("0")))
+        db.commit()
+        valuate(db, world["user_id"])
+
+    keys = [item["key"] for item in _get(client, world["anna"], period="1m")["items"]]
+
+    assert keys == [f"i:{world['sxr8']}"]

@@ -65,6 +65,18 @@ describe("Walory", () => {
     expect(within(screen.getByRole("table", { name: "Zysk według typów" })).getByText("Oszczędności")).toBeInTheDocument();
   });
 
+  it("closes a holding's details when the toggle hides it", async () => {
+    routes();
+    const { user } = renderApp("/analiza/walory");
+
+    await user.click(await screen.findByRole("button", { name: /^EDO0935, / }));
+    expect(screen.getByRole("region", { name: "EDO0935" })).toBeInTheDocument();
+    await user.click(screen.getByRole("checkbox", { name: "Bez oszczędności i obligacji" }));
+    await user.click(screen.getByRole("checkbox", { name: "Bez oszczędności i obligacji" }));
+
+    expect(screen.queryByRole("region", { name: "EDO0935" })).toBeNull();
+  });
+
   it("shows the gains by account and by kind", async () => {
     routes();
     renderApp("/analiza/walory");

@@ -81,16 +81,19 @@ export function HoldingsScreen() {
       <BackLink to="/analiza" label="Analiza" />
       <h1 className={ui.pageTitle}>Walory</h1>
       {accounts.data && <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} />}
-      <Segmented label="Okres" options={PERIODS} value={period} onChange={setPeriod} className={styles.periods} />
+      <Segmented label="Okres" options={PERIODS} value={period} className={styles.periods}
+        onChange={(value) => { setPeriod(value); setSelected(null); }} />
       <label className={styles.check}>
-        <input type="checkbox" checked={withoutFixedIncome} onChange={(event) => setWithoutFixedIncome(event.target.checked)} />
+        <input type="checkbox" checked={withoutFixedIncome}
+          onChange={(event) => { setWithoutFixedIncome(event.target.checked); setSelected(null); }} />
         Bez oszczędności i obligacji
       </label>
       {holdings.isPending ? <Skeleton rows={4} />
         : holdings.isError ? <ErrorState error={holdings.error} onRetry={() => void holdings.refetch()} />
         : data!.period === null ? <EmptyState title="Nie ma jeszcze wyceny do pokazania." />
         : (
-          <>
+          <div className={holdings.isPlaceholderData ? `${styles.body} ${styles.stale}` : styles.body}
+            aria-busy={holdings.isPlaceholderData}>
             {data!.recalculating && <Recalculating />}
             <section className={ui.section} aria-labelledby="map-title">
               <div className={ui.sectionHead}>
@@ -127,7 +130,7 @@ export function HoldingsScreen() {
             </section>
             <GroupTable title="Zysk według kont" head="Konto" rows={data!.by_account} />
             <GroupTable title="Zysk według typów" head="Typ" rows={data!.by_kind} />
-          </>
+          </div>
         )}
     </div>
   );

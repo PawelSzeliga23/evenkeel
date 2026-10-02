@@ -16,7 +16,7 @@ export const holdingLabel = (item: Holding) => (item.ticker ? shortTicker(item.t
 
 /** Holdings as tiles: size by value, colour by the period's gain %. */
 export function HeatMap({ items, period, selected, onSelect, height = 220 }: {
-  items: Holding[]; period: HoldingsPeriod; selected: string | null; onSelect: (key: string) => void; height?: number;
+  items: Holding[]; period: HoldingsPeriod; /** Omitted where a tile is a link, not a toggle. */ selected?: string | null; onSelect: (key: string) => void; height?: number;
 }) {
   const [box, setBox] = useState<HTMLElement | null>(null);
   const width = useWidth(box, DEFAULT_W);
@@ -29,7 +29,7 @@ export function HeatMap({ items, period, selected, onSelect, height = 220 }: {
         const label = holdingLabel(item);
         const pct = formatPercent(item.gain_pct);
         return (
-          <button key={item.key} type="button" className={styles.tile} aria-pressed={item.key === selected}
+          <button key={item.key} type="button" className={styles.tile} aria-pressed={selected === undefined ? undefined : item.key === selected}
             aria-label={`${label}, ${pct}`} onClick={() => onSelect(item.key)}
             style={{ left: r.x, top: r.y, width: r.w, height: r.h, background: heatColor(item.gain_pct, period) }}>
             {r.w >= LABEL_W && r.h >= LABEL_H && (

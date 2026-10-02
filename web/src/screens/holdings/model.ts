@@ -32,7 +32,7 @@ export function shown(items: Holding[], withoutFixedIncome: boolean): Shown[] {
   return kept.map((item) => ({
     item,
     share: value > 0 ? `${percentOf(Number(item.value_pln), value)} portfela` : "",
-    contribution: gain === 0 ? null : `${formatPercent((Number(item.gain_pln) * 100 / Math.abs(gain)).toFixed(1), { places: 1, sign: false })} ${word}`,
+    contribution: gain === 0 ? null : `${formatPercent((Number(item.gain_pln) * 100 / gain).toFixed(1), { places: 1, sign: false })} ${word}`,
   }));
 }
 

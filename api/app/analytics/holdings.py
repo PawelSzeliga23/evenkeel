@@ -18,7 +18,8 @@ from app.models import BondHolding, DailyValuation, Instrument, Transaction, Use
 from app.portfolio.service import PAYOUT, amount_pln
 from app.scoping import UserScope
 from app.valuation.engine import ONE_DAY, ZERO, last_session, money, previous_session
-from app.valuation.service import local_day
+from app.valuation.actions import resolve
+from app.valuation.service import _actions, local_day
 
 HoldingsPeriod = Literal["1d", "1w", "1m", "1y", "ytd", "all"]
 TRADES = ("buy", "sell")
@@ -83,6 +84,8 @@ def holdings(scope: UserScope, account_ids: frozenset[int] | None, period: Holdi
     first, end = db.execute(rows.with_only_columns(func.min(DailyValuation.date), func.max(DailyValuation.date))).one()
     if end is None:
         return HoldingsOut(period=None, items=[], by_account=[], by_kind=[], recalculating=recalculating)
+    if period == "1d":
+        end = last_session(end)  # the day's change ends on the last session, as on Pulpit
     base, start = window(period, first, end)
 
     accounts = {account.id: account.name for account in db.scalars(scope.accounts())}
@@ -126,6 +129,27 @@ def holdings(scope: UserScope, account_ids: frozenset[int] | None, period: Holdi
             part.bought += max(-amount, ZERO)
         else:
             part.income += amount
+
+    # A conversion moves the holding to another instrument without a transaction: the source's payout value on the
+    # day before goes out of the source and into the target, so neither shows it as a gain or a loss.
+    traded = {int(key[2:]) for key in found if key.startswith("i:")}
+    _, conversions = resolve(_actions(db, scope.user.id, traded))
+    for conversion in conversions:
+        if not start <= conversion.effective_date <= end:
+            continue
+        moved = rows.with_only_columns(DailyValuation.account_id, func.sum(PAYOUT)).where(
+            DailyValuation.instrument_id == conversion.instrument_id,
+            DailyValuation.date == conversion.effective_date - ONE_DAY,
+        ).group_by(DailyValuation.account_id)
+        for account_id, value in db.execute(moved):
+            holding(conversion.instrument_id, None, None, account_id).parts[account_id].money_in -= value
+            target = holding(conversion.target_instrument_id, None, None, account_id).parts[account_id]
+            target.money_in += value
+            target.bought += max(value, ZERO)
+
+    for key in [key for key, item in found.items() if all(
+            p.base == p.end == p.money_in == p.income == ZERO for p in item.parts.values())]:
+        del found[key]  # nothing held and nothing happened (e.g. a closed savings account)
 
     instrument_ids = [int(key[2:]) for key in found if key.startswith("i:")]
     for instrument in db.scalars(select(Instrument).where(Instrument.id.in_(instrument_ids))):
