@@ -187,3 +187,14 @@ describe("Pulpit card", () => {
     expect(screen.queryByRole("region", { name: "Analiza" })).not.toBeInTheDocument();
   });
 });
+
+describe("Analiza headings", () => {
+  it("names the sections without their question marks", async () => {
+    routes(() => ANALYTICS);
+    renderApp("/analiza");
+
+    expect(await screen.findByRole("heading", { name: "Obsunięcie w czasie" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Zwrot w miesiącach" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Co to jest: Obsunięcie w czasie" })).toBeInTheDocument();
+  });
+});

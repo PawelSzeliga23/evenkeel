@@ -99,15 +99,17 @@ export function AnalysisScreen() {
             {analytics.data.recalculating && <Recalculating />}
             <Tiles data={analytics.data} />
             <section className={ui.section} aria-labelledby="drawdown-title">
-              <h2 id="drawdown-title" className={ui.sectionTitle}>
-                Obsunięcie w czasie<InfoTip label="Obsunięcie w czasie" help={HELP["Obsunięcie w czasie"]!} />
-              </h2>
+              <div className={ui.titleRow}>
+                <h2 id="drawdown-title" className={ui.sectionTitle}>Obsunięcie w czasie</h2>
+                <InfoTip label="Obsunięcie w czasie" help={HELP["Obsunięcie w czasie"]!} />
+              </div>
               <DrawdownChart points={analytics.data.drawdown_series} />
             </section>
             <section className={ui.section} aria-labelledby="monthly-title">
-              <h2 id="monthly-title" className={ui.sectionTitle}>
-                Zwrot w miesiącach<InfoTip label="Zwrot w miesiącach" help={HELP["Zwrot w miesiącach"]!} />
-              </h2>
+              <div className={ui.titleRow}>
+                <h2 id="monthly-title" className={ui.sectionTitle}>Zwrot w miesiącach</h2>
+                <InfoTip label="Zwrot w miesiącach" help={HELP["Zwrot w miesiącach"]!} />
+              </div>
               <MonthlyReturns rows={analytics.data.monthly} />
             </section>
           </>

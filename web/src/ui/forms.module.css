@@ -1,6 +1,7 @@
 .form { display: grid; gap: 18px; max-width: 480px; }
 .field { display: grid; gap: 6px; align-content: start; font-size: 14px; color: var(--dim); }
 .field input, .field select {
+  min-width: 0; /* a date input's own minimum width overflowed two-field rows at 320 px */
   min-height: 46px; padding: 0 14px; background: var(--slab); border: 1px solid var(--rule);
   border-radius: var(--r-control); color: var(--ink); font-size: 16px; width: 100%;
 }

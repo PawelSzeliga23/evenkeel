@@ -1,4 +1,4 @@
-import { formatMoney, moneyParts, signOf } from "../format";
+import { NBSP, formatMoney, moneyParts, signOf } from "../format";
 import styles from "./ui.module.css";
 
 export function HeroAmount({ value, size = "l" }: { value: string; size?: "l" | "m" }) {
@@ -7,7 +7,7 @@ export function HeroAmount({ value, size = "l" }: { value: string; size?: "l" | 
     <span className={`num ${styles.hero} ${size === "m" ? styles.heroM : ""}`}>
       {parts.sign}{parts.whole}
       <span className={styles.grosze} data-part="grosze">,{parts.grosze}</span>
-      <span className={styles.currency}>zł</span>
+      <span className={styles.currency}>{NBSP}zł</span>
     </span>
   );
 }

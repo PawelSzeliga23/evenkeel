@@ -97,6 +97,14 @@ test("konto oszczędnościowe: założenie, odsetki, historia i usunięcie wpła
   await page.getByRole("group", { name: "Potwierdzenie" }).getByRole("button", { name: "Usuń" }).click();
   await expect(page.getByRole("listitem").filter({ hasText: "500,00" })).toHaveCount(0);
   await page.screenshot({ path: `${SCREENS}/historia.png`, fullPage: true });
+
+  // The narrowest phones: forms with two fields in a row must not scroll sideways.
+  await page.setViewportSize({ width: 320, height: 700 });
+  for (const path of ["/dodaj/konto-oszczednosciowe", "/dodaj/obligacja", "/dodaj/operacja"]) {
+    await page.goto(path);
+    await expect(page.getByRole("button", { name: /Załóż konto|Zapisz/ })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth), path).toBeLessThanOrEqual(320);
+  }
 });
 
 test("ustawienia: zmiana hasła, logowanie nowym hasłem, zamknięte inwestycje i limity", async ({ page }) => {

@@ -30,7 +30,7 @@ function Investment({ closed, investment }: { closed: Closed; investment: Closed
       {open && (
         <ul className={styles.list} aria-label={`Sprzedaże ${label}`}>
           {salesOf(closed, investment).map((sale, i) => (
-            <li key={i} className={styles.entry}>
+            <li key={`${sale.closed_on}-${sale.quantity}-${sale.proceeds_pln}-${i}`} className={styles.entry}>
               <span className={styles.entryName}>
                 <b>{formatDate(sale.closed_on)}</b>
                 <small>{`${formatDecimal(sale.quantity, 8)} szt., ${formatDays(sale.holding_days)}`}</small>

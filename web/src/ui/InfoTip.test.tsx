@@ -57,3 +57,15 @@ describe("InfoTip", () => {
     expect(screen.getByRole("tooltip").style.top).toBe("694px");
   });
 });
+
+describe("InfoTip taps", () => {
+  it("keeps the bubble open when it is tapped", async () => {
+    const { user, button } = setup();
+
+    await user.click(button);
+    await user.click(screen.getByRole("tooltip"));
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+    await user.click(screen.getByText("obok"));
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+});
