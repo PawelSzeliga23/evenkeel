@@ -51,6 +51,7 @@ describe("ComparisonChart", () => {
     await user.keyboard("{ArrowLeft}");
     expect(cells()).toBe(before);
     expect(before).toBe(4); // the day, two lines, the capital
+    expect(screen.getByText("Wpłacono (portfel)")).toBeInTheDocument();
   });
 
   it("asks for at least two days", () => {

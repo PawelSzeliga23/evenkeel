@@ -81,7 +81,7 @@ export function ComparisonChart({ dates, lines, invested }: {
           </span>
         ))}
         <span className={styles.cell} data-readout-cell>
-          <i className={styles.swatch} style={swatchStyle("var(--dim)")} /><span className={styles.name}>Wpłacono</span> <b>{money(invested[at])}</b>
+          <i className={styles.swatch} style={swatchStyle("var(--dim)")} /><span className={styles.name}>Wpłacono (portfel)</span> <b>{money(invested[at])}</b>
         </span>
       </div>
       <svg className={styles.svg} viewBox={`0 0 ${width} ${H}`} role="img" tabIndex={0}

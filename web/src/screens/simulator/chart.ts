@@ -5,13 +5,15 @@ import { PORTFOLIO_COLOR, SLOTS } from "./model";
 export interface ShownResult { key: string; label: string; slot: number; result: ScenarioResult }
 
 /** The lines on one date axis (the union of every result's days); the real portfolio and its capital come from the
- * results too: every result carries the same real line. */
-export function chartData(shown: ShownResult[], showPortfolio: boolean): {
+ * results too: every result carries the same real line. With no scenario shown, `fallback` gives the real line. */
+export function chartData(shown: ShownResult[], showPortfolio: boolean, fallback?: ScenarioResult): {
   dates: IsoDate[]; lines: ComparisonLine[]; invested: (Money | null)[];
 } {
-  const dates = [...new Set(shown.flatMap(({ result }) => result.points.map((point) => point.date)))].sort();
+  const sources = shown.length > 0 ? shown.map(({ result }) => result) : fallback ? [fallback] : [];
+  const dates = [...new Set(sources.flatMap((result) =>
+    result.points.filter((point) => shown.length > 0 || point.portfolio_pln !== null).map((point) => point.date)))].sort();
   const real = new Map<IsoDate, { value: Money | null; invested: Money | null }>();
-  for (const { result } of shown) {
+  for (const result of sources) {
     for (const point of result.points) {
       if (point.portfolio_pln !== null) real.set(point.date, { value: point.portfolio_pln, invested: point.invested_pln });
     }

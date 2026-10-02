@@ -89,3 +89,29 @@ describe("Symulator", () => {
     expect(within(card).getByRole("link", { name: "Nowy scenariusz" })).toHaveAttribute("href", "/analiza/symulator/nowy");
   });
 });
+
+describe("Symulator chart lines", () => {
+  it("keeps the portfolio on the chart when every scenario is hidden", async () => {
+    routes();
+    const { user } = renderApp("/analiza/symulator");
+    await screen.findByRole("img", { name: "Porównanie wartości: Mój portfel, A, B, C" });
+
+    for (const name of ["A", "B", "C"]) await user.click(within(legend()).getByRole("button", { name }));
+    expect(await screen.findByRole("img", { name: "Porównanie wartości: Mój portfel" })).toBeInTheDocument();
+
+    await user.click(within(legend()).getByRole("button", { name: "Mój portfel" }));
+    expect(screen.getByText("Wybierz linię na wykresie.")).toBeInTheDocument();
+  });
+
+  it("asks only the shown scenarios for another period", async () => {
+    const fetchMock = routes();
+    const { user } = renderApp("/analiza/symulator");
+    await screen.findByRole("img", { name: /Porównanie wartości/ });
+
+    await user.click(screen.getByRole("button", { name: "1R" }));
+    await screen.findByRole("img", { name: /Porównanie wartości/ });
+    const asked = new Set(fetchMock.mock.calls.map(([url]) => String(url))
+      .filter((u) => u.includes("/result") && u.includes("period=1y")).map((u) => u.split("/")[3]));
+    expect([...asked].sort()).toEqual(["1", "2", "3"]);
+  });
+});

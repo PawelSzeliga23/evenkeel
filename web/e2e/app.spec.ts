@@ -50,6 +50,7 @@ test("rejestracja, import eksportu XTB, pulpit, pozycje i szczegóły pozycji", 
   await expect(page.getByRole("heading", { name: "Nowy scenariusz" })).toBeVisible();
   await page.getByLabel("Nazwa").fill("Wszystko w EDO");
   await page.getByRole("button", { name: "Moje wpłaty" }).click();
+  await expect(page.getByText(/Względem portfela: \+/)).toBeVisible();
   await expect(page.getByRole("img", { name: /Porównanie wartości: Mój portfel, Wszystko w EDO/ })).toBeVisible();
   await page.screenshot({ path: `${SCREENS}/scenariusz.png`, fullPage: true });
   await page.getByRole("button", { name: "Zapisz scenariusz" }).click();

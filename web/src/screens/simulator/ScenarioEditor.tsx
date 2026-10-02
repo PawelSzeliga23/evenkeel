@@ -16,13 +16,14 @@ import { ErrorState, Skeleton } from "../../ui/States";
 import ui from "../../ui/ui.module.css";
 import { chartData } from "./chart";
 import {
-  BASES, NEW_DRAFT, difference, draftOf, newRecurring, newReplace, newShare, toBody, type Draft, type StepDraft,
+  BASE_CONFLICT, BASES, NEW_DRAFT, difference, draftOf, newRecurring, newReplace, newShare, toBody, type Draft, type StepDraft,
 } from "./model";
 import styles from "./Simulator.module.css";
 import { TargetSelect } from "./TargetSelect";
 import { useDebounced } from "./useDebounced";
 
 const PREVIEW_DELAY_MS = 500;
+const PREVIEW_NAME = "Podgląd";
 const HELD = "Twój portfel";
 const LIST = "/analiza/symulator";
 const DAYS = Array.from({ length: 28 }, (_, i) => String(i + 1));
@@ -50,8 +51,12 @@ function EditorForm({ id, initial, catalog }: { id: number | null; initial: Draf
   const [tried, setTried] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const { body, errors } = toBody(draft);
-  const shownErrors = tried ? errors : {};
-  const previewBody = useDebounced(toBody({ ...draft, name: draft.name.trim() || "Podgląd" }).body, PREVIEW_DELAY_MS);
+  // A block that does not fit the starting point is explained at once; the rest after the first save attempt.
+  const shownErrors = tried ? errors
+    : Object.fromEntries(Object.entries(errors).filter(([, message]) => message === BASE_CONFLICT));
+  // The name does not change the result, so the preview is asked without it (typing a name sends nothing).
+  const check = toBody({ ...draft, name: PREVIEW_NAME });
+  const previewBody = useDebounced(check.body, PREVIEW_DELAY_MS);
   const preview = useQuery({
     queryKey: keys.scenarioPreview(previewBody ?? {}, accountIds),
     queryFn: () => api.previewScenario(previewBody!, accountIds),
@@ -87,8 +92,11 @@ function EditorForm({ id, initial, catalog }: { id: number | null; initial: Draf
   }
 
   const result = preview.data;
-  const lines = result ? chartData([{ key: "preview", label: draft.name.trim() || "Podgląd", slot: 0, result }], true) : null;
-  const versus = result ? difference(result) : null;
+  const lines = result ? chartData([{ key: "preview", label: draft.name.trim() || PREVIEW_NAME, slot: 0, result }], true) : null;
+  // Until the answer for the current blocks arrives the old one stays dimmed, without its difference.
+  const stale = preview.isPlaceholderData || JSON.stringify(check.body) !== JSON.stringify(previewBody);
+  const versus = result && !stale ? difference(result) : null;
+  const firstError = Object.values(check.errors)[0];
 
   return (
     <div className={ui.page}>
@@ -187,13 +195,14 @@ function EditorForm({ id, initial, catalog }: { id: number | null; initial: Draf
 
         <section className={ui.section} aria-labelledby="preview-title">
           <h2 id="preview-title" className={ui.sectionTitle}>Podgląd</h2>
-          {previewBody === null ? <p className={styles.hint}>Uzupełnij scenariusz, żeby zobaczyć podgląd.</p>
+          {check.body === null ? <p className={styles.hint}>Podgląd pojawi się po poprawce: {firstError}</p>
             : preview.isError ? <ErrorState error={preview.error} onRetry={() => void preview.refetch()} />
             : !result || !lines ? <Skeleton rows={0} chart />
             : (
               <>
-                {versus && <p className={styles.diff}>Względem portfela: {versus}</p>}
-                <ComparisonChart {...lines} />
+                {stale ? <p className={styles.diff} role="status">Liczę podgląd…</p>
+                  : versus && <p className={styles.diff}>Względem portfela: {versus}</p>}
+                <div className={stale ? styles.stale : undefined} aria-busy={stale}><ComparisonChart {...lines} /></div>
                 {result.notes.length > 0 && <ul className={styles.notes}>{result.notes.map((note) => <li key={note}>{note}</li>)}</ul>}
               </>
             )}

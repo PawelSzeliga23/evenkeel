@@ -7,6 +7,7 @@ import { AMOUNT_HINT } from "../../ui/forms";
 import { shownReturn } from "../analysis/model";
 
 export const EDO = "edo";
+export const BASE_CONFLICT = "Podmiana działa tylko na punkcie wyjścia „Mój portfel”.";
 export const FIRST_MONTH = "2016-01"; // the catalog's prices, NBP rates and EDO issues start here (plan 7b-1)
 export const MAX_LINES = 3;
 export const PORTFOLIO_COLOR = "#F0A43A";
@@ -75,7 +76,7 @@ export function toBody(draft: Draft): { body: ScenarioIn | null; errors: Record<
   draft.steps.forEach((step, i) => {
     const fail = (field: string, message: string) => { errors[`steps.${i}.${field}`] = message; };
     if (step.kind === "replace") {
-      if (draft.base === "deposits") fail("from", "Podmiana działa tylko na punkcie wyjścia „Mój portfel”.");
+      if (draft.base === "deposits") fail("from", BASE_CONFLICT);
       else if (!step.from) fail("from", "Wybierz instrument z portfela.");
       else if (replaced.has(step.from)) fail("from", "Ten instrument jest już podmieniony.");
       else if (!step.to) fail("to", "Wybierz instrument, który kupujesz w zamian.");

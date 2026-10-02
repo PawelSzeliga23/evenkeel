@@ -61,20 +61,26 @@ export function SimulatorScreen() {
   const accounts = useQuery({ queryKey: keys.accounts, queryFn: api.accounts });
   const scenarios = useQuery({ queryKey: keys.scenarios, queryFn: api.scenarios });
   const list = scenarios.data ?? [];
-  const results = useScenarioResults(list, period);
   const [picked, setPicked] = useState<Shown[] | null>(null);
   const [showPortfolio, setShowPortfolio] = useState(true);
   const known = new Set(list.map((scenario) => scenario.id));
   const shown = (picked ?? defaultShown(list.map((scenario) => scenario.id))).filter((item) => known.has(item.id));
-  const resultOf = (id: number) => results[list.findIndex((scenario) => scenario.id === id)]?.data;
+  // Only the shown scenarios are simulated for the chosen period (the first one stands in for the real line when
+  // none is shown); the list's differences are for the whole history, shared with the Analiza card.
+  const charted = shown.length > 0
+    ? shown.map((item) => list.find((scenario) => scenario.id === item.id)!) : list.slice(0, 1);
+  const chartedResults = useScenarioResults(charted, period);
+  const listResults = useScenarioResults(list, "all");
+  const resultOf = (id: number) => chartedResults[charted.findIndex((scenario) => scenario.id === id)]?.data;
 
   const visible: ShownResult[] = shown.flatMap(({ id, slot }) => {
     const result = resultOf(id);
     const scenario = list.find((item) => item.id === id)!;
     return result ? [{ key: String(id), label: scenario.name, slot, result }] : [];
   });
-  const data = chartData(visible, showPortfolio);
-  const base = visible[0]?.result ?? results.find((query) => query.data)?.data;
+  const base = visible[0]?.result ?? chartedResults.find((query) => query.data)?.data;
+  const data = chartData(visible, showPortfolio, base);
+  const results = [...chartedResults, ...listResults];
   const columns: Column[] = [
     { key: "portfolio", label: "Mój portfel", color: PORTFOLIO_COLOR, measures: base?.portfolio ?? null },
     ...visible.map(({ key, label, slot, result }) => ({ key, label, ...SLOTS[slot]!, measures: result.scenario })),
@@ -118,7 +124,9 @@ export function SimulatorScreen() {
               {shown.length >= MAX_LINES && list.length > MAX_LINES && (
                 <p className={styles.hint}>Na wykresie mieszczą się {MAX_LINES} scenariusze naraz — ukryj jeden, żeby pokazać inny.</p>
               )}
-              {base ? <ComparisonChart {...data} /> : <Skeleton rows={0} chart />}
+              {!base ? <Skeleton rows={0} chart />
+                : data.lines.length === 0 ? <p className={styles.hint}>Wybierz linię na wykresie.</p>
+                : <ComparisonChart {...data} />}
             </section>
             <section className={ui.section} aria-labelledby="measures-title">
               <h2 id="measures-title" className={ui.sectionTitle}>Miary</h2>
@@ -127,7 +135,7 @@ export function SimulatorScreen() {
             <section className={ui.section} aria-labelledby="scenarios-title">
               <h2 id="scenarios-title" className={ui.sectionTitle}>Twoje scenariusze</h2>
               <div>
-                {list.map((scenario, index) => <ScenarioRow key={scenario.id} scenario={scenario} result={results[index]?.data} />)}
+                {list.map((scenario, index) => <ScenarioRow key={scenario.id} scenario={scenario} result={listResults[index]?.data} />)}
               </div>
             </section>
           </>

@@ -128,3 +128,52 @@ describe("Scenario editor", () => {
     expect(screen.getByLabelText("Nazwa")).toHaveValue("Test");
   });
 });
+
+describe("Scenario editor preview", () => {
+  const previewCalls = (fetchMock: ReturnType<typeof routes>) =>
+    fetchMock.mock.calls.filter(([url]) => String(url).includes("/api/scenarios/preview")).length;
+
+  it("says the preview is being counted instead of showing the old one as current", async () => {
+    let release: (value: unknown) => void = () => {};
+    let calls = 0;
+    const fetchMock = routes([{ method: "POST", path: "/api/scenarios/preview", respond: () => {
+      calls += 1;
+      return calls === 1 ? scenarioResult("10804.20", "6.40") : new Promise((resolve) => { release = resolve; });
+    } }]);
+    const { user } = renderApp("/analiza/symulator/nowy");
+    expect(await screen.findByText(/Względem portfela/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Moje wpłaty" }));
+
+    expect(await screen.findByText("Liczę podgląd…", {}, { timeout: 2000 })).toBeInTheDocument();
+    expect(screen.queryByText(/Względem portfela/)).not.toBeInTheDocument();
+    await waitFor(() => expect(calls).toBe(2), { timeout: 2000 });
+    expect(screen.getByText("Liczę podgląd…")).toBeInTheDocument();
+    release(scenarioResult("12044.20", "9.50"));
+    expect(await screen.findByText(/Względem portfela: \+1\s240,00\szł/)).toBeInTheDocument();
+    expect(previewCalls(fetchMock)).toBe(2);
+  });
+
+  it("explains at once why a replace block does not fit „Moje wpłaty”", async () => {
+    routes();
+    const { user } = renderApp("/analiza/symulator/nowy");
+
+    await user.click(await screen.findByRole("button", { name: "Podmień instrument" }));
+    await user.click(screen.getByRole("button", { name: "Moje wpłaty" }));
+
+    expect(screen.getByText("Podmiana działa tylko na punkcie wyjścia „Mój portfel”.")).toBeInTheDocument();
+    expect(screen.getByText(/Podgląd pojawi się po poprawce: Podmiana działa tylko/)).toBeInTheDocument();
+  });
+
+  it("does not rerun the preview while the name is typed", async () => {
+    const fetchMock = routes();
+    const { user } = renderApp("/analiza/symulator/nowy");
+    await screen.findByText(/Względem portfela/);
+    const before = previewCalls(fetchMock);
+
+    await user.type(screen.getByLabelText("Nazwa"), "Nowa nazwa");
+    await new Promise((resolve) => setTimeout(resolve, 700));
+
+    expect(previewCalls(fetchMock)).toBe(before);
+  });
+});
