@@ -2,6 +2,7 @@ import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { PriceChartData } from "../../api/types";
+import { addMonths, todayIso } from "../../format";
 import { DETAIL, PRICE_CHART } from "../../test/fixtures";
 import { SIGNED_IN, mockFetch, renderApp } from "../../test/render";
 
@@ -12,7 +13,11 @@ function open(prices: PriceChartData = PRICE_CHART, detail = DETAIL) {
   const fetchMock = mockFetch([
     ...SIGNED_IN,
     { path: "/api/positions/2/12", respond: () => detail },
-    { path: PRICES, respond: () => prices },
+    // As the API: closes from `from` on, every operation of the position.
+    { path: PRICES, respond: (url) => {
+      const from = url.searchParams.get("from");
+      return { ...prices, points: prices.points.filter((point) => from === null || point.date >= from) };
+    } },
   ]);
   renderApp("/pozycje/2/12");
   const priceCalls = () => fetchMock.mock.calls.map(([input]) => new URL(input, "http://localhost"))
@@ -28,19 +33,30 @@ async function section() {
 }
 
 describe("Wykres ceny in the position details", () => {
-  it("opens „Od zakupu” — 14 days before the first purchase — from one request without `from`", async () => {
+  it("opens „Od zakupu”: asks from 14 days before the first purchase in the details", async () => {
     const { priceCalls } = open();
 
     const chart = within(await section()).getByRole("img", { name: /^Wykres ceny/ });
 
     expect(chart).toHaveAccessibleName("Wykres ceny od 29.04.2025 do 22.09.2026");
     expect(screen.getByRole("button", { name: "Od zakupu" })).toHaveAttribute("aria-pressed", "true");
-    expect(priceCalls()).toHaveLength(1);
-    expect(priceCalls()[0]!.searchParams.has("from")).toBe(false);
+    expect(priceCalls().map((url) => url.searchParams.get("from"))).toEqual(["2025-04-28"]);
+  });
+
+  it("asks again for each range, without `from` for Maks", async () => {
+    const { priceCalls } = open();
+    const box = await section();
+
+    await userEvent.click(within(box).getByRole("button", { name: "1R" }));
+    await waitFor(() => expect(priceCalls()).toHaveLength(2));
+    await userEvent.click(within(box).getByRole("button", { name: "Maks" }));
+    await waitFor(() => expect(priceCalls()).toHaveLength(3));
+
+    expect(priceCalls().slice(1).map((url) => url.searchParams.get("from"))).toEqual([addMonths(todayIso(), -12), null]);
   });
 
   it("heads the section with the last close and the change since the first purchase, then within the range", async () => {
-    const { priceCalls } = open();
+    open();
     const box = await section();
 
     expect(within(box).getByText("232,47 zł")).toBeInTheDocument();
@@ -48,9 +64,8 @@ describe("Wykres ceny in the position details", () => {
 
     await userEvent.click(within(box).getByRole("button", { name: "1R" }));
 
-    expect(within(box).getByText(/w zakresie$/)).toBeInTheDocument();
+    expect(await within(box).findByText(/w zakresie$/)).toBeInTheDocument();
     expect(within(box).getByRole("button", { name: "1R" })).toHaveAttribute("aria-pressed", "true");
-    expect(priceCalls()).toHaveLength(1);
   });
 
   it("shows a purchase in the panel: quantity, price, amount paid and the change to today", async () => {

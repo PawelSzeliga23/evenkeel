@@ -12,7 +12,7 @@ import { clampWindow, drawnRange, fullWindow, type ChartWindow, type YRange } fr
 export const MARKER_COLORS = { buy: "#5DB98A", sell: "#E0676E", dividend: "#7FB6E6", average: "#F0A43A" } as const;
 
 const PAD = 0.05;
-const SAME_DAY_SHIFT = 10;
+const SAME_DAY_SHIFT = 16; // most of a 28 px tap target stays free beside its neighbour
 const MARK_GAP = 9;
 const DAY_MS = 86_400_000;
 const f = (n: number) => n.toFixed(1);
@@ -177,6 +177,13 @@ export function PriceChart({ data, average, selected, onSelect, view: requested,
             </g>
           ))}
           <g clipPath={`url(#plot-${id})`}>
+            {averageY !== null && !showAverage && (
+              // Off the prices shown: no line, but the average stays in sight at the edge it lies beyond.
+              <text x={frame.left + 4} y={averageY < frame.top ? frame.top + 11 : baseline - 4} className={styles.averageLabel}
+                data-line="average">
+                {`średnia ${formatPrice(average!, data.currency)} ${averageY < frame.top ? "↑" : "↓"}`}
+              </text>
+            )}
             {showAverage && (
               <g data-line="average">
                 <line x1={frame.left} x2={plotRight} y1={averageY} y2={averageY} stroke={MARKER_COLORS.average} className={styles.average} />

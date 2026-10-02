@@ -43,7 +43,7 @@ def test_closes_markers_and_first_buy(client: TestClient, world: dict) -> None:
     buy, dividend = body["markers"]
     assert (buy["date"], buy["kind"], buy["price"], buy["quantity"], buy["amount_pln"]) == (
         "2026-03-02", "buy", "500.5", "2", "-4304.30")
-    assert buy["price_with_fx"] == "500.50"  # 4304.30 zł ÷ 2 ÷ 4.30
+    assert buy["price_with_fx"] == "500.5000"  # 4304.30 zł ÷ 2 ÷ 4.30, to 4 places like the lots
     assert (dividend["kind"], dividend["amount_pln"], dividend["price"]) == ("dividend", "40.00", None)
 
 
@@ -93,3 +93,25 @@ def test_a_pln_instrument_has_no_price_with_fx_and_a_missing_price_takes_the_clo
 
 def test_foreign_account_is_404(client: TestClient, world: dict) -> None:
     assert client.get(_url(world), headers=world["bartek"]).status_code == 404
+
+
+def test_price_with_fx_matches_the_lot(client: TestClient, world: dict, engine: Engine) -> None:
+    with Session(engine) as db:
+        db.execute(Transaction.__table__.update().where(Transaction.external_id == "2").values(amount=Decimal("-4304.33")))
+        db.commit()
+
+    buy = _get(client, world)["markers"][0]
+
+    assert buy["price_with_fx"] == "500.5035"  # 4304.33 ÷ 2 ÷ 4.30, not rounded to the grosz first
+
+
+def test_a_short_range_keeps_every_day_of_a_long_history(client: TestClient, world: dict, engine: Engine) -> None:
+    with Session(engine) as db:
+        start = dt.date(2010, 1, 1)
+        db.add_all([Price(instrument_id=world["sxr8"], date=start + dt.timedelta(days=i), close=Decimal("100"),
+                          source="yahoo") for i in range((dt.date(2026, 3, 2) - start).days)])
+        db.commit()
+
+    points = _get(client, world, **{"from": "2026-02-01"})["points"]
+
+    assert [p["date"] for p in points][:3] == ["2026-02-01", "2026-02-02", "2026-02-03"]

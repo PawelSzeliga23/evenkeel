@@ -59,6 +59,12 @@ function reconciliationText(r: Reconciliation): { title: string; subtitle: strin
   return { title: "Brak stanu z XTB do porównania", subtitle: "Wgraj eksport z zakładką Open Positions.", tone: "dim" };
 }
 
+/** The day of the position's first purchase; a day off near midnight only moves „Od zakupu” by a day of its 14. */
+function firstBuy(detail: PositionDetail): string | null {
+  const days = detail.transactions.filter((t) => t.type === "buy").map((t) => t.occurred_at.slice(0, 10)).sort();
+  return days[0] ?? null;
+}
+
 function Detail({ detail, accountId, instrumentId }: { detail: PositionDetail; accountId: number; instrumentId: number }) {
   const p = detail.position;
   const check = reconciliationText(detail.reconciliation);
@@ -75,7 +81,7 @@ function Detail({ detail, accountId, instrumentId }: { detail: PositionDetail; a
         </p>
       </section>
 
-      <PriceSection accountId={accountId} instrumentId={instrumentId}
+      <PriceSection accountId={accountId} instrumentId={instrumentId} firstBuy={firstBuy(detail)}
         average={signOf(p.quantity) > 0 ? detail.average_price : null} />
 
       <Section title="Podsumowanie">

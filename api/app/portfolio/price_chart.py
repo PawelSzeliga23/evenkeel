@@ -16,6 +16,7 @@ from app.valuation.service import _actions, local_day
 LIMIT = 800
 KINDS = ("buy", "sell", "dividend")
 PRICE = Decimal("0.01")
+FX_PRICE = Decimal("0.0001")  # as the lots' open_price_with_fx (engine PRICE_PLACES)
 
 
 def thin(points: list[tuple[dt.date, Decimal]], limit: int = LIMIT) -> list[tuple[dt.date, Decimal]]:
@@ -50,7 +51,8 @@ def price_chart(scope: UserScope, account: Account, instrument: Instrument, star
     markers = []
     for t in sorted(transactions, key=lambda t: (t.occurred_at, t.id)):
         day = local_day(t.occurred_at)
-        amount = amount_pln(db, t).quantize(PRICE, rounding=ROUND_HALF_UP)
+        exact = amount_pln(db, t)
+        amount = exact.quantize(PRICE, rounding=ROUND_HALF_UP)
         if t.type == "dividend":
             markers.append(PriceMarkerOut(date=day, kind="dividend", price=None, price_with_fx=None, quantity=None,
                                           amount_pln=amount))
@@ -61,7 +63,7 @@ def price_chart(scope: UserScope, account: Account, instrument: Instrument, star
         with_fx = None
         if foreign and quantity:
             rate = fx_on(db, instrument.currency, day)
-            with_fx = (abs(amount) / quantity / rate).quantize(PRICE, rounding=ROUND_HALF_UP) if rate else None
+            with_fx = (abs(exact) / quantity / rate).quantize(FX_PRICE, rounding=ROUND_HALF_UP) if rate else None
         markers.append(PriceMarkerOut(date=day, kind=t.type, price=price, price_with_fx=with_fx, quantity=quantity,
                                       amount_pln=amount))
     buys = [m.date for m in markers if m.kind == "buy"]

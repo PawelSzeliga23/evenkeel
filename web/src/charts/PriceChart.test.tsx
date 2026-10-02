@@ -45,7 +45,8 @@ describe("PriceChart", () => {
   it("keeps two operations of one day apart", () => {
     draw();
     const [buy, sell] = [/^Zakup/, /^Sprzedaż/].map((name) => screen.getByRole("button", { name }));
-    expect(buy!.style.left).not.toBe(sell!.style.left);
+    const px = (button: HTMLElement) => (parseFloat(button.style.left) / 100) * 350; // drawn at 350 in jsdom
+    expect(Math.abs(px(buy!) - px(sell!))).toBeGreaterThanOrEqual(16);
   });
 
   it("marks the selected operation as pressed", () => {
@@ -61,6 +62,15 @@ describe("PriceChart", () => {
 
     draw(DATA, null);
     expect(screen.queryByText(/^średnia/)).not.toBeInTheDocument();
+  });
+
+  it("points to the average at the edge when it lies outside the prices shown", () => {
+    const { unmount } = draw(DATA, "100.00");
+    expect(screen.getByText("średnia 100,00 € ↓")).toBeInTheDocument();
+    unmount();
+
+    draw(DATA, "900.00");
+    expect(screen.getByText("średnia 900,00 € ↑")).toBeInTheDocument();
   });
 
   it("leaves out an operation before the first close", () => {
