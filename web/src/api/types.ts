@@ -396,3 +396,33 @@ export interface ScenarioResult {
 
 export interface ReviewListItem { id: number; created_at: IsoDateTime; account_label: string; sections: number }
 export interface Review extends ReviewListItem { content: string }
+
+export type HoldingsPeriod = "1d" | "1w" | "1m" | "1y" | "ytd" | "all";
+
+export interface Holding {
+  key: string; // i:{instrument id} | b:{bond series} | s:{savings account id}
+  kind: "instrument" | "bond" | "savings";
+  ticker: string | null;
+  name: string;
+  category: "etf" | "stock" | "other" | "bonds" | "savings";
+  value_pln: Money;
+  gain_pln: Money;
+  gain_pct: Money | null;
+  accounts: { account_id: number; name: string; value_pln: Money; gain_pln: Money }[];
+}
+
+export interface GroupGain {
+  key: string;
+  name: string;
+  value_pln: Money;
+  gain_pln: Money;
+  gain_pct: Money | null;
+}
+
+export interface Holdings {
+  period: { start: IsoDate; end: IsoDate } | null;
+  items: Holding[];
+  by_account: GroupGain[];
+  by_kind: GroupGain[];
+  recalculating: boolean;
+}

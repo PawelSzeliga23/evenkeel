@@ -1,4 +1,4 @@
-import type { Account, Analytics, CatalogGroup, Closed, Exposure, History, Instrument, ImportFile, ImportResult, Limit, Money, Position, PositionDetail, Scenario, ScenarioMeasures, ScenarioResult, Summary } from "../api/types";
+import type { Account, Analytics, CatalogGroup, Closed, Exposure, History, Instrument, ImportFile, ImportResult, Limit, Money, Position, PositionDetail, Scenario, ScenarioMeasures, ScenarioResult, Summary , Holdings} from "../api/types";
 import { fromCents, toCents } from "../format";
 
 export const ACCOUNTS: Account[] = [
@@ -254,3 +254,32 @@ export function scenario(id: number, name: string, overrides: Partial<Scenario> 
     created_at: "2026-10-01T10:00:00Z", updated_at: "2026-10-01T10:00:00Z", ...overrides,
   };
 }
+
+const ike = (value: string, gain: string) => [{ account_id: 1, name: "IKE", value_pln: value, gain_pln: gain }];
+
+export const HOLDINGS: Holdings = {
+  period: { start: "2026-09-25", end: "2026-09-26" },
+  items: [
+    { key: "i:10", kind: "instrument", ticker: "SXR8.DE", name: "Core S&P 500", category: "etf", value_pln: "1519.87",
+      gain_pln: "13.49", gain_pct: "0.91", accounts: ike("1519.87", "13.49") },
+    { key: "i:11", kind: "instrument", ticker: "VIE.FR", name: "Veolia", category: "stock", value_pln: "193.00",
+      gain_pln: "2.31", gain_pct: "1.20", accounts: [{ account_id: 2, name: "XTB", value_pln: "193.00", gain_pln: "2.31" }] },
+    { key: "s:5", kind: "savings", ticker: null, name: "Trade Republic", category: "savings", value_pln: "10047.00",
+      gain_pln: "1.32", gain_pct: "0.01", accounts: [{ account_id: 5, name: "Trade Republic", value_pln: "10047.00", gain_pln: "1.32" }] },
+    { key: "b:EDO0935", kind: "bond", ticker: null, name: "EDO0935", category: "bonds", value_pln: "1500.00",
+      gain_pln: "0.30", gain_pct: "0.02", accounts: [{ account_id: 6, name: "Obligacje", value_pln: "1500.00", gain_pln: "0.30" }] },
+    { key: "i:12", kind: "instrument", ticker: "SNT.PL", name: "Synektik", category: "stock", value_pln: "100.00",
+      gain_pln: "-1.83", gain_pct: "-1.80", accounts: ike("100.00", "-1.83") },
+  ],
+  by_account: [
+    { key: "1", name: "IKE", value_pln: "1619.87", gain_pln: "11.66", gain_pct: "0.72" },
+    { key: "5", name: "Trade Republic", value_pln: "10047.00", gain_pln: "1.32", gain_pct: "0.01" },
+  ],
+  by_kind: [
+    { key: "etf", name: "ETF", value_pln: "1519.87", gain_pln: "13.49", gain_pct: "0.91" },
+    { key: "savings", name: "Oszczędności", value_pln: "10047.00", gain_pln: "1.32", gain_pct: "0.01" },
+  ],
+  recalculating: false,
+};
+
+export const HOLDINGS_EMPTY: Holdings = { period: null, items: [], by_account: [], by_kind: [], recalculating: false };

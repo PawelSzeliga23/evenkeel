@@ -56,3 +56,43 @@ class AnalyticsOut(BaseModel):
     drawdown_series: list[DrawdownPointOut]
     monthly: list[MonthRowOut]
     recalculating: bool
+
+
+class PeriodRangeOut(BaseModel):
+    start: dt.date
+    end: dt.date
+
+
+class HoldingAccountOut(BaseModel):
+    account_id: int
+    name: str
+    value_pln: Decimal
+    gain_pln: Decimal
+
+
+class HoldingOut(BaseModel):
+    key: str  # i:{instrument id} | b:{bond series} | s:{savings account id}
+    kind: str  # instrument | bond | savings
+    ticker: str | None
+    name: str
+    category: str  # etf | stock | other | bonds | savings
+    value_pln: Decimal
+    gain_pln: Decimal
+    gain_pct: Decimal | None
+    accounts: list[HoldingAccountOut]
+
+
+class GroupGainOut(BaseModel):
+    key: str
+    name: str
+    value_pln: Decimal
+    gain_pln: Decimal
+    gain_pct: Decimal | None
+
+
+class HoldingsOut(BaseModel):
+    period: PeriodRangeOut | None
+    items: list[HoldingOut]
+    by_account: list[GroupGainOut]
+    by_kind: list[GroupGainOut]
+    recalculating: bool
