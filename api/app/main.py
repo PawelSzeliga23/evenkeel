@@ -15,6 +15,7 @@ from app.imports.router import router as imports_router
 from app.instruments.router import router as instruments_router
 from app.portfolio.router import router as portfolio_router
 from app.savings.router import create_router as savings_create_router
+from app.reviews.router import router as reviews_router
 from app.scenarios.router import router as scenarios_router
 from app.savings.router import router as savings_router
 from app.transactions.router import router as transactions_router
@@ -42,6 +43,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(history_router)
     app.include_router(analytics_router)
     app.include_router(scenarios_router)
+    app.include_router(reviews_router)
     return app
 
 
