@@ -9,7 +9,7 @@ from app.auth.deps import get_current_user
 from app.db import get_db
 from app.errors import ApiError
 from app.models import (
-    Account, BondHolding, CorporateAction, DailyValuation, ImportRecord, Instrument, PositionLot, SavingsAccount,
+    Account, AiReview, BondHolding, CorporateAction, DailyValuation, ImportRecord, Instrument, PositionLot, SavingsAccount,
     Scenario, Transaction, User, XtbSnapshot,
 )
 
@@ -137,6 +137,18 @@ class UserScope:
         if scenario is None:
             raise not_found()
         return scenario
+
+    def reviews(self) -> Select[tuple[AiReview]]:
+        return (
+            select(AiReview).where(AiReview.user_id == self.user.id)
+            .order_by(AiReview.created_at.desc(), AiReview.id.desc())
+        )
+
+    def get_review(self, review_id: int) -> AiReview:
+        review = self.db.scalar(self.reviews().where(AiReview.id == review_id))
+        if review is None:
+            raise not_found()
+        return review
 
 
 def get_scope(db: Session = Depends(get_db), user: User = Depends(get_current_user)) -> UserScope:

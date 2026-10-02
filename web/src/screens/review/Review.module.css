@@ -1,0 +1,9 @@
+.steps { display: grid; gap: 12px; }
+.step { background: var(--slab); border: 1px solid var(--rule); border-radius: var(--r-sheet); padding: 14px; display: grid; gap: 10px; }
+.step h2 { font-size: 15px; font-weight: 600; }
+.step ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; color: var(--dim); font-size: 13.5px; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.status { color: var(--dim); font-size: 13px; }
+.paste { min-height: 160px; width: 100%; padding: 10px 12px; background: var(--night); border: 1px solid var(--rule); border-radius: var(--r-control); color: var(--ink); font: 13px/1.5 ui-monospace, Consolas, monospace; resize: vertical; }
+.lead { width: 18px; height: 18px; }
+.note { color: var(--dim); font-size: 12.5px; }

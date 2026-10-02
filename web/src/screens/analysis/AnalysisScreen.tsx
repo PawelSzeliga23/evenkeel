@@ -18,6 +18,7 @@ import styles from "./Analysis.module.css";
 import { MonthlyReturns } from "./MonthlyReturns";
 import { PERIODS, shownReturn } from "./model";
 import { SimulatorCard } from "../simulator/SimulatorCard";
+import { ReviewCard } from "../review/ReviewCard";
 
 const tone = (value: string | null) => (signOf(value) > 0 ? "up" : signOf(value) < 0 ? "down" : "");
 const TOO_LITTLE = "za mało danych";
@@ -113,6 +114,7 @@ export function AnalysisScreen() {
           </>
         )}
       <SimulatorCard />
+      <ReviewCard />
     </div>
   );
 }

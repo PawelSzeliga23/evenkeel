@@ -207,7 +207,7 @@ def _display_price(quote: Quote | None, instrument: Instrument) -> tuple[Decimal
     return quote.unit_pln.quantize(PRICE_PLACES, rounding=ROUND_HALF_UP), BASE_CURRENCY
 
 
-def _average_price(lots: list[LotOut]) -> Decimal | None:
+def average_price(lots: list[LotOut]) -> Decimal | None:
     quantity = sum((lot.quantity for lot in lots), ZERO)
     if not lots or not quantity or any(lot.open_price is None for lot in lots):
         return None
@@ -354,14 +354,8 @@ def _reconciliation(db: Session, book: Book, inputs: Inputs, account: Account, i
                              xtb_quantity=xtb, calculated_quantity=calculated)
 
 
-def position_detail(scope: UserScope, account: Account, instrument: Instrument, day: dt.date) -> PositionDetailOut:
-    db = scope.db
-    inputs = load_inputs(scope)
-    book, items = build_positions(scope, inputs, day, None)
-    item = next(
-        (i for i in items if i.kind == "instrument" and i.account_id == account.id and i.instrument_id == instrument.id),
-        None,
-    ) or _instrument_item(book, account, instrument, None, day)
+def lot_outs(db: Session, book: Book, account: Account, instrument: Instrument, day: dt.date) -> list[LotOut]:
+    """The open lots of one position on `day`, with XTB's own open price and stop-loss / take-profit."""
     view = book.position(account.id, instrument.id, day)
     stops = {
         lot.xtb_position_id: lot
@@ -386,6 +380,18 @@ def position_detail(scope: UserScope, account: Account, instrument: Instrument, 
             holding_days=(day - lot.opened_on).days,
             stop_loss=stored.stop_loss if stored else None, take_profit=stored.take_profit if stored else None,
         ))
+    return lots
+
+
+def position_detail(scope: UserScope, account: Account, instrument: Instrument, day: dt.date) -> PositionDetailOut:
+    db = scope.db
+    inputs = load_inputs(scope)
+    book, items = build_positions(scope, inputs, day, None)
+    item = next(
+        (i for i in items if i.kind == "instrument" and i.account_id == account.id and i.instrument_id == instrument.id),
+        None,
+    ) or _instrument_item(book, account, instrument, None, day)
+    lots = lot_outs(db, book, account, instrument, day)
     key = (account.id, instrument.id)
     sales = [
         SaleOut(date=s.day, opened_on=s.opened_on, holding_days=(s.day - s.opened_on).days, quantity=s.quantity,
@@ -404,5 +410,5 @@ def position_detail(scope: UserScope, account: Account, instrument: Instrument, 
     return PositionDetailOut(
         position=item, lots=lots, sales=sales, income=income,
         transactions=[TransactionOut.model_validate(t) for t in transactions],
-        reconciliation=_reconciliation(db, book, inputs, account, instrument), average_price=_average_price(lots),
+        reconciliation=_reconciliation(db, book, inputs, account, instrument), average_price=average_price(lots),
     )

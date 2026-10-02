@@ -393,3 +393,6 @@ export interface ScenarioResult {
   points: ScenarioPoint[]; portfolio: ScenarioMeasures | null; scenario: ScenarioMeasures | null; notes: string[];
   recalculating: boolean;
 }
+
+export interface ReviewListItem { id: number; created_at: IsoDateTime; account_label: string; sections: number }
+export interface Review extends ReviewListItem { content: string }
