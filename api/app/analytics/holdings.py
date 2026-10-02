@@ -75,7 +75,17 @@ def _group(name_key: str, parts: list[_Part]) -> GroupGainOut:
                         gain_pln=money(gain), gain_pct=_pct(gain, base))
 
 
-def holdings(scope: UserScope, account_ids: frozenset[int] | None, period: HoldingsPeriod) -> HoldingsOut:
+@dataclass
+class Collected:
+    start: dt.date | None
+    end: dt.date | None
+    accounts: dict[int, str]
+    found: dict[str, _Holding]  # holding key → its parts per account, named
+    recalculating: bool
+
+
+def collect(scope: UserScope, account_ids: frozenset[int] | None, period: HoldingsPeriod) -> Collected:
+    """Each holding's parts (per account) over the period; `start`/`end` are None without valuations."""
     db = scope.db
     recalculating = db.scalar(select(User.valuations_stale_from).where(User.id == scope.user.id)) is not None
     rows = scope.daily_valuations()
@@ -83,7 +93,7 @@ def holdings(scope: UserScope, account_ids: frozenset[int] | None, period: Holdi
         rows = rows.where(DailyValuation.account_id.in_(account_ids))
     first, end = db.execute(rows.with_only_columns(func.min(DailyValuation.date), func.max(DailyValuation.date))).one()
     if end is None:
-        return HoldingsOut(period=None, items=[], by_account=[], by_kind=[], recalculating=recalculating)
+        return Collected(None, None, {}, {}, recalculating)
     if period == "1d":
         end = last_session(end)  # the day's change ends on the last session, as on Pulpit
     base, start = window(period, first, end)
@@ -156,6 +166,14 @@ def holdings(scope: UserScope, account_ids: frozenset[int] | None, period: Holdi
         item = found[f"i:{instrument.id}"]
         item.name, item.ticker = instrument.name, instrument.xtb_ticker
         item.category = instrument.category if instrument.category in ("etf", "stock") else "other"
+    return Collected(start, end, accounts, found, recalculating)
+
+
+def holdings(scope: UserScope, account_ids: frozenset[int] | None, period: HoldingsPeriod) -> HoldingsOut:
+    data = collect(scope, account_ids, period)
+    if data.start is None or data.end is None:
+        return HoldingsOut(period=None, items=[], by_account=[], by_kind=[], recalculating=data.recalculating)
+    start, end, accounts, found, recalculating = data.start, data.end, data.accounts, data.found, data.recalculating
 
     items = []
     for key, item in found.items():
