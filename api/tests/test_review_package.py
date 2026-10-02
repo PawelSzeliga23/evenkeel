@@ -81,3 +81,35 @@ def test_package_follows_the_account_filter(client: TestClient, world: dict, eng
 
 def test_package_needs_a_session(client: TestClient) -> None:
     assert client.get("/api/reviews/package").status_code == 401
+
+
+def test_limits_follow_the_chosen_accounts(client: TestClient, world: dict, engine: Engine) -> None:
+    with Session(engine) as db:
+        regular = Account(user_id=world["user_id"], name="Zwykłe", kind="cash", currency="PLN")
+        db.add(regular)
+        db.commit()
+        regular_id = regular.id
+
+    only_regular = _package(client, world["anna"], account_id=regular_id)
+    with_ike = _package(client, world["anna"])
+
+    assert "| IKE |" not in only_regular
+    assert "| IKE |" in with_ike
+
+
+def test_package_values_the_portfolio_once(client: TestClient, world: dict, monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.reviews.package as package
+
+    calls: dict[str, int] = {"build_positions": 0, "portfolio_analytics": 0}
+    for name in calls:
+        original = getattr(package, name)
+
+        def counted(*args, _name=name, _original=original, **kwargs):
+            calls[_name] += 1
+            return _original(*args, **kwargs)
+
+        monkeypatch.setattr(package, name, counted)
+
+    _package(client, world["anna"])
+
+    assert calls == {"build_positions": 1, "portfolio_analytics": 2}  # positions once; analytics for all and 1y

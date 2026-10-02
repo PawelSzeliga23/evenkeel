@@ -129,3 +129,30 @@ describe("Reading a review", () => {
     expect(fetchMock.mock.calls.some(([url, init]) => String(url) === "/api/reviews/5" && init?.method === "DELETE")).toBe(true);
   });
 });
+
+describe("Copying on Safari", () => {
+  it("copies through ClipboardItem when the browser has it, keeping the click's permission", async () => {
+    routes();
+    const write = vi.fn().mockResolvedValue(undefined);
+    class FakeItem { constructor(readonly items: Record<string, Promise<Blob>>) {} }
+    vi.stubGlobal("ClipboardItem", FakeItem);
+    const { user } = renderApp("/analiza/przeglad");
+    Object.defineProperty(navigator, "clipboard", { value: { write, writeText: vi.fn() }, configurable: true });
+
+    await user.click(await screen.findByRole("button", { name: "Kopiuj do schowka" }));
+
+    await waitFor(() => expect(write).toHaveBeenCalledTimes(1));
+    const item = write.mock.calls[0]![0][0] as FakeItem;
+    expect(await (await item.items["text/plain"]!).text()).toBe(PACKAGE);
+  });
+
+  it("offers the package to select by hand when the clipboard refuses", async () => {
+    routes();
+    const { user } = renderApp("/analiza/przeglad");
+    Object.defineProperty(navigator, "clipboard", { value: { writeText: vi.fn().mockRejectedValue(new Error("no")) }, configurable: true });
+
+    await user.click(await screen.findByRole("button", { name: "Kopiuj do schowka" }));
+
+    expect(await screen.findByLabelText("Zaznacz i skopiuj ręcznie")).toHaveValue(PACKAGE);
+  });
+});

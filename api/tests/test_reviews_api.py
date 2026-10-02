@@ -80,3 +80,8 @@ def test_empty_or_too_long_content_is_422(client: TestClient, anna: dict) -> Non
 
     assert (empty.status_code, empty.json()["code"]) == (422, "validation_error")
     assert (long.status_code, long.json()["code"]) == (422, "review_too_long")
+
+
+def test_a_code_block_inside_an_unwrapped_answer_keeps_the_whole_review() -> None:
+    copied = "## Ocena ogólna\n\ntekst\n\n```\nkod\n```\n\n## Ryzyka\n\nwięcej"  # Copy in claude.ai drops the outer fence
+    assert clean(copied) == copied

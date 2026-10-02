@@ -41,6 +41,7 @@ export function ReviewScreen() {
   const reviews = useQuery({ queryKey: keys.reviews, queryFn: api.reviews });
   const [status, setStatus] = useState<string | null>(null);
   const [pasted, setPasted] = useState("");
+  const [manual, setManual] = useState<string | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const save = useMutation({
@@ -59,7 +60,7 @@ export function ReviewScreen() {
       link.href = url;
       link.download = `evenkeel-przeglad-${todayIso()}.md`;
       link.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 1000); // iOS Safari needs the URL a moment after the click
       setStatus("Pobrano plik.");
     } catch (error) {
       setStatus(errorMessage(error));
@@ -67,18 +68,23 @@ export function ReviewScreen() {
   }
 
   async function copy() {
-    let text: string;
+    setManual(null);
+    const text = api.reviewPackage(accountIds);
     try {
-      text = await api.reviewPackage(accountIds);
-    } catch (error) {
-      setStatus(errorMessage(error));
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(text);
+      if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+        // Safari allows the copy only within the click: hand it the pending text instead of awaiting it first.
+        await navigator.clipboard.write([new ClipboardItem({ "text/plain": text.then((t) => new Blob([t], { type: "text/plain" })) })]);
+      } else {
+        await navigator.clipboard.writeText(await text);
+      }
       setStatus("Skopiowano.");
     } catch (error) {
-      setStatus(error instanceof ApiError ? errorMessage(error) : COPY_FAILED);
+      if (error instanceof ApiError) {
+        setStatus(errorMessage(error));
+        return;
+      }
+      setStatus(COPY_FAILED);
+      setManual(await text.catch(() => null));
     }
   }
 
@@ -100,6 +106,12 @@ export function ReviewScreen() {
             <button type="button" className={ui.secondary} onClick={() => void copy()}>Kopiuj do schowka</button>
           </div>
           {status && <p className={styles.status} role="status">{status}</p>}
+          {manual !== null && (
+            <>
+              <label htmlFor="review-manual" className={styles.note}>Zaznacz i skopiuj ręcznie</label>
+              <textarea id="review-manual" className={styles.paste} readOnly value={manual} onFocus={(e) => e.target.select()} />
+            </>
+          )}
         </section>
         <section className={styles.step} aria-labelledby="step-2">
           <h2 id="step-2">2. Zapisz odpowiedź</h2>

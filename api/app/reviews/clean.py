@@ -11,7 +11,9 @@ def clean(text: str) -> str:
     """The text inside the first fence of three or four backticks (prose around it dropped), else the text trimmed.
     The closing fence is the last line of the same backticks, so shorter code blocks inside stay whole."""
     opening = _OPEN.search(text)
-    if opening is None:
+    heading = re.search(r"^## ", text, re.MULTILINE)
+    # A fence after the first heading is a code block inside an answer copied without its wrapper: keep it all.
+    if opening is None or (heading is not None and heading.start() < opening.start()):
         return text.strip()
     fence = opening.group(1)
     rest = text[opening.end():]

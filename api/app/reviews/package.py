@@ -15,11 +15,13 @@ from app.portfolio.closed import closed_investments
 from app.portfolio.exposure import currency_exposure
 from app.portfolio.limits import wrapper_limits
 from app.portfolio.schemas import AllocationOut, PositionOut
-from app.portfolio.service import daily_totals, list_positions, portfolio_summary, position_detail
+from app.portfolio.service import average_price, build_positions, daily_totals, lot_outs, portfolio_summary
 from app.reviews.prompt import INSTRUCTIONS
 from app.scenarios.service import plan_of, scenario_result
 from app.scoping import UserScope
-from app.valuation.service import load_fixed_income
+from app.analytics.schemas import AnalyticsOut
+from app.valuation.engine import Book
+from app.valuation.service import load_fixed_income, load_inputs
 
 NBSP = " "
 MINUS = "−"
@@ -74,7 +76,7 @@ def _accounts(scope: UserScope, account_ids: frozenset[int] | None) -> list[Acco
     return [a for a in scope.db.scalars(scope.accounts()) if account_ids is None or a.id in account_ids]
 
 
-def _positions(scope: UserScope, items: list[PositionOut], today: dt.date) -> str:
+def _positions(scope: UserScope, book: Book, items: list[PositionOut], today: dt.date) -> str:
     instruments = [p for p in items if p.kind == "instrument"]
     rows = [[
         p.ticker or NONE, p.name, p.category or NONE, p.account_name, p.currency or NONE, number(p.quantity),
@@ -90,12 +92,12 @@ def _positions(scope: UserScope, items: list[PositionOut], today: dt.date) -> st
     for p in instruments:
         if p.instrument_id is None:
             continue
-        detail = position_detail(scope, accounts[p.account_id], scope.get_instrument(p.instrument_id), today)
+        lots_out = lot_outs(scope.db, book, accounts[p.account_id], scope.get_instrument(p.instrument_id), today)
         lots = [[date(lot.opened_on), number(lot.quantity), f"{number(lot.open_price)} {p.currency or ''}".strip(),
                  f"{number(lot.open_price_with_fx)} {p.currency or ''}".strip() if lot.open_price_with_fx else NONE,
-                 str(lot.holding_days)] for lot in detail.lots]
-        average = f"{number(detail.average_price)} {p.currency or ''}".strip()
-        out.append(f"\n**Partie {p.ticker} ({p.account_name})** — średnia cena zakupu jak w XTB: {average}\n\n"
+                 str(lot.holding_days)] for lot in lots_out]
+        average = f"{number(average_price(lots_out))} {p.currency or ''}".strip()
+        out.append(f"\n**Partie {p.ticker or p.name} ({p.account_name})** — średnia cena zakupu jak w XTB: {average}\n\n"
                    + table(["Data zakupu", "Sztuk", "Cena jak w XTB", "Z przewalutowaniem XTB", "Dni"], lots))
     return "\n".join(out)
 
@@ -133,10 +135,9 @@ def _savings(scope: UserScope, items: list[PositionOut], today: dt.date) -> str:
     return table(["Konto", "Saldo", "Oprocentowanie roczne", "Kapitalizacja", "Odsetki od wpłat"], rows)
 
 
-def _measures(scope: UserScope, account_ids: frozenset[int] | None) -> str:
+def _measures(results: list[tuple[str, AnalyticsOut]]) -> str:
     rows = []
-    for label, period in (("Cały okres", "all"), ("Ostatni rok", "1y")):
-        a = portfolio_analytics(scope, account_ids, period)
+    for label, a in results:
         if a.period is None:
             continue
         fall = a.max_drawdown
@@ -155,24 +156,26 @@ def _measures(scope: UserScope, account_ids: frozenset[int] | None) -> str:
                   "Obecne obsunięcie", "Najlepszy dzień", "Najgorszy dzień"], rows)
 
 
-def _history(scope: UserScope, account_ids: frozenset[int] | None) -> str:
+def _history(scope: UserScope, account_ids: frozenset[int] | None, whole: AnalyticsOut) -> str:
     month_end: dict[tuple[int, int], tuple[dt.date, Decimal, Decimal]] = {}
     invested = Decimal(0)
     for day, value, flow in daily_totals(scope, account_ids):
         invested += flow
         month_end[(day.year, day.month)] = (day, value, invested)
     rows = [[date(day), money(value), money(paid)] for day, value, paid in month_end.values()]
-    grid = portfolio_analytics(scope, account_ids, "all").monthly
+    grid = whole.monthly
     monthly = [[str(row.year)] + [pct(cell) if cell is not None else "" for cell in row.months] + [pct(row.year_pct)]
                for row in grid]
     return (table(["Koniec miesiąca", "Wartość", "Wpłacono łącznie"], rows) + "\n\n**Zwrot w miesiącach (TWR)**\n\n"
             + table(["Rok", *MONTHS, "Rok"], monthly))
 
 
-def _limits(scope: UserScope, today: dt.date) -> str:
+def _limits(scope: UserScope, accounts: list[Account], today: dt.date) -> str:
+    """The yearly limits (per person) of the wrappers among the chosen accounts only."""
+    chosen = {account.wrapper for account in accounts}
     rows = [[limit.wrapper.upper(), str(limit.year), money(limit.paid_pln), money(limit.limit_pln),
              money(limit.remaining_pln), "tak" if limit.exceeded else "nie"]
-            for limit in wrapper_limits(scope, today) if limit.year == today.year]
+            for limit in wrapper_limits(scope, today) if limit.year == today.year and limit.wrapper in chosen]
     return table(["Rodzaj", "Rok", "Wpłacono", "Limit", "Zostało", "Przekroczony"], rows)
 
 
@@ -204,7 +207,8 @@ def build_package(scope: UserScope, account_ids: frozenset[int] | None, today: d
     accounts = _accounts(scope, account_ids)
     scope_label = "cały portfel" if account_ids is None else ", ".join(a.name for a in accounts)
     summary = portfolio_summary(scope, account_ids)
-    items = list_positions(scope, account_ids, today)
+    book, items = build_positions(scope, load_inputs(scope), today, account_ids)
+    whole, last_year = (portfolio_analytics(scope, account_ids, period) for period in ("all", "1y"))
     exposure = currency_exposure(scope, account_ids, today, today)
     by_account = {item.key: item for item in summary.by_account}
 
@@ -232,7 +236,7 @@ def build_package(scope: UserScope, account_ids: frozenset[int] | None, today: d
              money(by_account[str(a.id)].value_pln) if str(a.id) in by_account else NONE,
              pct(by_account[str(a.id)].share_pct) if str(a.id) in by_account else NONE] for a in accounts
         ]),
-        "## Pozycje (akcje i ETF-y)", _positions(scope, items, today),
+        "## Pozycje (akcje i ETF-y)", _positions(scope, book, items, today),
         "## Obligacje", _bonds(scope, items, today),
         "## Konta oszczędnościowe", _savings(scope, items, today),
         "## Alokacja",
@@ -240,9 +244,9 @@ def build_package(scope: UserScope, account_ids: frozenset[int] | None, today: d
         "**Według waluty**\n\n" + table(["Waluta", "Wartość", "Udział"],
                                         [[c.currency, money(c.value_pln), pct(c.share_pct)] for c in exposure.current]),
         "**Według konta**\n\n" + table(["Konto", "Wartość", "Udział"], _allocation(summary.by_account)),
-        "## Miary (Analiza)", _measures(scope, account_ids),
-        "## Historia", _history(scope, account_ids),
-        f"## Limity IKE/IKZE ({today.year})", _limits(scope, today),
+        "## Miary (Analiza)", _measures([("Cały okres", whole), ("Ostatni rok", last_year)]),
+        "## Historia", _history(scope, account_ids, whole),
+        f"## Limity IKE/IKZE ({today.year})", _limits(scope, accounts, today),
         "## Zamknięte inwestycje", _closed(scope, account_ids, today),
         "## Scenariusze z Symulatora (cały okres)", _scenarios(scope, account_ids),
     ]
