@@ -105,3 +105,12 @@ def test_invalid_scenarios_are_422(client: TestClient, anna: dict, body: dict) -
 
 def test_scenarios_need_a_session(client: TestClient) -> None:
     assert client.get("/api/scenarios").status_code == 401
+
+
+@pytest.mark.parametrize("start", ["0000-01", "2015-12"])
+def test_top_ups_start_in_2016_at_the_earliest(client: TestClient, anna: dict, start: str) -> None:
+    body = {"name": "Dawno", "base": "portfolio", "steps": [{**RECURRING, "start": start}]}
+
+    response = client.post("/api/scenarios", json=body, headers=anna)
+
+    assert (response.status_code, response.json()["code"]) == (422, "validation_error")

@@ -10,6 +10,7 @@ from app.analytics.schemas import DayExtremeOut, DrawdownOut, PeriodOut, ReturnO
 InstrumentId = Annotated[int, Field(ge=1, le=2**31 - 1)]
 Month = Annotated[str, Field(pattern=r"^\d{4}-(0[1-9]|1[0-2])$")]  # YYYY-MM
 MAX_PARTS = 10
+FIRST_MONTH = "2016-01"  # the catalog's prices, NBP rates and EDO issues start here (plan 7b-1)
 Base = Literal["portfolio", "deposits"]
 
 
@@ -70,6 +71,8 @@ class RecurringStep(BaseModel):
 
     @model_validator(mode="after")
     def _ordered(self) -> Self:
+        if self.start < FIRST_MONTH:
+            raise ValueError("Dopłaty mogą zaczynać się najwcześniej w 01.2016.")
         if self.end is not None and self.end < self.start:
             raise ValueError("Koniec dopłat nie może być przed ich początkiem.")
         return self

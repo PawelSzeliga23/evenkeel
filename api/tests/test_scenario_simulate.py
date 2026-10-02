@@ -191,3 +191,27 @@ def test_a_withdrawal_sells_what_earlier_top_ups_bought() -> None:
 
     sells = [entry for entry in result.entries if entry.type == "sell"]
     assert [(entry.day, entry.quantity) for entry in sells] == [(dt.date(2026, 3, 4), D(20))]  # 10 + 10 units
+
+
+def test_a_small_withdrawal_redeems_whole_bonds_not_negative_cash() -> None:
+    plan = Plan(DEPOSITS, allocation=(Share(Target(bond="EDO"), D(100)),))
+
+    result = simulate(plan, world(), [], [(MAR2, D(1000)), (FRI, D(-40))])
+
+    payout = edo.redemption_value(edo.value(edo.periods(MAR2, EDO0336, {}), FRI), D("3.00"), True)
+    assert kinds(result.entries) == [("withdrawal", FRI, payout - D(40))]  # the rest of the bond stays in cash
+    kept, redeemed = result.holdings
+    assert (kept.quantity, redeemed.quantity, redeemed.redeemed_at) == (9, 1, FRI)
+    assert result.notes == []
+
+
+def test_a_matured_bond_stays_in_the_scenario_as_cash() -> None:
+    w = World(world().market, (), {}, {"EDO0126": EDO0336}, {}, dt.date(2026, 9, 30))
+    plan = top_up("1000", 4, dt.date(2016, 1, 1), dt.date(2016, 1, 1), Target(bond="EDO"))
+
+    result = simulate(plan, w, [], [])
+
+    schedule = edo.periods(dt.date(2016, 1, 4), EDO0336, {})
+    payout = 10 * edo.net_value(edo.value(schedule, schedule[-1].end), True)
+    assert kinds(result.entries) == [("deposit", dt.date(2026, 1, 5), payout)]  # the payout leaves that day
+    assert result.notes == ["Obligacje EDO po wykupie zostają w scenariuszu jako gotówka."]

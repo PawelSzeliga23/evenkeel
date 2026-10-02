@@ -9,7 +9,7 @@ import datetime as dt
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_CEILING, Decimal
 
 from app.bonds import edo
 from app.valuation.engine import CENT, ONE, ONE_DAY, ZERO, Book, Entry, Split
@@ -22,7 +22,8 @@ PRETEND_ACCOUNT = 0  # new money of the blocks lands here: PLN, exit costs like 
 FIRST_ID = -(2**40)
 HUNDRED = Decimal(100)
 NO_DIVIDENDS = "Dywidendy udawanych instrumentów nie są liczone."
-NEGATIVE_CASH = "Wypłaty przekraczają wartość scenariusza; brakująca kwota jest liczona jako ujemna gotówka."
+MATURED = "Obligacje EDO po wykupie zostają w scenariuszu jako gotówka."
+NEGATIVE_CASH ="Wypłaty przekraczają wartość scenariusza; brakująca kwota jest liczona jako ujemna gotówka."
 
 
 @dataclass(frozen=True)
@@ -93,6 +94,7 @@ class _Bond:
     series: edo.Series
     taxed: bool
     redeemed_at: dt.date | None = None
+    matured: bool = False  # paid out at maturity, its money back as pretend cash
 
 
 def instrument_targets(plan: Plan) -> set[int]:
@@ -269,14 +271,32 @@ class _Simulator:
         schedule = edo.periods(bond.purchase_date, bond.series, self.world.cpi)
         return edo.redemption_value(edo.value(schedule, day), bond.series.early_redemption_fee, bond.taxed)
 
+    def mature(self, day: dt.date) -> None:
+        """Bonds paid out at maturity by `day`: the payout leaves through `bond_rows` the day after maturity and
+        comes back the same day as pretend cash, so the money stays in the scenario."""
+        for bond in self.bonds:
+            if bond.redeemed_at is not None or bond.matured:
+                continue
+            schedule = edo.periods(bond.purchase_date, bond.series, self.world.cpi)
+            back = schedule[-1].end + ONE_DAY
+            if back > day:
+                continue
+            bond.matured = True
+            payout = bond.quantity * edo.net_value(edo.value(schedule, schedule[-1].end), bond.taxed)
+            self._add(PRETEND_ACCOUNT, None, "deposit", back, payout, BASE_CURRENCY)
+            self.cash += payout
+            self.note(MATURED)
+
     def withdraw(self, day: dt.date, amount: Decimal) -> None:
-        """A real withdrawal (`amount` > 0) taken from the pretend account in proportion: the same fraction of
-        every instrument sold and of the live EDO bonds redeemed early (whole bonds), the rest from cash. The bonds
-        pay out through `bond_rows` (leaving the next day), so the cash withdrawal is the amount less their payout."""
+        """A real withdrawal (`amount` > 0) taken from the pretend account: the instruments sold in proportion to
+        the scenario's value, then what cash does not cover from EDO bonds redeemed early, whole bonds, the oldest
+        first. The bonds pay out through `bond_rows` (leaving the next day), so the cash withdrawal is the amount
+        less their payout."""
         held = [(instrument_id, units, self.quote(instrument_id, day))
                 for instrument_id, units in self.units.items() if units > 0]
         live = [(bond, self._bond_payout(bond, day)) for bond in self.bonds
-                if bond.redeemed_at is None and day < edo.anniversary(bond.purchase_date, edo.YEARS)]
+                if bond.redeemed_at is None and not bond.matured
+                and day < edo.anniversary(bond.purchase_date, edo.YEARS)]
         total = (self.cash + sum((units * quote[1] for _, units, quote in held if quote), ZERO)
                  + sum((bond.quantity * payout for bond, payout in live), ZERO))
         fraction = min(ONE, amount / total) if total > 0 else ONE
@@ -288,7 +308,10 @@ class _Simulator:
                 self.cash += proceeds
         paid = ZERO
         for bond, payout in live:
-            count = int((bond.quantity * fraction).to_integral_value(rounding=ROUND_HALF_UP))
+            missing = amount - max(self.cash, ZERO) - paid
+            if missing <= 0 or payout <= 0:
+                break
+            count = int((missing / payout).to_integral_value(rounding=ROUND_CEILING))
             if count >= bond.quantity:
                 count, bond.redeemed_at = bond.quantity, day
             elif count:
@@ -320,10 +343,12 @@ def simulate(plan: Plan, world: World, real: Sequence[Entry], flows: Sequence[tu
         if isinstance(step, Recurring):
             events += [(day, 1, step.amount, step) for day in recurring_days(step, world.end)]
     for day, _, amount, step in sorted(events, key=lambda event: (event[0], event[1])):
+        sim.mature(day)
         if step is not None:
             sim.invest(day, [(step.target, amount)], taxed=not step.ike)
         elif amount > 0:
             sim.invest(day, [(share.target, amount * share.pct / HUNDRED) for share in plan.allocation])
         else:
             sim.withdraw(day, -amount)
+    sim.mature(world.end)
     return Simulated(kept + sim.entries, sim.holdings(), sim.notes)
