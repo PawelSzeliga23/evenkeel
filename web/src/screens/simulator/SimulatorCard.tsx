@@ -20,6 +20,7 @@ export function SimulatorCard() {
         <h2 id="simulator-title" className={ui.sectionTitle}>Symulator</h2>
         <Link className={ui.sectionMore} to="/analiza/symulator">Wszystkie scenariusze</Link>
       </div>
+      <p className={styles.hint}>Różnica względem portfela za cały okres.</p>
       {latest.length === 0
         ? <p className={styles.hint}>Sprawdź, jak wyglądałby Twój portfel przy innych decyzjach.</p>
         : <div>{latest.map((scenario, index) => <ScenarioRow key={scenario.id} scenario={scenario} result={results[index]?.data} />)}</div>}

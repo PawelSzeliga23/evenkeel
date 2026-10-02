@@ -10,6 +10,7 @@ export const EDO = "edo";
 export const BASE_CONFLICT = "Podmiana działa tylko na punkcie wyjścia „Mój portfel”.";
 export const FIRST_MONTH = "2016-01"; // the catalog's prices, NBP rates and EDO issues start here (plan 7b-1)
 export const MAX_LINES = 3;
+const MAX_TOP_UP_CENTS = 100_000_000n; // 1 000 000 zł, the API's limit
 export const PORTFOLIO_COLOR = "#F0A43A";
 /** Validated on the dark surface: blue, magenta, violet; violet is dashed (close to blue for protan readers). */
 export const SLOTS: { color: string; dashed: boolean }[] = [
@@ -88,6 +89,7 @@ export function toBody(draft: Draft): { body: ScenarioIn | null; errors: Record<
     const amount = parseAmount(step.amount);
     let ok = true;
     if (amount === null || !isPositive(amount)) { fail("amount", AMOUNT_HINT); ok = false; }
+    else if (toCents(amount) > MAX_TOP_UP_CENTS) { fail("amount", "Najwyżej 1 000 000 zł miesięcznie."); ok = false; }
     if (!/^\d{4}-\d{2}$/.test(step.start) || step.start < FIRST_MONTH) {
       fail("start", "Dopłaty mogą zaczynać się najwcześniej w 01.2016."); ok = false;
     } else if (step.end && step.end < step.start) { fail("end", "Koniec nie może być przed początkiem."); ok = false; }

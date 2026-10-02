@@ -7,7 +7,7 @@
 }
 .legend button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .legend button[aria-pressed="true"] { color: var(--ink); border-color: var(--dim); }
-.legend button:disabled { opacity: .45; cursor: default; }
+.legend button[aria-disabled="true"] { opacity: .45; cursor: default; }
 .swatch { width: 14px; height: 3px; border-radius: 2px; flex: none; }
 .hint { color: var(--dim); font-size: 12.5px; }
 .lead { width: 18px; height: 18px; }

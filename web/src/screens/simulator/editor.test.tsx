@@ -177,3 +177,43 @@ describe("Scenario editor preview", () => {
     expect(previewCalls(fetchMock)).toBe(before);
   });
 });
+
+describe("Scenario editor small fixes", () => {
+  it("an unknown address shows not found", async () => {
+    const fetchMock = routes();
+    renderApp("/analiza/symulator/abc");
+
+    expect(await screen.findByText("Nie znaleziono scenariusza.")).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("NaN"))).toBe(false);
+  });
+
+  it("keeps an instrument that left the catalog visible", async () => {
+    routes([{ path: "/api/scenarios/5", respond: () => scenario(5, "Zniknął",
+      { steps: [{ kind: "replace", from_instrument_id: 10, to_instrument_id: 99 }] }) }]);
+    renderApp("/analiza/symulator/5");
+
+    const select = await screen.findByLabelText("Kupuj");
+    expect(select).toHaveValue("99");
+    expect(screen.getByRole("option", { name: "Instrument niedostępny (id 99)" })).toBeInTheDocument();
+  });
+
+  it("offers IKE only for bonds", async () => {
+    routes();
+    const { user } = renderApp("/analiza/symulator/nowy");
+
+    await user.click(await screen.findByRole("button", { name: "Dopłacaj co miesiąc" }));
+    expect(screen.getByLabelText("Na IKE (obligacje bez podatku)")).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Na co"), "20");
+    expect(screen.queryByLabelText("Na IKE (obligacje bez podatku)")).not.toBeInTheDocument();
+  });
+
+  it("blocks saving while deleting", async () => {
+    routes([{ method: "DELETE", path: "/api/scenarios/5", respond: () => new Promise(() => {}) }]);
+    const { user } = renderApp("/analiza/symulator/5");
+
+    await user.click(await screen.findByRole("button", { name: "Usuń scenariusz" }));
+    await user.click(screen.getByRole("button", { name: "Usuń" }));
+
+    expect(screen.getByRole("button", { name: "Zapisz scenariusz" })).toBeDisabled();
+  });
+});
