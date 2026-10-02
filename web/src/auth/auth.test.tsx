@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { screen, waitFor } from "@testing-library/react";
 import type { RouteObject } from "react-router";
 import { describe, expect, it, vi } from "vitest";
-import { NETWORK_MESSAGE } from "../api/client";
+import { NETWORK_MESSAGE, getAccessToken } from "../api/client";
 import { api } from "../api/endpoints";
 import { SIGNED_IN, USER, json, mockFetch, renderApp, renderRoutes, type MockRoute } from "../test/render";
 import { LoginScreen } from "./LoginScreen";
@@ -209,5 +209,72 @@ describe("sign-out", () => {
 
     expect(await screen.findByRole("button", { name: "Zaloguj się" })).toBeInTheDocument();
     vi.unstubAllGlobals();
+  });
+});
+
+describe("registration and session edge cases", () => {
+  const REGISTER_INVITE: MockRoute = {
+    method: "POST", path: "/api/auth/register", status: 403,
+    respond: () => ({ code: "invite_required", message: "Rejestracja wymaga ważnego kodu zaproszenia.", details: {} }),
+  };
+
+  it("does not send an empty invite code", async () => {
+    const fetchMock = mockFetch([NO_SESSION, REGISTER_INVITE]);
+    const { user } = renderRoutes(ROUTES, "/rejestracja");
+    await user.type(await screen.findByLabelText("E-mail"), USER.email);
+    await user.type(screen.getByLabelText("Hasło"), "dlugie-haslo-1");
+    await user.click(screen.getByRole("button", { name: "Załóż konto" }));
+    await screen.findByLabelText("Kod zaproszenia");
+
+    await user.click(screen.getByRole("button", { name: "Załóż konto" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Podaj kod zaproszenia.");
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/register"))).toHaveLength(1);
+  });
+
+  it("sends to the login screen when the account was made but signing in failed", async () => {
+    mockFetch([
+      NO_SESSION,
+      { method: "POST", path: "/api/auth/register", status: 201, respond: () => USER },
+      { method: "POST", path: "/api/auth/login", status: 500, respond: () => ({ code: "internal_error", message: "Błąd serwera.", details: {} }) },
+    ]);
+    const { user } = renderRoutes(ROUTES, "/rejestracja");
+    await user.type(await screen.findByLabelText("E-mail"), USER.email);
+    await user.type(screen.getByLabelText("Hasło"), "dlugie-haslo-1");
+    await user.click(screen.getByRole("button", { name: "Załóż konto" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Konto zostało założone, ale nie udało się zalogować. Zaloguj się.");
+    expect(screen.getByRole("link", { name: "Przejdź do logowania" })).toHaveAttribute("href", "/logowanie");
+    expect(screen.queryByRole("button", { name: "Załóż konto" })).not.toBeInTheDocument();
+  });
+
+  it("goes to the login screen when the user behind the session no longer exists", async () => {
+    mockFetch([
+      { method: "POST", path: "/api/auth/refresh", respond: () => ({ access_token: "token", token_type: "bearer" }) },
+      { path: "/api/auth/me", status: 404, respond: () => ({ code: "not_found", message: "Nie znaleziono.", details: {} }) },
+    ]);
+    renderRoutes(ROUTES, "/");
+
+    expect(await screen.findByLabelText("E-mail")).toBeInTheDocument();
+    expect(screen.queryByText("Serwer ma problem. Spróbuj ponownie za chwilę.")).not.toBeInTheDocument();
+  });
+
+  it("drops the token when /me fails right after logging in", async () => {
+    const fetchMock = mockFetch([
+      NO_SESSION,
+      { method: "POST", path: "/api/auth/login", respond: () => ({ access_token: "token", token_type: "bearer" }) },
+      { path: "/api/auth/me", status: 500, respond: () => ({ code: "internal_error", message: "Błąd serwera.", details: {} }) },
+    ]);
+    const { user } = renderRoutes(ROUTES, "/logowanie");
+    await user.type(await screen.findByLabelText("E-mail"), USER.email);
+    await user.type(screen.getByLabelText("Hasło"), "dlugie-haslo-1");
+    await user.click(screen.getByRole("button", { name: "Zaloguj się" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Błąd serwera.");
+
+    await user.click(screen.getByRole("button", { name: "Zaloguj się" }));
+    await waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/login"))).toHaveLength(2));
+    const meCalls = fetchMock.mock.calls.filter(([url]) => String(url).includes("/api/auth/me"));
+    expect(new Headers(meCalls[0]![1]!.headers).get("Authorization")).toBe("Bearer token");
+    expect(getAccessToken()).toBeNull();
   });
 });

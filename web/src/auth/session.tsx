@@ -21,6 +21,7 @@ interface Session {
 }
 
 export const SESSION_CHANNEL = "portfolio-session";
+export const REGISTERED_SIGN_IN_FAILED = "registered_sign_in_failed";
 
 function announceSignOut() {
   if (typeof BroadcastChannel === "undefined") return;
@@ -53,7 +54,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         if (cancelled) return;
-        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        // 404: the user behind the session no longer exists (deleted); like a refused token, sign in again
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403 || error.status === 404)) {
           setAccessToken(null);
           setState({ status: "anonymous", expired: false });
         } else if (error instanceof ApiError && error.status !== 0) {
@@ -101,7 +103,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const register = useCallback(async (body: RegisterIn) => {
     await api.register(body);
-    await signIn(body.email, body.password);
+    try {
+      await signIn(body.email, body.password);
+    } catch (error) {
+      // The account exists now: a retry of the form would only hit "email taken", so send the person to sign in.
+      const status = error instanceof ApiError ? error.status : 0;
+      throw new ApiError(status, REGISTERED_SIGN_IN_FAILED, "Konto zostało założone, ale nie udało się zalogować. Zaloguj się.");
+    }
   }, [signIn]);
 
   const signOut = useCallback(async () => {
