@@ -1,6 +1,7 @@
 """Tags (plan 7f-1): the owner's own; someone else's tag, account or series is a 404 like a missing one."""
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 
 from app.errors import ApiError
 from app.models import BondHolding, SavingsAccount, Tag, TagLink
@@ -16,6 +17,22 @@ def _clash(scope: UserScope, name: str, own_id: int | None = None) -> None:
         query = query.where(Tag.id != own_id)
     if scope.db.scalar(query) is not None:
         raise ApiError(409, "tag_exists", f"Tag „{name}” już jest.")
+
+
+def _commit_name(scope: UserScope, name: str) -> None:
+    """Commits a new or renamed tag; the same name saved concurrently (any letter case) is the 409 `_clash` gives."""
+    try:
+        scope.db.commit()
+    except IntegrityError:
+        scope.db.rollback()
+        raise ApiError(409, "tag_exists", f"Tag „{name}” już jest.") from None
+
+
+def _existing_link(scope: UserScope, tag_id: int, body: TagLinkIn) -> TagLink | None:
+    return scope.db.scalar(select(TagLink).where(
+        TagLink.tag_id == tag_id, TagLink.instrument_id.is_not_distinct_from(body.instrument_id),
+        TagLink.bond_series.is_not_distinct_from(body.bond_series),
+        TagLink.account_id.is_not_distinct_from(body.account_id)))
 
 
 def _out(scope: UserScope, tag: Tag) -> TagOut:
@@ -42,7 +59,7 @@ def create_tag(body: TagIn, scope: UserScope = Depends(get_scope)) -> TagOut:
     count = scope.db.scalar(select(func.count()).select_from(Tag).where(Tag.user_id == scope.user.id)) or 0
     tag = Tag(user_id=scope.user.id, name=body.name, color=body.color or PALETTE[count % len(PALETTE)])
     scope.db.add(tag)
-    scope.db.commit()
+    _commit_name(scope, body.name)
     return _out(scope, tag)
 
 
@@ -54,7 +71,7 @@ def update_tag(tag_id: DbId, body: TagPatch, scope: UserScope = Depends(get_scop
         tag.name = body.name
     if body.color is not None:
         tag.color = body.color
-    scope.db.commit()
+    _commit_name(scope, tag.name)
     return _out(scope, tag)
 
 
@@ -82,17 +99,22 @@ def link_tag(tag_id: DbId, body: TagLinkIn, response: Response, scope: UserScope
     elif account is None or scope.db.scalar(
             scope.savings_accounts().where(SavingsAccount.account_id == account.id)) is None:
         raise _bad_target("Tag bez waloru można przypiąć tylko do konta oszczędnościowego.")
-    existing = scope.db.scalar(select(TagLink).where(
-        TagLink.tag_id == tag.id, TagLink.instrument_id.is_not_distinct_from(body.instrument_id),
-        TagLink.bond_series.is_not_distinct_from(body.bond_series),
-        TagLink.account_id.is_not_distinct_from(body.account_id)))
+    existing = _existing_link(scope, tag.id, body)
     if existing is not None:
         response.status_code = 200
         return existing
     link = TagLink(tag_id=tag.id, instrument_id=body.instrument_id, bond_series=body.bond_series,
                    account_id=body.account_id)
     scope.db.add(link)
-    scope.db.commit()
+    try:
+        scope.db.commit()
+    except IntegrityError:  # the same link was made concurrently: answer with it, as for a repeated link
+        scope.db.rollback()
+        existing = _existing_link(scope, tag.id, body)
+        if existing is None:
+            raise
+        response.status_code = 200
+        return existing
     return link
 
 

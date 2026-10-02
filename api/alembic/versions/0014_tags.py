@@ -26,9 +26,9 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], name=op.f("fk_tags_user_id_users"), ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_tags")),
-        sa.UniqueConstraint("user_id", "name", name=op.f("uq_tags_user_id_name")),
     )
     op.create_index(op.f("ix_tags_user_id"), "tags", ["user_id"])
+    op.create_index("uq_tags_user_id_lower_name", "tags", ["user_id", sa.text("lower(name)")], unique=True)
     op.create_table(
         "tag_links",
         sa.Column("id", sa.Integer(), nullable=False),

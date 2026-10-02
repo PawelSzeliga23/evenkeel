@@ -14,7 +14,9 @@ import { Segmented } from "../../ui/Segmented";
 import { EmptyState, ErrorState, Skeleton } from "../../ui/States";
 import ui from "../../ui/ui.module.css";
 import { ClosedView } from "./ClosedView";
-import { flagLabel, groupByTag, groupPositions, leadFor, positionLink, subtitleFor, type TagGroup } from "./model";
+import {
+  flagLabel, groupByTag, groupPositions, leadFor, positionLink, rowTags, subtitleFor, type TagGroup,
+} from "./model";
 import styles from "./Positions.module.css";
 
 type Grouping = "kind" | "tag";
@@ -48,7 +50,7 @@ function Row({ p }: { p: Position }) {
           {p.flags.length > 0 && <span className={`flag ${styles.flags}`}>{p.flags.map(flagLabel).join(", ")}</span>}
           {p.tags.length > 0 && (
             <span className={`${tagStyles.chips} ${styles.rowTags}`}>
-              {p.tags.map((tag) => <TagChip key={tag.link_id} tag={tag} own={tag.own} />)}
+              {rowTags(p.tags).map((tag) => <TagChip key={tag.link_id} tag={tag} own={tag.own} />)}
             </span>
           )}
         </>

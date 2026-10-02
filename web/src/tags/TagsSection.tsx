@@ -56,7 +56,11 @@ export function TagsSection({ tags, target, accountId, accountName }: {
   function onKey(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key !== "Enter") return;
     event.preventDefault();
-    if (name.trim() && !create.isPending) create.mutate(name.trim());
+    const value = name.trim();
+    if (!value || create.isPending || link.isPending) return;
+    const known = (all.data ?? []).find((tag) => tag.name.toLowerCase() === value.toLowerCase());
+    if (known) link.mutate(known.id, { onSuccess: () => setName("") });
+    else create.mutate(value);
   }
 
   return (

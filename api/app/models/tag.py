@@ -1,7 +1,7 @@
 """The owner's tags (plan 7f-1): on a holding everywhere, on a holding on one account, or on a savings account."""
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, UniqueConstraint, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -9,7 +9,7 @@ from app.models.base import Base
 
 class Tag(Base):
     __tablename__ = "tags"
-    __table_args__ = (UniqueConstraint("user_id", "name"),)  # case-insensitive uniqueness is checked by the API
+    __table_args__ = (Index("uq_tags_user_id_lower_name", "user_id", text("lower(name)"), unique=True),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)

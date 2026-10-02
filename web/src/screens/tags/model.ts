@@ -6,6 +6,7 @@ export const TAGS_PATH = "/analiza/tagi";
 export const UNTAGGED = "untagged";
 export const UNTAGGED_COLOR = "#4A525E";
 export const NO_TAGS = "Nie masz jeszcze tagów. Dodasz je w szczegółach pozycji.";
+export const NO_VALUE = "Żaden tag nie ma wartości na wybranych kontach.";
 
 export const holdingsLabel = (n: number) => `${n} ${pluralPl(n, "walor", "walory", "walorów")}`;
 

@@ -108,16 +108,16 @@ describe("Tagi in the details", () => {
       ...SIGNED_IN,
       { path: "/api/positions/2/12", respond: () => ({ ...DETAIL, tags: [] }) },
       { path: "/api/positions/2/12/prices", respond: () => PRICE_CHART },
-      { method: "POST", path: "/api/tags", respond: () => json(409, { code: "tag_exists", message: "Tag „USA” już jest.", details: {} }) },
+      { method: "POST", path: "/api/tags", respond: () => json(409, { code: "tag_exists", message: "Tag „Polska” już jest.", details: {} }) },
       ...tagRoutes(calls),
     ]);
     const { user } = renderApp("/pozycje/2/12");
     const box = await section();
 
     await user.click(within(box).getByRole("button", { name: "+ Dodaj tag" }));
-    await user.type(within(box).getByPlaceholderText("Nowy tag…"), "usa{Enter}");
+    await user.type(within(box).getByPlaceholderText("Nowy tag…"), "Polska{Enter}");
 
-    expect(await within(box).findByRole("alert")).toHaveTextContent("Tag „USA” już jest.");
+    expect(await within(box).findByRole("alert")).toHaveTextContent("Tag „Polska” już jest.");
   });
 
   it("has one row and no level switch on a savings account", async () => {
@@ -144,5 +144,18 @@ describe("Tagi in the details", () => {
     await user.click(await within(box).findByRole("button", { name: "emerytura" }));
 
     await waitFor(() => expect(calls).toEqual([{ method: "POST", path: "/api/tags/2/links", body: { account_id: 5 } }]));
+  });
+});
+
+describe("typing the name of an existing tag", () => {
+  it("links that tag instead of creating a second one", async () => {
+    const { calls, user } = openPosition();
+    const box = await section();
+
+    await user.click(within(box).getByRole("button", { name: "+ Dodaj tag" }));
+    await within(box).findByRole("button", { name: "spekulacja" });
+    await user.type(within(box).getByPlaceholderText("Nowy tag…"), "usa{Enter}");
+
+    await waitFor(() => expect(calls).toEqual([{ method: "POST", path: "/api/tags/1/links", body: { instrument_id: 12 } }]));
   });
 });

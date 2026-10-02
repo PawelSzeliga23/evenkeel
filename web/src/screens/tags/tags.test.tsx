@@ -6,12 +6,15 @@ import { SIGNED_IN, mockFetch, renderApp } from "../../test/render";
 
 const T = " ";
 
-function routes(report: TagsReport = TAGS_REPORT) {
+const SOME_TAGS = [{ id: 1, name: "USA", color: "#F0A43A", links: 1 }];
+
+function routes(report: TagsReport = TAGS_REPORT, tags: unknown[] = SOME_TAGS) {
   return mockFetch([
     ...SIGNED_IN,
     { path: "/api/accounts", respond: () => ACCOUNTS },
     { path: "/api/analytics", respond: () => ANALYTICS },
     { path: "/api/analytics/tags", respond: () => report },
+    { path: "/api/tags", respond: () => tags },
   ]);
 }
 
@@ -67,7 +70,7 @@ describe("Analiza → Tagi", () => {
   });
 
   it("invites to add tags when there are none, without a chart", async () => {
-    routes({ ...TAGS_REPORT, tags: [] });
+    routes({ ...TAGS_REPORT, tags: [] }, []);
     renderApp("/analiza/tagi");
 
     expect(await screen.findByText("Nie masz jeszcze tagów. Dodasz je w szczegółach pozycji.")).toBeInTheDocument();
@@ -98,11 +101,31 @@ describe("Tagi card on Analiza", () => {
   });
 
   it("invites to add tags without a link when there are none", async () => {
-    routes({ ...TAGS_REPORT, tags: [] });
+    routes({ ...TAGS_REPORT, tags: [] }, []);
     renderApp("/analiza");
 
     const card = await screen.findByRole("region", { name: "Tagi" });
     expect(await within(card).findByText("Nie masz jeszcze tagów. Dodasz je w szczegółach pozycji.")).toBeInTheDocument();
     expect(within(card).queryByRole("link")).toBeNull();
+  });
+});
+
+describe("tags without value in the chosen accounts", () => {
+  it("says so on Analiza → Tagi and still shows the total and cash", async () => {
+    routes({ ...TAGS_REPORT, tags: [] });
+    renderApp("/analiza/tagi");
+
+    expect(await screen.findByText("Żaden tag nie ma wartości na wybranych kontach.")).toBeInTheDocument();
+    expect(screen.queryByText("Nie masz jeszcze tagów. Dodasz je w szczegółach pozycji.")).toBeNull();
+    const rows = within(screen.getByRole("list", { name: "Udział w portfelu" })).getAllByRole("listitem");
+    expect(rows.map((row) => row.querySelector("b")?.textContent)).toEqual(["bez tagu", "Gotówka"]);
+  });
+
+  it("says so on the card", async () => {
+    routes({ ...TAGS_REPORT, tags: [] });
+    renderApp("/analiza");
+
+    const card = await screen.findByRole("region", { name: "Tagi" });
+    expect(await within(card).findByText("Żaden tag nie ma wartości na wybranych kontach.")).toBeInTheDocument();
   });
 });

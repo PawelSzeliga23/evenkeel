@@ -3,7 +3,11 @@ from collections.abc import Callable
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
+import app.tags.router as router
+from app.models import Tag
 from tests.tag_seed import add_tag as _tag
 from tests.tag_seed import tag_world
 
@@ -85,3 +89,38 @@ def test_someone_elses_tag_account_or_series_is_404(client: TestClient, world: d
     assert client.post(url, json={"bond_series": "EDO0336", "account_id": world["plain"]},
                        headers=world["anna"]).status_code == 404  # no bond of that series there
     assert client.patch(f"/api/tags/{tag['id']}", json={"name": "y"}, headers=world["bartek"]).status_code == 404
+
+
+def test_the_database_keeps_names_unique_regardless_of_case(client: TestClient, world: dict, engine: Engine) -> None:
+    tag = _tag(client, world["anna"], "USA")
+    with Session(engine) as db, pytest.raises(IntegrityError):
+        db.add(Tag(user_id=world["user_id"], name="usa", color=tag["color"]))
+        db.commit()
+
+
+def test_a_concurrent_duplicate_tag_is_a_conflict_not_an_error(
+        client: TestClient, world: dict, monkeypatch: pytest.MonkeyPatch) -> None:
+    _tag(client, world["anna"], "USA")
+    monkeypatch.setattr("app.tags.router._clash", lambda *args, **kwargs: None)  # the other request passed the check
+
+    response = client.post("/api/tags", json={"name": "usa"}, headers=world["anna"])
+
+    assert response.status_code == 409 and response.json()["code"] == "tag_exists"
+
+
+def test_a_concurrent_duplicate_link_returns_the_existing_one(
+        client: TestClient, world: dict, monkeypatch: pytest.MonkeyPatch) -> None:
+
+    tag = _tag(client, world["anna"], "x")
+    url = f"/api/tags/{tag['id']}/links"
+    first = client.post(url, json={"instrument_id": world["sxr8"]}, headers=world["anna"]).json()
+    real, calls = router._existing_link, []
+
+    def racing(*args: object) -> object:
+        calls.append(1)
+        return None if len(calls) == 1 else real(*args)  # the first look misses the link the other request just made
+
+    monkeypatch.setattr(router, "_existing_link", racing)
+    response = client.post(url, json={"instrument_id": world["sxr8"]}, headers=world["anna"])
+
+    assert response.status_code == 200 and response.json()["id"] == first["id"]

@@ -223,3 +223,15 @@ describe("grouping by tag", () => {
     expect(screen.getByRole("button", { name: "Grupuj: tag" })).toHaveAttribute("aria-pressed", "true");
   });
 });
+
+describe("a tag on both levels", () => {
+  it("shows one chip on the row, the holding's own (solid) one", async () => {
+    const both = position({ instrument_id: 10, name: "Core S&P 500", tags: [USA, { ...USA, link_id: 9, own: true }] });
+    mockFetch([...SIGNED_IN, { path: "/api/accounts", respond: () => ACCOUNTS }, { path: "/api/positions", respond: () => [both] }]);
+    renderApp("/pozycje");
+
+    const row = await screen.findByRole("link", { name: /Core S&P 500/ });
+    expect(within(row).getAllByText("USA")).toHaveLength(1);
+    expect(within(row).getByText("USA").closest("[data-own]")).toHaveAttribute("data-own", "false");
+  });
+});

@@ -1,4 +1,4 @@
-import type { Position } from "../../api/types";
+import type { Position, TagOn } from "../../api/types";
 import { formatDecimal, formatPercent, sumMoney } from "../../format";
 import { shortTicker } from "../../ui/ticker";
 
@@ -86,4 +86,11 @@ const TRANSACTION_LABELS: Record<string, string> = {
 
 export function transactionLabel(type: string): string {
   return TRANSACTION_LABELS[type] ?? type;
+}
+
+/** One chip per tag on a row: a tag on both levels shows once, as the holding's (solid) one. */
+export function rowTags(tags: TagOn[]): TagOn[] {
+  const byId = new Map<number, TagOn>();
+  for (const tag of tags) if (!byId.has(tag.id) || !tag.own) byId.set(tag.id, tag);
+  return [...byId.values()];
 }

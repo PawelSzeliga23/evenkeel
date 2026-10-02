@@ -15,7 +15,7 @@ import ui from "../../ui/ui.module.css";
 import { RECALC_POLL_MS } from "../dashboard/model";
 import holdingsStyles from "../holdings/Holdings.module.css";
 import { PERIODS } from "../holdings/model";
-import { NO_TAGS, UNTAGGED, UNTAGGED_COLOR, chartLines, holdingsLabel, legend } from "./model";
+import { NO_TAGS, NO_VALUE, UNTAGGED, UNTAGGED_COLOR, chartLines, holdingsLabel, legend } from "./model";
 import styles from "./Tags.module.css";
 
 const tone = (value: string | null) => (signOf(value) > 0 ? "up" : signOf(value) < 0 ? "down" : "");
@@ -47,6 +47,7 @@ function Shares({ report }: { report: TagsReport }) {
   return (
     <section className={ui.section} aria-labelledby="tags-shares">
       <h2 id="tags-shares" className={ui.sectionTitle}>Udział w portfelu</h2>
+      {report.tags.length === 0 && <p className={styles.note}>{NO_VALUE}</p>}
       <ul className={styles.list} aria-label="Udział w portfelu">
         {report.tags.map((tag) => (
           <Row key={tag.id} name={tag.name} color={tag.color} value={tag.value_pln} sharePct={tag.share_pct}
@@ -104,7 +105,9 @@ export function TagsScreen() {
     placeholderData: (previous) => previous,
     refetchInterval: (query) => (query.state.data?.recalculating ? RECALC_POLL_MS : false),
   });
+  const tags = useQuery({ queryKey: keys.tags, queryFn: api.tags });
   const data = report.data;
+  const noTags = data?.tags.length === 0 && tags.data?.length === 0;
 
   return (
     <div className={ui.page}>
@@ -112,10 +115,10 @@ export function TagsScreen() {
       <h1 className={ui.pageTitle}>Tagi</h1>
       {accounts.data && <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} />}
       <Segmented label="Okres" options={PERIODS} value={period} className={holdingsStyles.periods} onChange={setPeriod} />
-      {report.isPending ? <Skeleton rows={4} />
+      {report.isPending || (data?.tags.length === 0 && tags.isPending) ? <Skeleton rows={4} />
         : report.isError ? <ErrorState error={report.error} onRetry={() => void report.refetch()} />
         : data!.period === null ? <EmptyState title="Nie ma jeszcze wyceny do pokazania." />
-        : data!.tags.length === 0 ? <EmptyState title={NO_TAGS} />
+        : noTags ? <EmptyState title={NO_TAGS} />
         : (
           <div className={report.isPlaceholderData ? `${styles.body} ${styles.stale}` : styles.body}
             aria-busy={report.isPlaceholderData}>
@@ -125,7 +128,7 @@ export function TagsScreen() {
               <HeroAmount value={data!.total_pln} size="m" />
             </section>
             <Shares report={data!} />
-            <History report={data!} />
+            {data!.tags.length > 0 && <History report={data!} />}
           </div>
         )}
     </div>
