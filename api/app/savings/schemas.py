@@ -4,6 +4,8 @@ from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.tags.schemas import TagOnOut
+
 Capitalization = Literal["daily", "monthly", "quarterly"]
 
 
@@ -121,3 +123,4 @@ class SavingsAccountOut(BaseModel):
     flows: list[SavingsFlowOut]
     summary: SummaryOut
     capitalizations: list[CapitalizationOut]
+    tags: list[TagOnOut] = []

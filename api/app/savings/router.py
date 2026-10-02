@@ -20,6 +20,7 @@ from app.savings.schemas import (
 )
 from app.savings.summary import capitalizations, summarize
 from app.scoping import DbId, UserScope, get_scope, not_found
+from app.tags.lookup import TagLookup
 from app.valuation.service import local_today, lock_user, mark_stale, recompute_in_background
 
 router = APIRouter(prefix="/api/savings-accounts/{account_id}", tags=["savings"])
@@ -92,6 +93,7 @@ def _out(scope: UserScope, settings: SavingsAccount, day: dt.date | None = None)
         flows=[SavingsFlowOut.model_validate(flow) for flow in flows],
         summary=SummaryOut(**asdict(summarize(days)), current_rate=current_rate),
         capitalizations=[CapitalizationOut(**asdict(c)) for c in capitalizations(days)],
+        tags=TagLookup(scope).on("s:", settings.account_id),
     )
 
 

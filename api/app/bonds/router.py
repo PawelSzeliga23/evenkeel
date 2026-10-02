@@ -18,6 +18,7 @@ from app.db import get_session_factory
 from app.errors import ApiError
 from app.models import BondHolding, BondSeries
 from app.scoping import DbId, UserScope, get_scope, not_found
+from app.tags.lookup import TagLookup
 from app.valuation.service import load_fixed_income, local_today, mark_stale, recompute_in_background
 
 router = APIRouter(prefix="/api", tags=["bonds"])
@@ -52,7 +53,9 @@ def _saved(scope: UserScope, day: dt.date, background: BackgroundTasks, sessions
 
 
 def _detail(scope: UserScope, holding: BondHolding, day: dt.date) -> BondDetailOut:
-    return bond_detail(holding, scope.get_account(holding.account_id), load_fixed_income(scope), day)
+    detail = bond_detail(holding, scope.get_account(holding.account_id), load_fixed_income(scope), day)
+    detail.tags = TagLookup(scope).on(f"b:{holding.series}", holding.account_id)
+    return detail
 
 
 @router.get("/bond-series", response_model=list[BondSeriesOut])

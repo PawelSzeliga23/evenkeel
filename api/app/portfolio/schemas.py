@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from app.tags.schemas import TagOnOut
 from app.transactions.schemas import TransactionOut
 
 
@@ -93,6 +94,7 @@ class PositionOut(BaseModel):
     spread_pct: Decimal | None = None  # the instrument's manual half-spread, percent
     bond_holding_id: int | None = None
     savings_account_id: int | None = None
+    tags: list[TagOnOut] = []
 
 
 class LotOut(BaseModel):
@@ -149,6 +151,7 @@ class PositionDetailOut(BaseModel):
     transactions: list[TransactionOut]
     reconciliation: ReconciliationOut
     average_price: Decimal | None = None  # quantity-weighted lot open price, quote currency
+    tags: list[TagOnOut] = []
 
 
 class ClosedSaleOut(BaseModel):
