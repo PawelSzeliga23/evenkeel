@@ -1,4 +1,4 @@
-import type { Account, Analytics, CatalogGroup, Closed, Exposure, History, Instrument, ImportFile, ImportResult, Limit, Money, Position, PositionDetail, Scenario, ScenarioMeasures, ScenarioResult, Summary , Holdings} from "../api/types";
+import type { Account, Analytics, CatalogGroup, Closed, Exposure, History, Instrument, ImportFile, ImportResult, Limit, Money, Position, PositionDetail, Scenario, ScenarioMeasures, ScenarioResult, Summary , Holdings, IncomeMonth, IncomeReport} from "../api/types";
 import { fromCents, toCents } from "../format";
 
 export const ACCOUNTS: Account[] = [
@@ -283,3 +283,32 @@ export const HOLDINGS: Holdings = {
 };
 
 export const HOLDINGS_EMPTY: Holdings = { period: null, items: [], by_account: [], by_kind: [], recalculating: false };
+
+const incomeMonth = (month: string, interest: string, fx: string, taxes = "0.00"): IncomeMonth => {
+  const costs = (Number(fx) + Number(taxes)).toFixed(2);
+  return { month, interest_pln: interest, dividends_pln: "0.00", fx_pln: fx, taxes_pln: taxes, fees_pln: "0.00",
+    income_pln: interest, costs_pln: costs, balance_pln: (Number(interest) - Number(costs)).toFixed(2) };
+};
+
+export const INCOME: IncomeReport = {
+  period: { start: "2026-08-01", end: "2026-10-02" },
+  totals: { income_pln: "82.34", costs_pln: "69.10", balance_pln: "13.24" },
+  months: [incomeMonth("2026-08", "4.40", "14.50"), incomeMonth("2026-09", "74.84", "38.66", "11.04"),
+    incomeMonth("2026-10", "3.10", "4.90")],
+  sources: [
+    { key: "s:5", kind: "savings", name: "Trade Republic", gross_pln: "58.10", tax_pln: "11.04", net_pln: "47.06", taxed: true },
+    { key: "b:EDO0935", kind: "bond", name: "EDO0935", gross_pln: "24.24", tax_pln: "0.00", net_pln: "24.24", taxed: false },
+  ],
+  costs: [
+    { key: "fx", name: "Przewalutowanie XTB", amount_pln: "58.06", count: 12 },
+    { key: "interest_tax", name: "Podatek od odsetek", amount_pln: "11.04", count: 0 },
+    { key: "withholding_tax", name: "Podatek u źródła", amount_pln: "0.00", count: 0 },
+    { key: "fees", name: "Prowizje i opłaty", amount_pln: "0.00", count: 0 },
+  ],
+  recalculating: false,
+};
+
+export const INCOME_EMPTY: IncomeReport = {
+  period: null, totals: { income_pln: "0.00", costs_pln: "0.00", balance_pln: "0.00" }, months: [], sources: [],
+  costs: [], recalculating: false,
+};
