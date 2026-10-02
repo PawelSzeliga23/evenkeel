@@ -460,3 +460,20 @@ export interface IncomeReport {
   costs: IncomeCost[];
   recalculating: boolean;
 }
+
+export interface PricePoint { date: IsoDate; close: Money }
+/** price and quantity after later splits; a dividend has neither. price_with_fx only for a foreign instrument. */
+export interface PriceMarker {
+  date: IsoDate;
+  kind: "buy" | "sell" | "dividend";
+  price: Money | null;
+  price_with_fx: Money | null;
+  quantity: Money | null;
+  amount_pln: Money;
+}
+export interface PriceChartData {
+  currency: string | null;
+  points: PricePoint[];
+  markers: PriceMarker[];
+  first_buy: IsoDate | null;
+}
