@@ -1,6 +1,6 @@
 import { request } from "./client";
 import type {
-  Account, AccountCreate, Analytics, AnalyticsPeriod, AccountUpdate, AccountUsage, CatalogGroup, CatalogItem, Review, ReviewListItem, Instrument, InstrumentUpdate, Scenario, ScenarioIn, ScenarioResult, BondDetail, BondIn, BondOut, Closed, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Limit, Position, PositionDetail, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, TokenOut, Transaction, TransactionIn, UserOut,
+  Account, AccountCreate, Analytics, AnalyticsPeriod, Holdings, HoldingsPeriod, AccountUpdate, AccountUsage, CatalogGroup, CatalogItem, Review, ReviewListItem, Instrument, InstrumentUpdate, Scenario, ScenarioIn, ScenarioResult, BondDetail, BondIn, BondOut, Closed, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Limit, Position, PositionDetail, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, TokenOut, Transaction, TransactionIn, UserOut,
 } from "./types";
 
 function filesForm(files: File[]): FormData {
@@ -50,6 +50,8 @@ export const api = {
     request<Exposure>("/api/portfolio/exposure", { query: { account_id: ids, from } }),
   closed: (ids: readonly number[]) => request<Closed>("/api/portfolio/closed", { query: { account_id: ids } }),
   limits: () => request<Limit[]>("/api/portfolio/limits"),
+  holdings: (ids: readonly number[], period: HoldingsPeriod) =>
+    request<Holdings>("/api/analytics/holdings", { query: { account_id: ids, period } }),
   analytics: (ids: readonly number[], period: AnalyticsPeriod) =>
     request<Analytics>("/api/analytics", { query: { account_id: ids, period } }),
   positions: (ids: readonly number[]) => request<Position[]>("/api/positions", { query: { account_id: ids } }),
