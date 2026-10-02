@@ -55,6 +55,13 @@ test("rejestracja, import eksportu XTB, pulpit, pozycje i szczegóły pozycji", 
   await page.getByRole("link", { name: "Analiza" }).first().click();
   await expect(page.getByRole("heading", { name: "Analiza", level: 1 })).toBeVisible();
 
+  await page.getByRole("link", { name: "Szczegóły dochodu i kosztów" }).click();
+  await expect(page.getByRole("heading", { name: "Dochód i koszty", level: 1 })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Dochód i koszty w miesiącach" })).toBeVisible();
+  await page.screenshot({ path: `${SCREENS}/dochod.png`, fullPage: true });
+  await page.getByRole("link", { name: "Analiza" }).first().click();
+  await expect(page.getByRole("heading", { name: "Analiza", level: 1 })).toBeVisible();
+
   await page.getByRole("link", { name: "Nowy scenariusz" }).click();
   await expect(page.getByRole("heading", { name: "Nowy scenariusz" })).toBeVisible();
   await page.getByLabel("Nazwa").fill("Wszystko w EDO");

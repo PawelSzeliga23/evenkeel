@@ -426,3 +426,37 @@ export interface Holdings {
   by_kind: GroupGain[];
   recalculating: boolean;
 }
+
+export type IncomePeriod = "12m" | "ytd" | "all";
+
+export interface IncomeTotals { income_pln: Money; costs_pln: Money; balance_pln: Money }
+
+export interface IncomeMonth extends IncomeTotals {
+  month: string; // "2026-09"
+  interest_pln: Money;
+  dividends_pln: Money;
+  fx_pln: Money;
+  taxes_pln: Money;
+  fees_pln: Money;
+}
+
+export interface IncomeSource {
+  key: string;
+  kind: "savings" | "bond" | "xtb_interest" | "dividend";
+  name: string;
+  gross_pln: Money;
+  tax_pln: Money;
+  net_pln: Money;
+  taxed: boolean;
+}
+
+export interface IncomeCost { key: "fx" | "interest_tax" | "withholding_tax" | "fees"; name: string; amount_pln: Money; count: number }
+
+export interface IncomeReport {
+  period: { start: IsoDate; end: IsoDate } | null;
+  totals: IncomeTotals;
+  months: IncomeMonth[];
+  sources: IncomeSource[];
+  costs: IncomeCost[];
+  recalculating: boolean;
+}

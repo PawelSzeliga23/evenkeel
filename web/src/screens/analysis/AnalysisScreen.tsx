@@ -20,6 +20,7 @@ import { PERIODS, shownReturn } from "./model";
 import { SimulatorCard } from "../simulator/SimulatorCard";
 import { ReviewCard } from "../review/ReviewCard";
 import { HoldingsCard } from "../holdings/HoldingsCard";
+import { IncomeCard } from "../income/IncomeCard";
 
 const tone = (value: string | null) => (signOf(value) > 0 ? "up" : signOf(value) < 0 ? "down" : "");
 const TOO_LITTLE = "za mało danych";
@@ -115,6 +116,7 @@ export function AnalysisScreen() {
           </>
         )}
       <HoldingsCard />
+      <IncomeCard />
       <SimulatorCard />
       <ReviewCard />
     </div>
