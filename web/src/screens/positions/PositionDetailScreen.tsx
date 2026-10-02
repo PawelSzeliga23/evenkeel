@@ -121,6 +121,7 @@ function Detail({ detail }: { detail: PositionDetail }) {
               value={<Money value={lot.gain_pln} sign tone />}
               detail={[
                 formatDays(lot.holding_days),
+                lot.open_price_with_fx ? `z przewalutowaniem XTB ${price(lot.open_price_with_fx, p.currency)}` : "",
                 lot.stop_loss ? `SL ${formatDecimal(lot.stop_loss, 4)}` : "",
                 lot.take_profit ? `TP ${formatDecimal(lot.take_profit, 4)}` : "",
               ].filter(Boolean).join(", ")}

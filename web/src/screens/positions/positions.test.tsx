@@ -157,3 +157,19 @@ describe("position detail", () => {
     expect(screen.getByText("Średnia cena").nextElementSibling).toHaveTextContent("192,2338 w walucie instrumentu");
   });
 });
+
+describe("lot purchase price", () => {
+  it("shows the price as XTB does and the price with XTB's conversion beside it", async () => {
+    const detail = {
+      ...DETAIL,
+      position: { ...DETAIL.position, currency: "EUR" },
+      lots: [{ ...DETAIL.lots[0]!, quantity: "0.0614", open_price: "740.0000", open_price_with_fx: "744.2079" }],
+    };
+    mockFetch([...SIGNED_IN, { path: "/api/positions/2/12", respond: () => detail }]);
+    renderApp("/pozycje/2/12");
+
+    const lots = await screen.findByRole("region", { name: "Partie" });
+    expect(within(lots).getByText(`0,0614${T}szt. po 740${T}EUR`)).toBeInTheDocument();
+    expect(within(lots).getByText(/z przewalutowaniem XTB 744,2079 EUR/)).toBeInTheDocument();
+  });
+});

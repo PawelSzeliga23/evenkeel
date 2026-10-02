@@ -99,7 +99,8 @@ class LotOut(BaseModel):
     position_id: str | None
     opened_on: dt.date
     quantity: Decimal
-    open_price: Decimal | None
+    open_price: Decimal | None  # XTB's own purchase price (quote currency), as XTB shows it
+    open_price_with_fx: Decimal | None = None  # what one unit cost with XTB's conversion (foreign instruments only)
     cost_pln: Decimal
     value_pln: Decimal
     exit_cost_pln: Decimal

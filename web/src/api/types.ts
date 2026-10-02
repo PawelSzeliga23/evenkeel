@@ -89,7 +89,8 @@ export interface Lot {
   position_id: string | null;
   opened_on: IsoDate;
   quantity: Money;
-  open_price: Money | null;
+  open_price: Money | null; // XTB's own purchase price, as XTB shows it
+  open_price_with_fx?: Money | null; // with XTB's conversion (foreign instruments only)
   cost_pln: Money;
   value_pln: Money;
   exit_cost_pln: Money;
