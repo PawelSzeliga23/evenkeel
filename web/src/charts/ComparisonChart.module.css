@@ -3,8 +3,10 @@
 .svg:focus-visible { outline: 2px solid var(--amber); outline-offset: 4px; border-radius: 4px; }
 /* Fixed cells: moving across the chart never reflows the readout or shifts the page. */
 .readout { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 2px 16px; font-size: 12.5px; color: var(--dim); }
-.cell { display: inline-flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cell b { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+.cell { display: flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; }
+/* The name gives way, the amount never: a long scenario name is cut, its value stays whole. */
+.name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cell b { flex: none; color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
 .day { color: var(--ink); }
 .swatch { width: 14px; height: 3px; border-radius: 2px; flex: none; }
 .grid { stroke: var(--rule); stroke-width: 1; }

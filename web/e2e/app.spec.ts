@@ -46,6 +46,19 @@ test("rejestracja, import eksportu XTB, pulpit, pozycje i szczegóły pozycji", 
   await expect(page.getByRole("heading", { name: "Analiza" })).toBeVisible();
   await expect(page.getByRole("group", { name: "TWR" })).toBeVisible();
 
+  await page.getByRole("link", { name: "Nowy scenariusz" }).click();
+  await expect(page.getByRole("heading", { name: "Nowy scenariusz" })).toBeVisible();
+  await page.getByLabel("Nazwa").fill("Wszystko w EDO");
+  await page.getByRole("button", { name: "Moje wpłaty" }).click();
+  await expect(page.getByRole("img", { name: /Porównanie wartości: Mój portfel, Wszystko w EDO/ })).toBeVisible();
+  await page.screenshot({ path: `${SCREENS}/scenariusz.png`, fullPage: true });
+  await page.getByRole("button", { name: "Zapisz scenariusz" }).click();
+  await expect(page.getByRole("heading", { name: "Symulator" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Linie na wykresie" }).getByRole("button", { name: "Wszystko w EDO" }))
+    .toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("img", { name: /Porównanie wartości: Mój portfel, Wszystko w EDO/ })).toBeVisible();
+  await page.screenshot({ path: `${SCREENS}/symulator.png`, fullPage: true });
+
   await page.goto("/limity");
   await expect(page.getByRole("heading", { name: "Limity IKE i IKZE" })).toBeVisible();
   await page.screenshot({ path: `${SCREENS}/limity.png`, fullPage: true });

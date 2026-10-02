@@ -77,11 +77,11 @@ export function ComparisonChart({ dates, lines, invested }: {
         {lines.map((line) => (
           <span key={line.key} className={styles.cell} data-readout-cell>
             <i className={styles.swatch} style={swatchStyle(line.color, line.dashed)} />
-            {line.label} <b>{money(line.values[at])}</b>
+            <span className={styles.name}>{line.label}</span> <b>{money(line.values[at])}</b>
           </span>
         ))}
         <span className={styles.cell} data-readout-cell>
-          <i className={styles.swatch} style={swatchStyle("var(--dim)")} />Wpłacono <b>{money(invested[at])}</b>
+          <i className={styles.swatch} style={swatchStyle("var(--dim)")} /><span className={styles.name}>Wpłacono</span> <b>{money(invested[at])}</b>
         </span>
       </div>
       <svg className={styles.svg} viewBox={`0 0 ${width} ${H}`} role="img" tabIndex={0}
