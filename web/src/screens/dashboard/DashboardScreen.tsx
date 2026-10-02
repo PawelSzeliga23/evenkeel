@@ -8,7 +8,9 @@ import type { Summary } from "../../api/types";
 import { ValueChart } from "../../charts/ValueChart";
 import { windowForRange, type ChartWindow, type YRange } from "../../charts/viewport";
 import { formatDayLong, formatMoney, formatRefreshed, formatPercent, pluralPl, signOf, sumMoney } from "../../format";
-import { RefreshIcon } from "../../shell/icons";
+import { Logo } from "../../brand/Logo";
+import { RefreshIcon, SettingsIcon } from "../../shell/icons";
+import shell from "../../shell/shell.module.css";
 import { AccountSelect } from "../../ui/AccountPicker";
 import { HeroAmount, Money } from "../../ui/Amount";
 import { AnalyticsCard } from "../analysis/AnalyticsCard";
@@ -80,6 +82,10 @@ export function DashboardScreen() {
 
   const header = (
     <>
+      <div className={`${shell.phoneOnly} ${shell.topRow}`}>
+        <Logo layout="inline" markSize={24} />
+        <Link className={shell.gear} to="/ustawienia" aria-label="Ustawienia"><SettingsIcon /></Link>
+      </div>
       <div className={styles.bar}>
         {accounts.data ? <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} /> : <span />}
         {refreshedAt ? (

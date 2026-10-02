@@ -39,3 +39,15 @@
   .sidebarBrand { display: block; padding: 0 10px 20px; }
   .main { padding-top: 32px; padding-bottom: 48px; }
 }
+
+/* Ustawienia live in the sidebar on a desktop and behind the gear on Pulpit on a phone. */
+.desktopOnly { display: none; }
+.phoneOnly { display: flex; }
+@media (min-width: 900px) {
+  .desktopOnly { display: grid; }
+  .phoneOnly { display: none; }
+}
+/* Pulpit's top row on a phone: the logo and the gear. */
+.topRow { justify-content: space-between; align-items: center; margin: -6px -10px 0 0; }
+.gear { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 999px; color: var(--dim); }
+.gear:hover { color: var(--amber); }

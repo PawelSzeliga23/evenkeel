@@ -115,7 +115,7 @@ test("ustawienia: zmiana hasła, logowanie nowym hasłem, zamknięte inwestycje 
   await page.getByRole("button", { name: "Załóż konto" }).click();
   await expect(page.getByText("Wgraj eksport z XTB, żeby zobaczyć swój portfel.")).toBeVisible();
 
-  await page.getByRole("navigation", { name: "Główna" }).getByRole("link", { name: "Ustawienia" }).click();
+  await page.getByRole("main").getByRole("link", { name: "Ustawienia" }).click(); // the gear on Pulpit (phone)
   await page.getByRole("link", { name: "Zmień hasło" }).click();
   await page.getByLabel("Obecne hasło").fill("e2e-haslo-12345");
   await page.getByLabel("Nowe hasło", { exact: true }).fill("e2e-nowe-haslo-678");
