@@ -96,3 +96,44 @@ class HoldingsOut(BaseModel):
     by_account: list[GroupGainOut]
     by_kind: list[GroupGainOut]
     recalculating: bool
+
+
+class IncomeTotalsOut(BaseModel):
+    income_pln: Decimal
+    costs_pln: Decimal
+    balance_pln: Decimal
+
+
+class IncomeMonthOut(IncomeTotalsOut):
+    month: str  # "2026-09"
+    interest_pln: Decimal
+    dividends_pln: Decimal
+    fx_pln: Decimal
+    taxes_pln: Decimal
+    fees_pln: Decimal
+
+
+class IncomeSourceOut(BaseModel):
+    key: str  # s:{savings account id} | b:{bond series} | x:{account id} | d:{instrument id}
+    kind: str  # savings | bond | xtb_interest | dividend
+    name: str
+    gross_pln: Decimal
+    tax_pln: Decimal
+    net_pln: Decimal
+    taxed: bool
+
+
+class IncomeCostOut(BaseModel):
+    key: str  # fx | interest_tax | withholding_tax | fees
+    name: str
+    amount_pln: Decimal
+    count: int
+
+
+class IncomeOut(BaseModel):
+    period: PeriodRangeOut | None
+    totals: IncomeTotalsOut
+    months: list[IncomeMonthOut]
+    sources: list[IncomeSourceOut]
+    costs: list[IncomeCostOut]
+    recalculating: bool

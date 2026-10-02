@@ -18,6 +18,7 @@ Wszystko w PLN. Dzień transakcji to `local_day` (czas warszawski), kwoty transa
 
 **Dochód (brutto):**
 - **Odsetki z kont oszczędnościowych i obligacji (naliczone).**
+  - Obligacje EDO rosną w wycenie dzień po dniu. Konto oszczędnościowe rośnie w wycenie dopiero w dniu dopisania odsetek (kapitalizacja), więc jego dochód pojawia się w miesiącu kapitalizacji, tak samo jak na Pulpicie (ustalone przy wykonaniu planu).
   - Dla każdego wiersza `daily_valuations` z `savings_account_id` lub `bond_holding_id`: odsetki netto dnia = `value_pln(d) − value_pln(d−1) − net_flow_pln(d)`. Brak wiersza w dniu `d−1` oznacza 0.
   - Wycena tych pozycji jest już po podatku Belki (19 %, poza IKE/IKZE). Dla kont opodatkowanych: brutto = netto ÷ 0,81, podatek = brutto − netto. Dla IKE/IKZE: brutto = netto, podatek 0.
 - **Odsetki od wolnych środków XTB:** transakcje `interest` (brutto) i `interest_tax` (podatek).
