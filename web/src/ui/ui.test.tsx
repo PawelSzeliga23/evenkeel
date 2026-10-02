@@ -17,7 +17,7 @@ const THREE = [{ id: 1, name: "IKE" }, { id: 2, name: "XTB" }, { id: 4, name: "O
 describe("amounts", () => {
   it("draws the grosze and the currency smaller in a hero amount", () => {
     const { container } = render(<HeroAmount value="184302.17" />);
-    expect(container.textContent).toBe(`184${S}302,17zł`);
+    expect(container.textContent).toBe(`184${S}302,17${S}zł`); // a real space before zł for reading and copying
     expect(container.querySelector("[data-part=grosze]")).toHaveTextContent(",17");
   });
 

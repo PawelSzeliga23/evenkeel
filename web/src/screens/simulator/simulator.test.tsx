@@ -22,7 +22,7 @@ const stroke = (key: string) => document.querySelector(`path[data-line="${key}"]
 describe("Symulator", () => {
   it("lists the scenarios with their difference and draws the first three", async () => {
     routes();
-    renderApp("/analiza/symulator");
+    const { user } = renderApp("/analiza/symulator");
 
     expect(await screen.findByRole("heading", { name: "Symulator" })).toBeInTheDocument();
     expect(await screen.findByRole("link", { name: /^AMój portfel.*\+1\s240,00\szł · \+3,1\spkt XIRR/ })).toHaveAttribute(
@@ -30,7 +30,11 @@ describe("Symulator", () => {
     for (const name of ["Mój portfel", "A", "B", "C"]) {
       expect(within(legend()).getByRole("button", { name })).toHaveAttribute("aria-pressed", "true");
     }
-    expect(within(legend()).getByRole("button", { name: "D" })).toBeDisabled();
+    const fourth = within(legend()).getByRole("button", { name: "D" });
+    expect(fourth).toHaveAttribute("aria-disabled", "true");
+    expect(fourth).toHaveAccessibleDescription(/mieszczą się 3 scenariusze/);
+    await user.click(fourth);
+    expect(fourth).toHaveAttribute("aria-pressed", "false");
     expect(await screen.findByRole("img", { name: "Porównanie wartości: Mój portfel, A, B, C" })).toBeInTheDocument();
   });
 
@@ -58,6 +62,7 @@ describe("Symulator", () => {
     expect(within(theirs).getByText("12 044,20 zł")).toBeInTheDocument();
     expect(within(theirs).getByText("+9,5 %")).toBeInTheDocument();
     expect(within(ours).getByRole("button", { name: "Co to jest: XIRR" })).toBeInTheDocument();
+    expect(within(ours).getByText("Wpłacono w okresie")).toBeInTheDocument();
   });
 
   it("asks for the chosen period", async () => {
@@ -86,6 +91,7 @@ describe("Symulator", () => {
     expect(await within(card).findAllByRole("link", { name: /^[ABC]Mój portfel/ })).toHaveLength(3);
     expect(within(card).queryByRole("link", { name: /^DMój portfel/ })).not.toBeInTheDocument();
     expect(within(card).getByRole("link", { name: "Wszystkie scenariusze" })).toHaveAttribute("href", "/analiza/symulator");
+    expect(within(card).getByText("Różnica względem portfela za cały okres.")).toBeInTheDocument();
     expect(within(card).getByRole("link", { name: "Nowy scenariusz" })).toHaveAttribute("href", "/analiza/symulator/nowy");
   });
 });

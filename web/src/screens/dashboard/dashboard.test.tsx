@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { NETWORK_MESSAGE } from "../../api/client";
 import { pluralPl } from "../../format";
 import { ACCOUNTS, EXPOSURE, HISTORY, LIMITS, POSITIONS, SUMMARY, position } from "../../test/fixtures";
-import { SIGNED_IN, json, mockFetch, renderApp, type MockRoute } from "../../test/render";
+import { SIGNED_IN, USER, json, mockFetch, renderApp, type MockRoute } from "../../test/render";
+import { writeSelection } from "../../accounts/selection";
 import { formatRefreshed } from "../../format";
 import { allocationRows, dayMovers, rangeFrom } from "./model";
 
@@ -265,5 +266,18 @@ describe("price refresh", () => {
 
     expect(await screen.findByText("sob., 26 września")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Odśwież ceny" })).not.toBeInTheDocument();
+  });
+});
+
+describe("dashboard with chosen accounts", () => {
+  it("says the chosen accounts have no valuation instead of inviting an import", async () => {
+    writeSelection(USER.id, [2]);
+    mockFetch(routes({ summary: () => ({ ...SUMMARY, as_of: null }) }));
+    const { user } = renderApp("/");
+
+    expect(await screen.findByText("Wybrane konta nie mają jeszcze wyceny.")).toBeInTheDocument();
+    expect(screen.queryByText("Wgraj eksport z XTB, żeby zobaczyć swój portfel.")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Pokaż cały portfel" }));
+    expect(await screen.findByRole("button", { name: "Konta: Cały portfel" })).toBeInTheDocument();
   });
 });

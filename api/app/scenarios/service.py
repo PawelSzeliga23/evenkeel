@@ -9,6 +9,7 @@ from sqlalchemy import select
 from app.analytics.metrics import Day, Period, Rate, analyze, period_start
 from app.analytics.service import measure_fields, nbp_rates
 from app.bonds.edo import Series as BondTerms
+from app.catalog.seed import ADDED_GROUP
 from app.errors import ApiError
 from app.models import BondSeries, Cpi, Instrument, User
 from app.portfolio.service import daily_totals
@@ -63,9 +64,11 @@ def check_instruments(scope: UserScope, body: ScenarioIn) -> None:
 def _instruments(scope: UserScope, ids: set[int]) -> dict[int, InstrumentInfo]:
     if not ids:
         return {}
-    rows = scope.db.execute(select(Instrument.id, Instrument.xtb_ticker, Instrument.category, Instrument.accumulating)
-                            .where(Instrument.id.in_(ids)))
-    return {row.id: InstrumentInfo(row.xtb_ticker, row.category == "stock" or row.accumulating is False)
+    rows = scope.db.execute(select(Instrument.id, Instrument.xtb_ticker, Instrument.category, Instrument.accumulating,
+                                   Instrument.catalog_group).where(Instrument.id.in_(ids)))
+    # Curated rows without a policy are gold ETCs (nothing to pay); an added or held ETF with none may pay dividends.
+    return {row.id: InstrumentInfo(row.xtb_ticker, row.category == "stock" or row.accumulating is False
+                                   or (row.accumulating is None and row.catalog_group in (None, ADDED_GROUP)))
             for row in rows}
 
 
@@ -139,7 +142,7 @@ def _measures(days: Sequence[Day], rates: list[Rate], period: Period) -> Measure
     if result is None:
         return None
     return MeasuresOut(**measure_fields(result), value_pln=money(days[-1][1]),
-                       invested_pln=money(sum((flow for _, _, flow in days), ZERO)))
+                       invested_pln=money(sum((flow for day, _, flow in days if day >= result.start), ZERO)))
 
 
 def scenario_result(scope: UserScope, plan: Plan, account_ids: frozenset[int] | None,

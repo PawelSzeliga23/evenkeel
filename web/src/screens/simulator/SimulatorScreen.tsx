@@ -111,10 +111,11 @@ export function SimulatorScreen() {
                 {list.map((scenario) => {
                   const item = shown.find((entry) => entry.id === scenario.id);
                   const slot = item ? SLOTS[item.slot]! : null;
+                  const full = !item && shown.length >= MAX_LINES; // focusable, and the hint says why it does nothing
                   return (
                     <button key={scenario.id} type="button" aria-pressed={Boolean(item)}
-                      disabled={!item && shown.length >= MAX_LINES}
-                      onClick={() => setPicked(toggleShown(shown, scenario.id))}>
+                      aria-disabled={full || undefined} aria-describedby={full ? "lines-hint" : undefined}
+                      onClick={() => { if (!full) setPicked(toggleShown(shown, scenario.id)); }}>
                       <i className={styles.swatch} style={slot ? swatchStyle(slot.color, slot.dashed) : swatchStyle("var(--rule)")} />
                       <span>{scenario.name}</span>
                     </button>
@@ -122,7 +123,7 @@ export function SimulatorScreen() {
                 })}
               </div>
               {shown.length >= MAX_LINES && list.length > MAX_LINES && (
-                <p className={styles.hint}>Na wykresie mieszczą się {MAX_LINES} scenariusze naraz — ukryj jeden, żeby pokazać inny.</p>
+                <p id="lines-hint" className={styles.hint}>Na wykresie mieszczą się {MAX_LINES} scenariusze naraz — ukryj jeden, żeby pokazać inny.</p>
               )}
               {!base ? <Skeleton rows={0} chart />
                 : data.lines.length === 0 ? <p className={styles.hint}>Wybierz linię na wykresie.</p>

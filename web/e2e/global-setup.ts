@@ -23,6 +23,7 @@ async function waitForApi(timeoutMs: number): Promise<void> {
 
 /** A fresh database (tmpfs) and API instance for every run, and the synthetic XTB export. */
 export default async function globalSetup(): Promise<void> {
+  run("docker compose --profile e2e rm -sf db-e2e api-e2e"); // leftovers of an interrupted run
   run("docker compose --profile e2e up -d --build db-e2e api-e2e");
   await waitForApi(120_000);
   run("docker compose --profile e2e exec -T api-e2e python -m tests.e2e_fixture");

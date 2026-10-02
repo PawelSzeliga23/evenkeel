@@ -1,7 +1,7 @@
 .hero { font-size: 46px; font-weight: 600; letter-spacing: -.035em; line-height: 1; font-stretch: 88%; }
 .heroM { font-size: 38px; }
 .grosze { font-size: .57em; color: var(--dim); font-weight: 500; letter-spacing: -.01em; }
-.currency { font-size: .43em; color: var(--dim); font-weight: 500; margin-left: 6px; letter-spacing: 0; }
+.currency { font-size: .43em; color: var(--dim); font-weight: 500; margin-left: 2px; letter-spacing: 0; }
 
 .page { display: grid; gap: 24px; }
 .pageTitle { font-size: 26px; font-weight: 600; letter-spacing: -.02em; }
@@ -78,3 +78,5 @@ a.row:hover b { color: var(--amber); }
 .recalculating { color: var(--dim); font-size: 13px; }
 .back { display: inline-flex; align-items: center; gap: 6px; color: var(--dim); font-size: 14px; min-height: 44px; justify-self: start; }
 .notice { color: var(--ink); background: var(--amber-soft); border-radius: var(--r-control); padding: 10px 14px; }
+/* A heading with its "?" beside it, so the button does not join the heading's name. */
+.titleRow { display: flex; align-items: center; gap: 4px; }

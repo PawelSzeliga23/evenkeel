@@ -12,11 +12,11 @@ import { BackLink } from "../../ui/BackLink";
 import { Confirm, Field, FormError } from "../../ui/forms";
 import forms from "../../ui/forms.module.css";
 import { Segmented } from "../../ui/Segmented";
-import { ErrorState, Skeleton } from "../../ui/States";
+import { EmptyState, ErrorState, Skeleton } from "../../ui/States";
 import ui from "../../ui/ui.module.css";
 import { chartData } from "./chart";
 import {
-  BASE_CONFLICT, BASES, NEW_DRAFT, difference, draftOf, newRecurring, newReplace, newShare, toBody, type Draft, type StepDraft,
+  BASE_CONFLICT, BASES, EDO, NEW_DRAFT, difference, draftOf, newRecurring, newReplace, newShare, toBody, type Draft, type StepDraft,
 } from "./model";
 import styles from "./Simulator.module.css";
 import { TargetSelect } from "./TargetSelect";
@@ -35,8 +35,19 @@ const BASE_HINT: Record<Draft["base"], string> = {
 export function ScenarioEditor() {
   const { scenarioId } = useParams();
   const id = scenarioId ? Number(scenarioId) : null;
-  const stored = useQuery({ queryKey: keys.scenario(id ?? 0), queryFn: () => api.scenario(id!), enabled: id !== null });
+  const valid = id === null || (Number.isInteger(id) && id > 0);
+  const stored = useQuery({
+    queryKey: keys.scenario(id ?? 0), queryFn: () => api.scenario(id!), enabled: id !== null && valid,
+  });
   const catalog = useQuery({ queryKey: keys.catalog, queryFn: api.catalog });
+  if (!valid) {
+    return (
+      <div className={ui.page}>
+        <BackLink to={LIST} label="Symulator" />
+        <EmptyState title="Nie znaleziono scenariusza." />
+      </div>
+    );
+  }
   const failed = id !== null && stored.isError ? stored : catalog.isError ? catalog : null;
   if (failed) return <div className={ui.page}><ErrorState error={failed.error} onRetry={() => void failed.refetch()} /></div>;
   if ((id !== null && !stored.data) || !catalog.data) return <div className={ui.page}><Skeleton rows={6} /></div>;
@@ -170,10 +181,10 @@ function EditorForm({ id, initial, catalog }: { id: number | null; initial: Draf
                 </div>
                 <TargetSelect id={`step-${index}-target`} label="Na co" catalog={catalog} bonds value={step.target}
                   onChange={(target) => setStep(index, { target })} />
-                <label className={styles.check}>
+                {step.target === EDO && (<label className={styles.check}>
                   <input type="checkbox" checked={step.ike} onChange={(e) => setStep(index, { ike: e.target.checked })} />
                   Na IKE (obligacje bez podatku)
-                </label>
+                </label>)}
               </>
             )}
             <button type="button" className={forms.link}
@@ -210,7 +221,7 @@ function EditorForm({ id, initial, catalog }: { id: number | null; initial: Draf
 
         <FormError message={save.isError ? errorMessage(save.error) : remove.isError ? errorMessage(remove.error) : null} />
         <div className={forms.actions}>
-          <button type="submit" className={ui.primaryButton} disabled={save.isPending}>Zapisz scenariusz</button>
+          <button type="submit" className={ui.primaryButton} disabled={save.isPending || remove.isPending}>Zapisz scenariusz</button>
           {id !== null && !confirming && (
             <button type="button" className={forms.danger} onClick={() => setConfirming(true)}>Usuń scenariusz</button>
           )}

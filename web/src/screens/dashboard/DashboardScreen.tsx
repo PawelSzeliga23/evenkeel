@@ -104,7 +104,12 @@ export function DashboardScreen() {
     return (
       <div className={ui.page}>
         {header}
-        {recalculating ? <><Recalculating /><Skeleton chart rows={3} /></> : (
+        {recalculating ? <><Recalculating /><Skeleton chart rows={3} /></> : accountIds.length > 0 ? (
+          <EmptyState
+            title="Wybrane konta nie mają jeszcze wyceny."
+            action={<button type="button" className={ui.secondary} onClick={() => setAccountIds([])}>Pokaż cały portfel</button>}
+          />
+        ) : (
           <EmptyState
             title="Wgraj eksport z XTB, żeby zobaczyć swój portfel."
             action={<Link className={ui.primaryButton} to="/dodaj/xtb">Wgraj pliki z XTB</Link>}

@@ -17,7 +17,7 @@ const percent = (value: string | null, sign = true) =>
 
 const ROWS: { label: string; value: (m: ScenarioMeasures) => ReactNode }[] = [
   { label: "Wartość", value: (m) => <Money value={m.value_pln} /> },
-  { label: "Wpłacono", value: (m) => <Money value={m.invested_pln} /> },
+  { label: "Wpłacono w okresie", value: (m) => <Money value={m.invested_pln} /> },
   { label: "Zysk", value: (m) => <Money value={m.profit_pln} sign tone /> },
   { label: "XIRR", value: (m) => percent(shownReturn(m.xirr, m.period.annualized).value) },
   { label: "TWR", value: (m) => percent(shownReturn(m.twr, m.period.annualized).value) },

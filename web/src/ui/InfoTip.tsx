@@ -35,7 +35,10 @@ export function InfoTip({ label, help }: { label: string; help: Help }) {
     if (!open) return;
     const close = () => { setPinned(false); setHovered(false); };
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") close(); };
-    const onDown = (event: PointerEvent) => { if (!button.current?.contains(event.target as Node)) close(); };
+    const onDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (!button.current?.contains(target) && !bubble.current?.contains(target)) close(); // reading the bubble keeps it
+    };
     window.addEventListener("keydown", onKey);
     window.addEventListener("pointerdown", onDown);
     window.addEventListener("scroll", close, true);

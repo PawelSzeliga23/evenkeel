@@ -136,3 +136,10 @@ describe("shown scenarios", () => {
     expect(toggleShown(shown, 1)).toBe(shown); // a fourth waits for a free slot
   });
 });
+
+describe("toBody amount cap", () => {
+  it("refuses more than 1 000 000 zł a month", () => {
+    const draft = named({ steps: [{ kind: "recurring", amount: "1 000 000,01", day: "1", start: "2024-01", end: "", target: EDO, ike: false }] });
+    expect(toBody(draft).errors).toEqual({ "steps.0.amount": "Najwyżej 1 000 000 zł miesięcznie." });
+  });
+});
