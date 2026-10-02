@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.db import get_session_factory
 from app.market.deps import get_market_providers
 from app.market.update import MarketProviders, update_fx, update_prices
+from app.models import BondHolding
 from app.portfolio.closed import closed_investments
 from app.portfolio.exposure import currency_exposure
 from app.portfolio.limits import wrapper_limits
@@ -19,6 +20,7 @@ from app.portfolio.service import (
     list_positions, portfolio_history, portfolio_summary, position_detail, prices_refreshed_at,
 )
 from app.scoping import AccountIds, DbId, UserScope, get_scope
+from app.tags.lookup import TagLookup
 from app.valuation.service import local_today, mark_market_changes, recompute_in_background
 
 router = APIRouter(prefix="/api", tags=["portfolio"])
@@ -46,7 +48,17 @@ DayQuery = Annotated[dt.date | None, Query(alias="date")]
 def get_positions(
     scope: UserScope = Depends(get_scope), account_ids: AccountIds = None, day: DayQuery = None
 ) -> list[PositionOut]:
-    return list_positions(scope, scope.account_filter(account_ids), day or local_today())
+    positions = list_positions(scope, scope.account_filter(account_ids), day or local_today())
+    lookup = TagLookup(scope)
+    series = dict(scope.db.execute(scope.bond_holdings().with_only_columns(BondHolding.id, BondHolding.series)).all())
+    for p in positions:
+        if p.kind == "instrument" and p.instrument_id is not None:
+            p.tags = lookup.on(f"i:{p.instrument_id}", p.account_id)
+        elif p.kind == "bond" and p.bond_holding_id is not None:
+            p.tags = lookup.on(f"b:{series[p.bond_holding_id]}", p.account_id)
+        elif p.kind == "savings":
+            p.tags = lookup.on("s:", p.account_id)
+    return positions
 
 
 @router.get("/positions/{account_id}/{instrument_id}", response_model=PositionDetailOut)
@@ -54,7 +66,9 @@ def get_position(
     account_id: DbId, instrument_id: DbId, scope: UserScope = Depends(get_scope), day: DayQuery = None
 ) -> PositionDetailOut:
     account, instrument = scope.get_account(account_id), scope.get_instrument(instrument_id)
-    return position_detail(scope, account, instrument, day or local_today())
+    detail = position_detail(scope, account, instrument, day or local_today())
+    detail.tags = TagLookup(scope).on(f"i:{instrument.id}", account.id)
+    return detail
 
 
 @router.get("/positions/{account_id}/{instrument_id}/prices", response_model=PriceChartOut)

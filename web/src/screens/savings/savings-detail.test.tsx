@@ -12,6 +12,7 @@ const SAVINGS = {
   flows: [{ id: 11, date: "2026-09-01", amount: "10000.0000", note: "" }, { id: 12, date: "2026-09-20", amount: "-500.0000", note: "wakacje" }],
   summary: { balance: "9532.18", deposits: "9500.00", interest_net: "32.18", tax: "7.55", accrued: "12.40", current_rate: "5.0000" },
   capitalizations: [{ period_end: "2026-09-30", credited_on: "2026-10-01", gross: "39.73", tax: "7.55", net: "32.18" }],
+  tags: [],
 };
 
 function routes(calls: { method: string; path: string; body?: unknown }[], deleteAnswer?: () => unknown) {

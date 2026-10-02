@@ -83,6 +83,7 @@ export interface Position {
   spread_pct: Money | null;
   bond_holding_id: number | null;
   savings_account_id: number | null;
+  tags: TagOn[];
 }
 
 export interface Lot {
@@ -152,6 +153,7 @@ export interface PositionDetail {
   transactions: Transaction[];
   reconciliation: Reconciliation;
   average_price: Money | null;
+  tags: TagOn[];
 }
 
 export interface ImportWarning { code: string; message: string; details: Record<string, unknown> }
@@ -250,6 +252,7 @@ export interface SavingsAccountOut {
   flows: SavingsFlowOut[];
   summary: SavingsSummary;
   capitalizations: SavingsCapitalization[];
+  tags: TagOn[];
 }
 
 export interface BondPeriod { number: number; start: IsoDate; end: IsoDate; rate: string; estimated: boolean }
@@ -258,6 +261,7 @@ export interface BondDetail {
   value_per_bond: Money;
   redemption_today_pln: Money | null;
   periods: BondPeriod[];
+  tags: TagOn[];
 }
 
 export type HistoryKind = "transaction" | "bond_purchase" | "bond_payout" | "savings_flow" | "savings_interest";
@@ -476,4 +480,25 @@ export interface PriceChartData {
   points: PricePoint[];
   markers: PriceMarker[];
   first_buy: IsoDate | null;
+}
+
+/** The owner's tag (plan 7f-1); `links` = how many holdings it is on. */
+export interface Tag { id: number; name: string; color: string; links: number }
+/** A tag as it shows on a holding: `own` = only on this account. */
+export interface TagOn { id: number; name: string; color: string; link_id: number; own: boolean }
+/** A link target: a holding (with `account_id` only on that account), or a savings account by `account_id` alone. */
+export interface TagLinkIn { instrument_id?: number; bond_series?: string; account_id?: number }
+
+export interface TagRow {
+  id: number; name: string; color: string; value_pln: Money; share_pct: string | null; gain_pln: Money;
+  gain_pct: string | null; holdings: number;
+}
+export interface TagsReport {
+  period: { start: IsoDate; end: IsoDate } | null;
+  total_pln: Money;
+  tags: TagRow[];
+  untagged: { value_pln: Money; share_pct: string | null; gain_pln: Money; gain_pct: string | null; holdings: number } | null;
+  cash: { value_pln: Money; share_pct: string | null };
+  history: { dates: IsoDate[]; series: { key: string; share_pct: string[] }[] };
+  recalculating: boolean;
 }

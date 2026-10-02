@@ -1,8 +1,8 @@
-import { screen, within } from "@testing-library/react";
+import { cleanup, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ACCOUNTS, DETAIL, POSITIONS, position } from "../../test/fixtures";
 import { SIGNED_IN, json, mockFetch, renderApp, type MockRoute } from "../../test/render";
-import { groupPositions, subtitleFor } from "./model";
+import { groupByTag, groupPositions, subtitleFor } from "./model";
 
 const S = "\u00a0";
 const M = "\u2212";
@@ -171,5 +171,67 @@ describe("lot purchase price", () => {
     const lots = await screen.findByRole("region", { name: "Partie" });
     expect(within(lots).getByText(`0,0614${T}szt. po 740${T}EUR`)).toBeInTheDocument();
     expect(within(lots).getByText(/z przewalutowaniem XTB 744,2079 EUR/)).toBeInTheDocument();
+  });
+});
+
+const USA = { id: 1, name: "USA", color: "#F0A43A", link_id: 1, own: false };
+const EMERYTURA = { id: 2, name: "emerytura", color: "#7FB6E6", link_id: 2, own: true };
+const TAGGED = [
+  position({ instrument_id: 10, name: "Core S&P 500", payout_pln: "300.00", tags: [USA, EMERYTURA] }),
+  position({ instrument_id: 11, name: "Core MSCI World", payout_pln: "200.00", tags: [EMERYTURA] }),
+  position({ instrument_id: 12, name: "CD Projekt", payout_pln: "50.00" }),
+  position({ kind: "cash", instrument_id: null, name: "Gotówka", payout_pln: "10.00" }),
+];
+
+describe("grouping by tag", () => {
+  it("puts a holding in each of its tags' groups, largest first, then „bez tagu”, then cash", () => {
+    expect(groupByTag(TAGGED).map((g) => [g.title, g.color, g.total, g.items.map((p) => p.name)])).toEqual([
+      ["emerytura", "#7FB6E6", "500.00", ["Core S&P 500", "Core MSCI World"]],
+      ["USA", "#F0A43A", "300.00", ["Core S&P 500"]],
+      ["bez tagu", null, "50.00", ["CD Projekt"]],
+      ["Gotówka", null, "10.00", ["Gotówka"]],
+    ]);
+    expect(groupByTag([])).toEqual([]);
+  });
+
+  it("shows each row's tags, the own one dashed", async () => {
+    mockFetch([...SIGNED_IN, { path: "/api/accounts", respond: () => ACCOUNTS }, { path: "/api/positions", respond: () => TAGGED }]);
+    renderApp("/pozycje");
+
+    const row = await screen.findByRole("link", { name: /Core S&P 500/ });
+    expect(within(row).getByText("USA").closest("[data-own]")).toHaveAttribute("data-own", "false");
+    expect(within(row).getByText("emerytura").closest("[data-own]")).toHaveAttribute("data-own", "true");
+  });
+
+  it("groups by tag on „Grupuj: tag” and remembers the choice", async () => {
+    mockFetch([...SIGNED_IN, { path: "/api/accounts", respond: () => ACCOUNTS }, { path: "/api/positions", respond: () => TAGGED }]);
+    const { user } = renderApp("/pozycje");
+
+    await user.click(await screen.findByRole("button", { name: "Grupuj: tag" }));
+
+    const emerytura = screen.getByRole("region", { name: "emerytura" });
+    expect(within(emerytura).getByText(`500,00${T}zł`)).toBeInTheDocument();
+    expect(within(emerytura).getAllByRole("link")).toHaveLength(2);
+    expect(screen.getByRole("region", { name: "bez tagu" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Akcje i ETF-y" })).toBeNull();
+
+    cleanup();
+    mockFetch([...SIGNED_IN, { path: "/api/accounts", respond: () => ACCOUNTS }, { path: "/api/positions", respond: () => TAGGED }]);
+    renderApp("/pozycje");
+
+    expect(await screen.findByRole("region", { name: "USA" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Grupuj: tag" })).toHaveAttribute("aria-pressed", "true");
+  });
+});
+
+describe("a tag on both levels", () => {
+  it("shows one chip on the row, the holding's own (solid) one", async () => {
+    const both = position({ instrument_id: 10, name: "Core S&P 500", tags: [USA, { ...USA, link_id: 9, own: true }] });
+    mockFetch([...SIGNED_IN, { path: "/api/accounts", respond: () => ACCOUNTS }, { path: "/api/positions", respond: () => [both] }]);
+    renderApp("/pozycje");
+
+    const row = await screen.findByRole("link", { name: /Core S&P 500/ });
+    expect(within(row).getAllByText("USA")).toHaveLength(1);
+    expect(within(row).getByText("USA").closest("[data-own]")).toHaveAttribute("data-own", "false");
   });
 });

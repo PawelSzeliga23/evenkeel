@@ -21,6 +21,7 @@ import { SimulatorCard } from "../simulator/SimulatorCard";
 import { ReviewCard } from "../review/ReviewCard";
 import { HoldingsCard } from "../holdings/HoldingsCard";
 import { IncomeCard } from "../income/IncomeCard";
+import { TagsCard } from "../tags/TagsCard";
 
 const tone = (value: string | null) => (signOf(value) > 0 ? "up" : signOf(value) < 0 ? "down" : "");
 const TOO_LITTLE = "za mało danych";
@@ -116,6 +117,7 @@ export function AnalysisScreen() {
           </>
         )}
       <HoldingsCard />
+      <TagsCard />
       <IncomeCard />
       <SimulatorCard />
       <ReviewCard />

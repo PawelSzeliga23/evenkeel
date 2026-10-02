@@ -10,6 +10,7 @@ import { Confirm, Field, FormError, formErrors, useInvalidateAfterSave } from ".
 import forms from "../../ui/forms.module.css";
 import { ErrorState, Skeleton } from "../../ui/States";
 import ui from "../../ui/ui.module.css";
+import { TagsSection } from "../../tags/TagsSection";
 import styles from "./Details.module.css";
 
 const STATUS = { active: "Aktywna", redeemed: "Wykupiona przed terminem", matured: "Wykupiona w terminie" } as const;
@@ -57,6 +58,9 @@ function Detail({ detail }: { detail: BondDetail }) {
         <HeroAmount value={bond.value_pln} size="m" />
         <span className="dim">Wartość bieżąca netto</span>
       </section>
+
+      <TagsSection tags={detail.tags} target={{ bond_series: bond.series }} accountId={bond.account_id}
+        accountName={bond.account_name} />
 
       <dl className={ui.kv}>
         <dt>Wartość przy wykupie dziś</dt>

@@ -1,4 +1,4 @@
-import type { Position } from "../../api/types";
+import type { Position, TagOn } from "../../api/types";
 import { formatDecimal, formatPercent, sumMoney } from "../../format";
 import { shortTicker } from "../../ui/ticker";
 
@@ -15,6 +15,32 @@ export function groupPositions(positions: Position[]): PositionGroup[] {
     const items = positions.filter((p) => (group.kinds as readonly string[]).includes(p.kind));
     return items.length ? [{ key: group.key, title: group.title, total: sumMoney(items.map((p) => p.payout_pln)), items }] : [];
   });
+}
+
+export interface TagGroup { key: string; title: string; color: string | null; total: string; items: Position[] }
+
+/** Pozycje by tag: a holding sits in each of its tags' groups (largest group first), then „bez tagu”, then cash. */
+export function groupByTag(positions: Position[]): TagGroup[] {
+  const byTag = new Map<number, TagGroup>();
+  const untagged: Position[] = [];
+  const cash: Position[] = [];
+  for (const p of positions) {
+    if (p.kind === "cash") cash.push(p);
+    else if (p.tags.length === 0) untagged.push(p);
+    for (const tag of p.kind === "cash" ? [] : p.tags) {
+      const group = byTag.get(tag.id) ?? { key: `tag-${tag.id}`, title: tag.name, color: tag.color, total: "0", items: [] };
+      if (!group.items.includes(p)) group.items.push(p);
+      byTag.set(tag.id, group);
+    }
+  }
+  const total = (items: Position[]) => sumMoney(items.map((p) => p.payout_pln));
+  const tagged = [...byTag.values()].map((g) => ({ ...g, total: total(g.items) }))
+    .sort((a, b) => Number(b.total) - Number(a.total) || a.title.localeCompare(b.title, "pl"));
+  const rest: TagGroup[] = [
+    { key: "untagged", title: "bez tagu", color: null, total: total(untagged), items: untagged },
+    { key: "cash", title: "Gotówka", color: null, total: total(cash), items: cash },
+  ];
+  return [...tagged, ...rest.filter((g) => g.items.length > 0)];
 }
 
 const FLAG_LABELS: Record<string, string> = {
@@ -60,4 +86,11 @@ const TRANSACTION_LABELS: Record<string, string> = {
 
 export function transactionLabel(type: string): string {
   return TRANSACTION_LABELS[type] ?? type;
+}
+
+/** One chip per tag on a row: a tag on both levels shows once, as the holding's (solid) one. */
+export function rowTags(tags: TagOn[]): TagOn[] {
+  const byId = new Map<number, TagOn>();
+  for (const tag of tags) if (!byId.has(tag.id) || !tag.own) byId.set(tag.id, tag);
+  return [...byId.values()];
 }

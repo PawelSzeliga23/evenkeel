@@ -6,6 +6,7 @@ import { AddScreen } from "./screens/add/AddScreen";
 import { AnalysisScreen } from "./screens/analysis/AnalysisScreen";
 import { ScenarioEditor } from "./screens/simulator/ScenarioEditor";
 import { HoldingsScreen } from "./screens/holdings/HoldingsScreen";
+import { TagsScreen } from "./screens/tags/TagsScreen";
 import { IncomeScreen } from "./screens/income/IncomeScreen";
 import { SimulatorScreen } from "./screens/simulator/SimulatorScreen";
 import { ReviewScreen } from "./screens/review/ReviewScreen";
@@ -24,6 +25,7 @@ import { PositionsScreen } from "./screens/positions/PositionsScreen";
 import { AccountScreen } from "./screens/settings/AccountScreen";
 import { PasswordScreen } from "./screens/settings/PasswordScreen";
 import { PriceSourcesScreen } from "./screens/settings/PriceSourcesScreen";
+import { TagsSettingsScreen } from "./screens/settings/TagsSettingsScreen";
 import { SettingsScreen } from "./screens/settings/SettingsScreen";
 import { SavingsDetailScreen } from "./screens/savings/SavingsDetailScreen";
 import { AppShell } from "./shell/AppShell";
@@ -51,6 +53,7 @@ export const appRoutes: RouteObject[] = [
           { path: "/limity", element: <LimitsScreen /> },
           { path: "/analiza", element: <AnalysisScreen /> },
           { path: "/analiza/walory", element: <HoldingsScreen /> },
+          { path: "/analiza/tagi", element: <TagsScreen /> },
           { path: "/analiza/dochod", element: <IncomeScreen /> },
           { path: "/analiza/symulator", element: <SimulatorScreen /> },
           { path: "/analiza/przeglad", element: <ReviewScreen /> },
@@ -66,6 +69,7 @@ export const appRoutes: RouteObject[] = [
           { path: "/ustawienia", element: <SettingsScreen /> },
           { path: "/ustawienia/haslo", element: <PasswordScreen /> },
           { path: "/ustawienia/zrodla-cen", element: <PriceSourcesScreen /> },
+          { path: "/ustawienia/tagi", element: <TagsSettingsScreen /> },
           { path: "/ustawienia/konta/:accountId", element: <AccountScreen /> },
           { path: "/wiecej", element: <Navigate to="/ustawienia" replace /> },
           { path: "*", element: <Navigate to="/" replace /> },

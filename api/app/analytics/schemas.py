@@ -137,3 +137,47 @@ class IncomeOut(BaseModel):
     sources: list[IncomeSourceOut]
     costs: list[IncomeCostOut]
     recalculating: bool
+
+
+class TagRowOut(BaseModel):
+    id: int
+    name: str
+    color: str
+    value_pln: Decimal
+    share_pct: Decimal | None
+    gain_pln: Decimal
+    gain_pct: Decimal | None
+    holdings: int
+
+
+class UntaggedOut(BaseModel):
+    value_pln: Decimal
+    share_pct: Decimal | None
+    gain_pln: Decimal
+    gain_pct: Decimal | None
+    holdings: int
+
+
+class CashShareOut(BaseModel):
+    value_pln: Decimal
+    share_pct: Decimal | None
+
+
+class TagSeriesOut(BaseModel):
+    key: str  # tag id, or "untagged"
+    share_pct: list[Decimal]
+
+
+class TagHistoryOut(BaseModel):
+    dates: list[dt.date]
+    series: list[TagSeriesOut]
+
+
+class TagsOut(BaseModel):
+    period: PeriodRangeOut | None
+    total_pln: Decimal
+    tags: list[TagRowOut]
+    untagged: UntaggedOut | None
+    cash: CashShareOut
+    history: TagHistoryOut
+    recalculating: bool

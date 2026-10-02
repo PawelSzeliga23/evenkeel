@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import Depends, Path, Query
 from pydantic import Field
-from sqlalchemy import Select, or_, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.auth.deps import get_current_user
@@ -10,7 +10,7 @@ from app.db import get_db
 from app.errors import ApiError
 from app.models import (
     Account, AiReview, BondHolding, CorporateAction, DailyValuation, ImportRecord, Instrument, PositionLot, SavingsAccount,
-    Scenario, Transaction, User, XtbSnapshot,
+    Scenario, Tag, Transaction, User, XtbSnapshot,
 )
 
 # Path parameter type for any database id: keeps Postgres int4 range errors
@@ -149,6 +149,15 @@ class UserScope:
         if review is None:
             raise not_found()
         return review
+
+    def tags(self) -> Select[tuple[Tag]]:
+        return select(Tag).where(Tag.user_id == self.user.id).order_by(func.lower(Tag.name), Tag.id)
+
+    def get_tag(self, tag_id: int) -> Tag:
+        tag = self.db.scalar(self.tags().where(Tag.id == tag_id))
+        if tag is None:
+            raise not_found()
+        return tag
 
 
 def get_scope(db: Session = Depends(get_db), user: User = Depends(get_current_user)) -> UserScope:

@@ -4,6 +4,8 @@ from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.tags.schemas import TagOnOut
+
 SERIES_PATTERN = r"^EDO(0[1-9]|1[0-2])\d{2}$"
 DEFAULT_EDO_FEE = Decimal("3.00")  # zł per bond for purchases from 1 September 2024
 Rate = Annotated[Decimal, Field(ge=0, le=100, max_digits=7, decimal_places=4)]
@@ -89,3 +91,4 @@ class BondDetailOut(BaseModel):
     value_per_bond: Decimal  # before tax
     redemption_today_pln: Decimal | None  # early redemption on the day (None once paid out)
     periods: list[PeriodOut]
+    tags: list[TagOnOut] = []

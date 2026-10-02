@@ -58,4 +58,14 @@ describe("ComparisonChart", () => {
     render(<ComparisonChart dates={["2026-01-01"]} lines={[LINES[0]!]} invested={["100.00"]} />);
     expect(screen.getByText("Wykres pojawi się, gdy okres obejmie co najmniej dwa dni.")).toBeInTheDocument();
   });
+
+  it("draws percentages without the invested line", () => {
+    render(<ComparisonChart dates={DATES} unit="percent" format={(v) => `${v.replace(".", ",")} %`}
+      lines={[{ key: "1", label: "USA", color: "#F0A43A", values: ["10.00", "20.00", "46.97"] }]} />);
+
+    expect(document.querySelector('path[data-line="invested"]')).toBeNull();
+    expect(screen.queryByText("Wpłacono (portfel)")).toBeNull();
+    expect(screen.getByText("46,97 %")).toBeInTheDocument();
+    expect([...document.querySelectorAll("text")].some((t) => / %$/.test(t.textContent ?? ""))).toBe(true);
+  });
 });
