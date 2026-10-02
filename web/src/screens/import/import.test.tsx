@@ -88,3 +88,23 @@ describe("import screen", () => {
     expect(await screen.findByRole("region", { name: IMPORT_FILE.filename })).toBeInTheDocument();
   });
 });
+
+describe("re-import that fixes stored operations", () => {
+  it("can be saved and says what it fixed", async () => {
+    const fixing = { ...IMPORT_FILE, new_account: false, account_id: 5, new_transactions: 0, reclassified_transactions: 2 };
+    mockFetch([
+      ...SIGNED_IN,
+      { method: "POST", path: "/api/imports/preview", respond: () => ({ ...PREVIEW, files: [fixing] }) },
+      { method: "POST", path: "/api/imports", respond: () => ({ ...PREVIEW, files: [{ ...fixing, import_id: 9 }] }) },
+    ]);
+    const { user } = renderApp("/dodaj/xtb");
+
+    await user.upload(await screen.findByLabelText("Wybierz pliki"), [xlsx()]);
+    expect(await screen.findByText("Do poprawienia")).toBeInTheDocument();
+    const save = screen.getByRole("button", { name: "Zapisz import" });
+    expect(save).toBeEnabled();
+    await user.click(save);
+
+    expect(await screen.findByText(/Poprawiono 2 operacje zapisane wcześniej jako nierozpoznane\./)).toBeInTheDocument();
+  });
+});

@@ -23,6 +23,7 @@ class ImportFileOut(BaseModel):
     new_transactions: int
     duplicate_transactions: int
     unknown_transactions: int
+    reclassified_transactions: int = 0  # stored as "unknown" earlier, readable now: fixed by this import
     open_lots: int
     closed_lots: int
     warnings: list[ImportWarningOut]

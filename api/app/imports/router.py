@@ -59,6 +59,7 @@ def _file_out(plan: FilePlan, record: ImportRecord | None = None) -> ImportFileO
         new_transactions=record.rows_added if record else len(plan.new_operations),
         duplicate_transactions=plan.duplicate_count,
         unknown_transactions=plan.unknown_count,
+        reclassified_transactions=len(plan.reclassified),
         open_lots=len(report.open_lots),
         closed_lots=len(report.closed_lots),
         warnings=plan.warnings,

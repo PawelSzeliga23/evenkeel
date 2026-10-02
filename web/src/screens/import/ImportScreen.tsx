@@ -27,6 +27,7 @@ function FileCard({ file }: { file: ImportFile }) {
         <dt>Nowe operacje</dt><dd>{file.new_transactions}</dd>
         <dt>Już zaimportowane</dt><dd>{file.duplicate_transactions}</dd>
         <dt>Nierozpoznane</dt><dd>{file.unknown_transactions}</dd>
+        {file.reclassified_transactions > 0 && <><dt>Do poprawienia</dt><dd>{file.reclassified_transactions}</dd></>}
         <dt>Partie otwarte</dt><dd>{file.open_lots}</dd>
         <dt>Partie zamknięte</dt><dd>{file.closed_lots}</dd>
       </dl>
@@ -42,7 +43,7 @@ function FileCard({ file }: { file: ImportFile }) {
 function blocker(result: ImportResult): string | null {
   if (result.errors.length > 0) return "Niektórych plików nie da się odczytać. Wybierz pliki bez nich, żeby zapisać import.";
   if (result.files.length === 0) return "Wśród wybranych plików nie ma eksportu z XTB.";
-  if (result.files.every((f) => f.new_transactions === 0 && !f.new_account)) {
+  if (result.files.every((f) => f.new_transactions === 0 && f.reclassified_transactions === 0 && !f.new_account)) {
     return "Nic nowego do zapisania. Wszystkie operacje są już w aplikacji.";
   }
   return null;
@@ -83,11 +84,14 @@ export function ImportScreen() {
 
   if (commit.isSuccess) {
     const added = commit.data.files.reduce((total, f) => total + f.new_transactions, 0);
+    const fixed = commit.data.files.reduce((total, f) => total + f.reclassified_transactions, 0);
     return (
       <div className={ui.page}>
         <h1 className={ui.pageTitle}>Import zapisany</h1>
         <p>
-          Dodano {added} {pluralPl(added, "nową operację", "nowe operacje", "nowych operacji")}. Wycena przelicza się w tle.
+          Dodano {added} {pluralPl(added, "nową operację", "nowe operacje", "nowych operacji")}.
+          {fixed > 0 && ` Poprawiono ${fixed} ${pluralPl(fixed, "operację zapisaną", "operacje zapisane", "operacji zapisanych")} wcześniej jako nierozpoznane.`}
+          {" "}Wycena przelicza się w tle.
         </p>
         <div className={styles.actions}>
           <Link className={ui.primaryButton} to="/">Zobacz pulpit</Link>
