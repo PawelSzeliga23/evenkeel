@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import and_, case, or_, select
+from sqlalchemy import and_, case, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -31,6 +31,8 @@ class FilePlan:
     duplicate_count: int
     unknown_count: int
     warnings: list[dict[str, Any]] = field(default_factory=list)
+    # Already stored as "unknown" by an older importer, readable now: updated in place (the file is the same).
+    reclassified: list[CashOperation] = field(default_factory=list)
 
     @property
     def account_name(self) -> str:
@@ -72,18 +74,22 @@ def plan_import(scope: UserScope, reports: list[XtbReport]) -> list[FilePlan]:
         account = accounts_by_number.setdefault(
             report.account_number, scope.broker_account("xtb", report.account_number)
         )
-        known = _existing_ids(scope, account, report) if account else set()
-        known_by_index.append(known)
+        stored = _existing_types(scope, account, report) if account else {}
         batch_seen = seen_in_batch[report.account_number]
         new_operations: list[CashOperation] = []
+        reclassified: list[CashOperation] = []
         duplicates = 0
         for operation in report.cash_operations:
-            if operation.external_id in known or operation.external_id in batch_seen:
+            if operation.external_id in stored or operation.external_id in batch_seen:
                 duplicates += 1
+                if stored.get(operation.external_id) == "unknown" and operation.classified.type != "unknown":
+                    reclassified.append(operation)
                 continue
             batch_seen.add(operation.external_id)
             new_operations.append(operation)
-        unknown = [op for op in new_operations if op.classified.type == "unknown"]
+        # Reconciliation counts a reclassified operation from the file: as stored ("unknown") it holds no units.
+        known_by_index.append(set(stored) - {operation.external_id for operation in reclassified})
+        unknown =[op for op in new_operations if op.classified.type == "unknown"]
         if account is not None or report.account_number in pending_new_accounts:
             new_account = None
         else:
@@ -96,7 +102,14 @@ def plan_import(scope: UserScope, reports: list[XtbReport]) -> list[FilePlan]:
             new_operations=new_operations,
             duplicate_count=duplicates,
             unknown_count=len(unknown),
+            reclassified=reclassified,
         )
+        if reclassified:
+            plan.warnings.append({
+                "code": "reclassified_operations",
+                "message": f"Poprawione operacje zapisane wcześniej jako nierozpoznane: {len(reclassified)}.",
+                "details": {"types": sorted({op.xtb_type for op in reclassified})},
+            })
         if unknown:
             plan.warnings.append({
                 "code": "unknown_operations",
@@ -108,13 +121,13 @@ def plan_import(scope: UserScope, reports: list[XtbReport]) -> list[FilePlan]:
     return plans
 
 
-def _existing_ids(scope: UserScope, account: Account, report: XtbReport) -> set[str]:
+def _existing_types(scope: UserScope, account: Account, report: XtbReport) -> dict[str, str]:
+    """External id → stored type of the report's operations already in the account."""
     ids = [op.external_id for op in report.cash_operations]
-    return set(
-        scope.db.scalars(
-            select(Transaction.external_id).where(Transaction.account_id == account.id, Transaction.external_id.in_(ids))
-        )
-    )
+    return dict(scope.db.execute(
+        select(Transaction.external_id, Transaction.type)
+        .where(Transaction.account_id == account.id, Transaction.external_id.in_(ids))
+    ).all())
 
 
 def _add_reconciliation_warnings(
@@ -177,7 +190,7 @@ def _add_reconciliation_warnings(
 
 def _valuations_changed_from(plans: list[FilePlan]) -> date | None:
     """The earliest day an import changes: a new operation, or the day of an XTB snapshot (fallback prices)."""
-    days = [local_day(operation.occurred_at) for plan in plans for operation in plan.new_operations]
+    days = [local_day(operation.occurred_at) for plan in plans for operation in plan.new_operations + plan.reclassified]
     days += [
         local_day(plan.report.generated_at)
         for plan in plans
@@ -217,6 +230,7 @@ def apply_import(scope: UserScope, plans: list[FilePlan]) -> list[ImportRecord]:
             db.flush()
             instruments = _ensure_instruments(db, report)
             record.rows_added = _insert_transactions(db, account, record, plan.new_operations, instruments)
+            _reclassify(db, account, plan.reclassified)
             _upsert_lots(db, account, report, instruments)
             _insert_snapshots(db, account, record, report, instruments)
             records.append(record)
@@ -332,6 +346,18 @@ def _insert_transactions(
         )
         added += len(db.execute(statement).all())
     return added
+
+
+def _reclassify(db: Session, account: Account, operations: list[CashOperation]) -> None:
+    """Fills in what an older importer could not read; only rows still stored as "unknown" are touched."""
+    for op in operations:
+        db.execute(
+            update(Transaction)
+            .where(Transaction.account_id == account.id, Transaction.external_id == op.external_id,
+                   Transaction.type == "unknown")
+            .values(type=op.classified.type, quantity=op.classified.quantity, price=op.classified.price,
+                    implied_fx_rate=_implied_fx(op), counterparty_account=op.classified.counterparty_account)
+        )
 
 
 def _upsert(db: Session, rows: list[dict[str, Any]]) -> None:
