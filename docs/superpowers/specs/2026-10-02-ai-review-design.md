@@ -121,6 +121,19 @@ Stan na dzień przygotowania, dla wybranych kont, w tabelach Markdown. Każda ta
   - usuwanie, stany pusty i błąd.
 - **e2e:** z Analizy przygotowanie pakietu, wklejenie przykładowej odpowiedzi, zapis i widok.
 
+## 6. Zagrożenia i zabezpieczenia (wymagania z testami)
+
+- **Zagnieżdżone bloki kodu:** polecenie każe ująć odpowiedź w cztery backticki (````markdown); serwer zdejmuje i trzy, i cztery.
+- **Rozpoznawanie sekcji:** niezależnie od wielkości liter, emotek przy nagłówku i kolejności; 0 sekcji → zapis z ostrzeżeniem.
+- **Wyszukiwanie wyłączone w claude.ai:** instrukcja na ekranie „włącz wyszukiwanie w sieci”; polecenie każe wtedy napisać to w „Rynek” zamiast zgadywać.
+- **Schowek niedostępny** (tylko HTTPS lub localhost): po odmowie pole z tekstem do ręcznego zaznaczenia; „Pobierz plik” zawsze działa. Pobieranie w PWA na iPhonie do sprawdzenia przy teście iPhone.
+- **Bezpieczeństwo treści:** HTML nie jest wykonywany, linki `javascript:` blokowane, linki w nowej karcie z `noopener` — test.
+- **Szeroka tabela:** przewija się we własnym pudełku, strona bez poziomego przewijania — test.
+- **Zgodność liczb:** pakiet bierze dane z tych samych funkcji co Pulpit, Pozycje i Analiza; test porównuje wartość, zysk i XIRR z `/api/portfolio/summary` i `/api/analytics`.
+- **Przeliczanie w toku:** pakiet dopisuje „wycena w trakcie przeliczania”, ekran o tym informuje.
+- **Rozmiar:** test, że pakiet dla przykładowego portfela ma poniżej 100 KB.
+- Pod przeglądem w aplikacji dopisek: „Liczby o portfelu pochodzą z Evenkeel; informacje rynkowe — z wyszukiwania Claude. Sprawdź przed decyzją.”
+
 ## Na później (roadmapa)
 
 - **Przegląd przez API Anthropic:** przycisk „Przejrzyj przez API” wysyła ten sam pakiet (Claude Opus 5.5 z narzędziem `web_search`), z kluczem API w ustawieniach serwera. Szacunek z 2026-10-02: ok. 0,30 USD za przegląd.
