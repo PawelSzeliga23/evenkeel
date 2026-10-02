@@ -278,3 +278,13 @@ describe("registration and session edge cases", () => {
     expect(getAccessToken()).toBeNull();
   });
 });
+
+describe("a missing refresh endpoint", () => {
+  it("is a server problem, not a reason to sign in again", async () => {
+    mockFetch([{ method: "POST", path: "/api/auth/refresh", status: 404,
+      respond: () => ({ code: "not_found", message: "Nie znaleziono.", details: {} }) }]);
+    renderRoutes(ROUTES, "/");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Serwer ma problem. Spróbuj ponownie za chwilę.");
+  });
+});

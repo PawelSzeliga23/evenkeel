@@ -45,8 +45,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     });
     let cancelled = false;
     (async () => {
+      let asked = "refresh";
       try {
         if (await refreshSession()) {
+          asked = "me";
           const user = await api.me();
           if (!cancelled) setState({ status: "signedIn", user });
         } else if (!cancelled) {
@@ -54,8 +56,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
       } catch (error) {
         if (cancelled) return;
-        // 404: the user behind the session no longer exists (deleted); like a refused token, sign in again
-        if (error instanceof ApiError && (error.status === 401 || error.status === 403 || error.status === 404)) {
+        // /me not finding its user means no account behind the session: sign in again. A 404 anywhere else
+        // (e.g. a misrouted /refresh) is a server problem.
+        const refused = error instanceof ApiError
+          && (error.status === 401 || error.status === 403 || (error.status === 404 && asked === "me"));
+        if (refused) {
           setAccessToken(null);
           setState({ status: "anonymous", expired: false });
         } else if (error instanceof ApiError && error.status !== 0) {
