@@ -1,6 +1,6 @@
 import { request } from "./client";
 import type {
-  Account, AccountCreate, Analytics, AnalyticsPeriod, Holdings, HoldingsPeriod, IncomePeriod, IncomeReport, AccountUpdate, AccountUsage, CatalogGroup, CatalogItem, Review, ReviewListItem, Instrument, InstrumentUpdate, Scenario, ScenarioIn, ScenarioResult, BondDetail, BondIn, BondOut, Closed, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Limit, Position, PositionDetail, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, TokenOut, Transaction, TransactionIn, UserOut,
+  Account, AccountCreate, Analytics, AnalyticsPeriod, Holdings, HoldingsPeriod, IncomePeriod, IncomeReport, AccountUpdate, AccountUsage, CatalogGroup, CatalogItem, Review, ReviewListItem, Instrument, InstrumentUpdate, Scenario, ScenarioIn, ScenarioResult, BondDetail, BondIn, BondOut, Closed, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Limit, Position, PositionDetail, PriceChartData, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, TokenOut, Transaction, TransactionIn, UserOut,
 } from "./types";
 
 function filesForm(files: File[]): FormData {
@@ -57,6 +57,8 @@ export const api = {
   analytics: (ids: readonly number[], period: AnalyticsPeriod) =>
     request<Analytics>("/api/analytics", { query: { account_id: ids, period } }),
   positions: (ids: readonly number[]) => request<Position[]>("/api/positions", { query: { account_id: ids } }),
+  positionPrices: (accountId: number, instrumentId: number, from: string | null) =>
+    request<PriceChartData>(`/api/positions/${accountId}/${instrumentId}/prices`, { query: { from } }),
   position: (accountId: number, instrumentId: number) =>
     request<PositionDetail>(`/api/positions/${accountId}/${instrumentId}`),
   previewImport: (files: File[]) => request<ImportResult>("/api/imports/preview", { method: "POST", form: filesForm(files) }),

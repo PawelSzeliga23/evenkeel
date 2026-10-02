@@ -1,4 +1,4 @@
-import type { Account, Analytics, CatalogGroup, Closed, Exposure, History, Instrument, ImportFile, ImportResult, Limit, Money, Position, PositionDetail, Scenario, ScenarioMeasures, ScenarioResult, Summary , Holdings, IncomeMonth, IncomeReport} from "../api/types";
+import type { Account, Analytics, CatalogGroup, Closed, Exposure, History, Instrument, ImportFile, ImportResult, Limit, Money, Position, PositionDetail, PriceChartData, Scenario, ScenarioMeasures, ScenarioResult, Summary , Holdings, IncomeMonth, IncomeReport} from "../api/types";
 import { fromCents, toCents } from "../format";
 
 export const ACCOUNTS: Account[] = [
@@ -311,4 +311,20 @@ export const INCOME: IncomeReport = {
 export const INCOME_EMPTY: IncomeReport = {
   period: null, totals: { income_pln: "0.00", costs_pln: "0.00", balance_pln: "0.00" }, months: [], sources: [],
   costs: [], recalculating: false,
+};
+
+/** CD Projekt closes once a week from 01.04.2025, 232,47 zł at the end, with the position's operations. */
+export const PRICE_CHART: PriceChartData = {
+  currency: "PLN",
+  points: Array.from({ length: 78 }, (_, i) => ({
+    date: new Date(Date.UTC(2025, 3, 1 + 7 * i)).toISOString().slice(0, 10),
+    close: i === 77 ? "232.47" : (170 + i * 0.8).toFixed(2),
+  })),
+  markers: [
+    { date: "2025-05-12", kind: "buy", price: "180.2", price_with_fx: null, quantity: "30", amount_pln: "-5406.00" },
+    { date: "2026-02-03", kind: "buy", price: "212.29", price_with_fx: null, quantity: "18", amount_pln: "-3821.52" },
+    { date: "2026-04-10", kind: "sell", price: "223.26", price_with_fx: null, quantity: "5", amount_pln: "1116.30" },
+    { date: "2026-06-20", kind: "dividend", price: null, price_with_fx: null, quantity: null, amount_pln: "60.00" },
+  ],
+  first_buy: "2025-05-12",
 };
