@@ -10,6 +10,8 @@ from app.scoping import UserScope
 from app.tags.lookup import TagLookup
 
 NO_TAGS = "Brak tagów."
+NO_TAGGED = "Żaden walor z wybranych kont nie ma tagów."
+RECALCULATING = "Wycena jest w trakcie przeliczania — te dane pojawią się po jej zakończeniu."
 OVERLAP = "Walor może mieć kilka tagów, więc udziały mogą sumować się do ponad 100 %."
 
 
@@ -22,7 +24,9 @@ def tag_names(lookup: TagLookup, key: str, account_id: int) -> str:
 def tags_section(scope: UserScope, account_ids: frozenset[int] | None) -> str:
     report = tag_analytics(scope, account_ids, "all")
     if not report.tags:
-        return NO_TAGS
+        if report.period is None and report.recalculating:
+            return RECALCULATING
+        return NO_TAGS if scope.db.scalar(scope.tags()) is None else NO_TAGGED
     rows = [[t.name, money(t.value_pln), pct(t.share_pct), money(t.gain_pln), pct(t.gain_pct), str(t.holdings)]
             for t in report.tags]
     if report.untagged is not None:
@@ -57,7 +61,7 @@ def holdings_section(scope: UserScope, account_ids: frozenset[int] | None) -> st
     reports = {period: holdings(scope, account_ids, period) for period, _ in PERIODS}
     whole = reports["all"]
     if not whole.items:
-        return NO_DATA
+        return RECALCULATING if whole.recalculating else NO_DATA
     found = {period: {item.key: item for item in report.items} for period, report in reports.items()}
     rows = []
     for item in sorted(whole.items, key=lambda i: i.gain_pln, reverse=True):
