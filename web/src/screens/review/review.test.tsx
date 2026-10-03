@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ACCOUNTS, ANALYTICS } from "../../test/fixtures";
 import { SIGNED_IN, mockFetch, renderApp, type MockRoute } from "../../test/render";
 
-const SAVED = { id: 7, created_at: "2026-10-02T12:30:00Z", account_label: "Cały portfel", sections: 9 };
+const SAVED = { id: 7, created_at: "2026-10-02T12:30:00Z", account_label: "Cały portfel", sections: 9, summary: null };
 const PACKAGE = "# Przegląd portfela — polecenie dla Claude\n\nDane…";
 
 function routes(extra: MockRoute[] = []) {
@@ -71,7 +71,7 @@ describe("Przegląd portfela", () => {
 
     const row = await screen.findByRole("link", { name: /Cały portfel/ });
     expect(row).toHaveAttribute("href", "/analiza/przeglad/7");
-    expect(within(row).getByText("9/9 sekcji")).toBeInTheDocument();
+    expect(within(row).getByText("9/10 sekcji")).toBeInTheDocument();
   });
 
   it("adds the notes by default and remembers leaving them out", async () => {
@@ -90,6 +90,26 @@ describe("Przegląd portfela", () => {
     await waitFor(() => expect(packageUrls().at(-1)?.searchParams.get("notes")).toBe("false"));
     expect(localStorage.getItem("evenkeel.review.notes")).toBe("false");
     localStorage.removeItem("evenkeel.review.notes");
+  });
+
+  it("shows the latest summary on Analiza", async () => {
+    routes([{ path: "/api/reviews", respond: () => [{ ...SAVED, sections: 10,
+      summary: "Portfel jest ostrożny.\n\n1. **Bezpieczniej:** dokup ETF na cały świat za 1 000 zł." }] }]);
+    renderApp("/analiza");
+
+    const card = await screen.findByRole("region", { name: "Przegląd AI" });
+    expect(await within(card).findByText("Portfel jest ostrożny.")).toBeInTheDocument();
+    expect(within(card).getByText("Bezpieczniej:")).toBeInTheDocument();
+    expect(within(card).getByText("To nie jest porada inwestycyjna.")).toBeInTheDocument();
+  });
+
+  it("shows only the date for a review without a summary", async () => {
+    routes();
+    renderApp("/analiza");
+
+    const card = await screen.findByRole("region", { name: "Przegląd AI" });
+    expect(await within(card).findByText(/2 października/)).toBeInTheDocument();
+    expect(within(card).queryByText("To nie jest porada inwestycyjna.")).not.toBeInTheDocument();
   });
 });
 

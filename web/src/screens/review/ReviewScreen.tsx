@@ -16,7 +16,7 @@ import { ErrorState, Skeleton } from "../../ui/States";
 import ui from "../../ui/ui.module.css";
 import styles from "./Review.module.css";
 
-export const SECTION_COUNT = 9;
+export const SECTION_COUNT = 10;
 const COPY_FAILED = "Nie udało się skopiować — użyj „Pobierz plik”.";
 
 function ReviewIcon() {

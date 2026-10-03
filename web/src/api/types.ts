@@ -403,7 +403,9 @@ export interface ScenarioResult {
   recalculating: boolean;
 }
 
-export interface ReviewListItem { id: number; created_at: IsoDateTime; account_label: string; sections: number }
+export interface ReviewListItem {
+  id: number; created_at: IsoDateTime; account_label: string; sections: number; summary: string | null;
+}
 export interface Review extends ReviewListItem { content: string }
 
 export type HoldingsPeriod = "1d" | "1w" | "1m" | "1y" | "ytd" | "all";
