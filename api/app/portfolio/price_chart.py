@@ -1,11 +1,13 @@
 """Wykres ceny (plan 7e): the instrument's closes in its own currency, with the position's operations on them."""
 import datetime as dt
+from bisect import bisect_left
 from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy import select
 
 from app.market.store import fx_on
-from app.models import Account, Instrument, Price, Transaction
+from app.models import Account, Instrument, JournalEntry, Price, Transaction
+from app.notes.schemas import PriceNoteEntryOut, PriceNoteOut
 from app.portfolio.schemas import PriceChartOut, PriceMarkerOut, PricePointOut
 from app.portfolio.service import amount_pln
 from app.scoping import UserScope
@@ -68,7 +70,23 @@ def price_chart(scope: UserScope, account: Account, instrument: Instrument, star
                                       amount_pln=amount))
     buys = [m.date for m in markers if m.kind == "buy"]
     return PriceChartOut(currency=instrument.currency, points=[PricePointOut(date=d, close=c) for d, c in thin(shown)],
-                         markers=markers, first_buy=min(buys) if buys else None)
+                         markers=markers, first_buy=min(buys) if buys else None,
+                         notes=_notes(scope, instrument, [day for day, _ in shown], start))
+
+
+def _notes(scope: UserScope, instrument: Instrument, days: list[dt.date], start: dt.date | None) -> list[PriceNoteOut]:
+    """The instrument's journal entries on the range's closes: a day without a close moves to the next close, one after
+    the last close onto the last; one before the range (Maks: before the first close) is left out."""
+    if not days:
+        return []
+    since = start if start is not None else days[0]
+    entries = scope.db.scalars(scope.journal().where(JournalEntry.instrument_id == instrument.id,
+                                                     JournalEntry.entry_date >= since))
+    grouped: dict[dt.date, list[PriceNoteEntryOut]] = {}
+    for entry in sorted(entries, key=lambda e: (e.entry_date, e.id)):
+        day = days[min(bisect_left(days, entry.entry_date), len(days) - 1)]
+        grouped.setdefault(day, []).append(PriceNoteEntryOut(id=entry.id, entry_date=entry.entry_date, body=entry.body))
+    return [PriceNoteOut(date=day, entries=items) for day, items in sorted(grouped.items())]
 
 
 def _close_on(closes: list[tuple[dt.date, Decimal]], day: dt.date) -> Decimal | None:

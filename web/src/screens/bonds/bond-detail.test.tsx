@@ -12,6 +12,7 @@ const DETAIL = {
     { number: 2, start: "2027-09-15", end: "2028-09-15", rate: "4.5000", estimated: true },
   ],
   tags: [],
+  notes: { thesis: null, recent: [], count: 0 },
 };
 
 describe("bond detail", () => {

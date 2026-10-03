@@ -154,6 +154,7 @@ export interface PositionDetail {
   reconciliation: Reconciliation;
   average_price: Money | null;
   tags: TagOn[];
+  notes: HoldingNotes;
 }
 
 export interface ImportWarning { code: string; message: string; details: Record<string, unknown> }
@@ -181,7 +182,9 @@ export interface ImportResult { files: ImportFile[]; errors: ImportFileError[]; 
 
 export interface AccountCreate { name: string; kind: Account["kind"]; wrapper?: Account["wrapper"] }
 export interface AccountUpdate { name?: string; wrapper?: Account["wrapper"] }
-export interface AccountUsage { transactions: number; imports: number; bond_holdings: number; savings_entries: number }
+export interface AccountUsage {
+  transactions: number; imports: number; bond_holdings: number; savings_entries: number; notes: number;
+}
 
 export interface Instrument {
   id: number;
@@ -253,6 +256,7 @@ export interface SavingsAccountOut {
   summary: SavingsSummary;
   capitalizations: SavingsCapitalization[];
   tags: TagOn[];
+  notes: HoldingNotes;
 }
 
 export interface BondPeriod { number: number; start: IsoDate; end: IsoDate; rate: string; estimated: boolean }
@@ -262,6 +266,7 @@ export interface BondDetail {
   redemption_today_pln: Money | null;
   periods: BondPeriod[];
   tags: TagOn[];
+  notes: HoldingNotes;
 }
 
 export type HistoryKind = "transaction" | "bond_purchase" | "bond_payout" | "savings_flow" | "savings_interest";
@@ -479,6 +484,7 @@ export interface PriceChartData {
   currency: string | null;
   points: PricePoint[];
   markers: PriceMarker[];
+  notes: PriceNote[];
   first_buy: IsoDate | null;
 }
 
@@ -502,3 +508,21 @@ export interface TagsReport {
   history: { dates: IsoDate[]; series: { key: string; share_pct: string[] }[] };
   recalculating: boolean;
 }
+
+/** Notes (plan 7f-2): an entry as the holding's details show it. */
+export interface NoteEntry { id: number; entry_date: IsoDate; body: string; created_at: string; updated_at: string }
+export interface HoldingNotes { thesis: { body: string; updated_at: string } | null; recent: NoteEntry[]; count: number }
+export interface TargetLink {
+  kind: "position" | "bond" | "savings";
+  account_id: number | null;
+  instrument_id: number | null;
+  bond_holding_id: number | null;
+}
+/** A holding a note can be about; `key` is i:{instrument}, b:{series} or s:{savings account}. */
+export interface NoteHolding { key: string; label: string; sublabel: string | null; closed: boolean; link: TargetLink | null }
+export interface JournalEntry extends NoteEntry { target: NoteHolding | null }
+export interface Journal { entries: JournalEntry[]; count: number }
+export interface NoteTargetIn { instrument_id?: number; bond_series?: string; account_id?: number }
+export interface EntryIn extends NoteTargetIn { entry_date?: IsoDate; body: string }
+export interface EntryPatch extends NoteTargetIn { entry_date?: IsoDate; body?: string; portfolio?: boolean }
+export interface PriceNote { date: IsoDate; entries: { id: number; entry_date: IsoDate; body: string }[] }

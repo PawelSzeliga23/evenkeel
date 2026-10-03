@@ -70,3 +70,4 @@ class AccountUsageOut(BaseModel):
     imports: int
     bond_holdings: int
     savings_entries: int  # deposits and withdrawals, bank balances and rates of its savings account
+    notes: int  # theses and journal entries of its savings account

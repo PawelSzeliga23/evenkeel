@@ -9,8 +9,8 @@ from app.auth.deps import get_current_user
 from app.db import get_db
 from app.errors import ApiError
 from app.models import (
-    Account, AiReview, BondHolding, CorporateAction, DailyValuation, ImportRecord, Instrument, PositionLot, SavingsAccount,
-    Scenario, Tag, Transaction, User, XtbSnapshot,
+    Account, AiReview, BondHolding, CorporateAction, DailyValuation, ImportRecord, Instrument, JournalEntry, PositionLot,
+    SavingsAccount, Scenario, Tag, Thesis, Transaction, User, XtbSnapshot,
 )
 
 # Path parameter type for any database id: keeps Postgres int4 range errors
@@ -158,6 +158,21 @@ class UserScope:
         if tag is None:
             raise not_found()
         return tag
+
+    def theses(self) -> Select[tuple[Thesis]]:
+        return select(Thesis).where(Thesis.user_id == self.user.id).order_by(Thesis.id)
+
+    def journal(self) -> Select[tuple[JournalEntry]]:
+        return (
+            select(JournalEntry).where(JournalEntry.user_id == self.user.id)
+            .order_by(JournalEntry.entry_date.desc(), JournalEntry.id.desc())
+        )
+
+    def get_entry(self, entry_id: int) -> JournalEntry:
+        entry = self.db.scalar(self.journal().where(JournalEntry.id == entry_id))
+        if entry is None:
+            raise not_found()
+        return entry
 
 
 def get_scope(db: Session = Depends(get_db), user: User = Depends(get_current_user)) -> UserScope:

@@ -8,7 +8,7 @@ function routes(calls: { method: string; body?: unknown }[]): MockRoute[] {
     ...SIGNED_IN,
     { path: "/api/accounts", respond: () => ACCOUNTS },
     { path: "/api/instruments", respond: () => [] },
-    { path: "/api/accounts/1/usage", respond: () => ({ transactions: 42, imports: 3, bond_holdings: 0, savings_entries: 0 }) },
+    { path: "/api/accounts/1/usage", respond: () => ({ transactions: 42, imports: 3, bond_holdings: 0, savings_entries: 0, notes: 0 }) },
     { method: "PATCH", path: "/api/accounts/1", respond: (_u, init) => {
       const body = JSON.parse(String(init.body));
       calls.push({ method: "PATCH", body });

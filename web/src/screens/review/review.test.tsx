@@ -73,6 +73,24 @@ describe("Przegląd portfela", () => {
     expect(row).toHaveAttribute("href", "/analiza/przeglad/7");
     expect(within(row).getByText("9/9 sekcji")).toBeInTheDocument();
   });
+
+  it("adds the notes by default and remembers leaving them out", async () => {
+    const fetchMock = routes();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    const { user } = renderApp("/analiza/przeglad");
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    const packageUrls = () => fetchMock.mock.calls.map(([input]) => new URL(input, "http://localhost"))
+      .filter((url) => url.pathname === "/api/reviews/package");
+
+    const toggle = await screen.findByRole("switch", { name: /Dołącz notatki/ });
+    expect(toggle).toBeChecked();
+    await user.click(toggle);
+    await user.click(screen.getByRole("button", { name: "Kopiuj do schowka" }));
+
+    await waitFor(() => expect(packageUrls().at(-1)?.searchParams.get("notes")).toBe("false"));
+    expect(localStorage.getItem("evenkeel.review.notes")).toBe("false");
+    localStorage.removeItem("evenkeel.review.notes");
+  });
 });
 
 const CONTENT = [

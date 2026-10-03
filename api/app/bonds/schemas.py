@@ -4,6 +4,7 @@ from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.notes.schemas import HoldingNotesOut
 from app.tags.schemas import TagOnOut
 
 SERIES_PATTERN = r"^EDO(0[1-9]|1[0-2])\d{2}$"
@@ -92,3 +93,4 @@ class BondDetailOut(BaseModel):
     redemption_today_pln: Decimal | None  # early redemption on the day (None once paid out)
     periods: list[PeriodOut]
     tags: list[TagOnOut] = []
+    notes: HoldingNotesOut = Field(default_factory=HoldingNotesOut)

@@ -19,6 +19,7 @@ const DATA: PriceChartData = {
     { ...BUY, kind: "sell", quantity: "1", price: "598", amount_pln: "2560.00" },
     { date: "2026-03-05", kind: "dividend", price: null, price_with_fx: null, quantity: null, amount_pln: "40.00" },
   ],
+  notes: [],
   first_buy: "2026-03-04",
 };
 
@@ -93,5 +94,16 @@ describe("PriceChart", () => {
     draw({ ...DATA, points: DATA.points.slice(0, 1) });
     expect(screen.getByText("Brak notowań dla tego instrumentu.")).toBeInTheDocument();
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
+  });
+
+  it("draws one „N” per day of journal entries, after the operations", async () => {
+    const onSelect = vi.fn();
+    const notes = [{ date: "2026-03-05", entries: [{ id: 1, entry_date: "2026-03-04", body: "a" }, { id: 2, entry_date: "2026-03-05", body: "b" }] }];
+    render(<PriceChart data={{ ...DATA, notes }} average={null} selected={null} onSelect={onSelect} />);
+
+    const note = screen.getByRole("button", { name: `Notatka 05.03.2026` });
+    expect(document.querySelectorAll('[data-mark="note"]')).toHaveLength(1);
+    await userEvent.click(note);
+    expect(onSelect).toHaveBeenCalledWith(DATA.markers.length);
   });
 });

@@ -10,7 +10,8 @@ from sqlalchemy import select
 
 from app.analytics.service import portfolio_analytics
 from app.bonds.service import bond_detail
-from app.models import Account, BondHolding, SavingsAccount, SavingsRate
+from app.models import Account, BondHolding, JournalEntry, SavingsAccount, SavingsRate
+from app.notes.keys import key_of
 from app.portfolio.closed import closed_investments
 from app.portfolio.exposure import currency_exposure
 from app.portfolio.limits import wrapper_limits
@@ -203,7 +204,51 @@ def _scenarios(scope: UserScope, account_ids: frozenset[int] | None) -> str:
                  rows)
 
 
-def build_package(scope: UserScope, account_ids: frozenset[int] | None, today: dt.date) -> str:
+def _year_ago(today: dt.date) -> dt.date:
+    try:
+        return today.replace(year=today.year - 1)
+    except ValueError:  # 29 February
+        return today.replace(year=today.year - 1, day=28)
+
+
+def _indent(text: str) -> str:
+    """Further lines of a note indented, so the Markdown list item stays one item."""
+    return text.replace("\r\n", "\n").replace("\n", "\n  ")
+
+
+def _notes(scope: UserScope, items: list[PositionOut], today: dt.date) -> str:
+    """The owner's theses of the holdings in the package and the journal of the last 12 months (spec 7f-2)."""
+    short: dict[str, str] = {}
+    long: dict[str, str] = {}
+    for p in items:
+        if p.kind == "instrument" and p.instrument_id is not None:
+            key = f"i:{p.instrument_id}"
+            short[key], long[key] = p.ticker or p.name, f"{p.ticker} — {p.name}" if p.ticker else p.name
+        elif p.kind == "bond":
+            short[f"b:{p.name}"] = long[f"b:{p.name}"] = p.name
+        elif p.kind == "savings":
+            short[f"s:{p.account_id}"] = long[f"s:{p.account_id}"] = p.account_name
+    theses = sorted(
+        ((long[key], thesis.body) for thesis in scope.db.scalars(scope.theses())
+         if (key := key_of(thesis.instrument_id, thesis.bond_series, thesis.account_id)) in long),
+        key=lambda pair: pair[0].casefold())
+    entries = []
+    for entry in scope.db.scalars(scope.journal().where(JournalEntry.entry_date >= _year_ago(today))):
+        key = key_of(entry.instrument_id, entry.bond_series, entry.account_id)
+        if key is None or key in short:
+            entries.append((entry.entry_date, entry.id, "portfel" if key is None else short[key], entry.body))
+    if not theses and not entries:
+        return "Brak notatek."
+    out = []
+    if theses:
+        out += ["### Tezy", "\n".join(f"- **{label}:** {_indent(body)}" for label, body in theses)]
+    if entries:
+        out += ["### Dziennik (ostatnie 12 miesięcy)",
+                "\n".join(f"- {date(day)} · {label}: {_indent(body)}" for day, _, label, body in sorted(entries))]
+    return "\n\n".join(out)
+
+
+def build_package(scope: UserScope, account_ids: frozenset[int] | None, today: dt.date, notes: bool = True) -> str:
     accounts = _accounts(scope, account_ids)
     scope_label = "cały portfel" if account_ids is None else ", ".join(a.name for a in accounts)
     summary = portfolio_summary(scope, account_ids)
@@ -248,6 +293,7 @@ def build_package(scope: UserScope, account_ids: frozenset[int] | None, today: d
         "## Historia", _history(scope, account_ids, whole),
         f"## Limity IKE/IKZE ({today.year})", _limits(scope, accounts, today),
         "## Zamknięte inwestycje", _closed(scope, account_ids, today),
+        *(["## Notatki właściciela", _notes(scope, items, today)] if notes else []),
         "## Scenariusze z Symulatora (cały okres)", _scenarios(scope, account_ids),
     ]
     return "\n\n".join(parts) + "\n"

@@ -1,7 +1,7 @@
 import { useId, useMemo, useRef, useState } from "react";
-import type { IsoDate, Money, PriceChartData, PriceMarker } from "../api/types";
+import type { IsoDate, Money, PriceChartData } from "../api/types";
 import { NBSP, formatDate } from "../format";
-import { formatPrice, markerLabel } from "../screens/positions/priceModel";
+import { chartMarks, formatPrice, markerLabel, type ChartMark } from "../screens/positions/priceModel";
 import { FRAME, frameFor, niceStep, type Frame } from "./geometry";
 import styles from "./PriceChart.module.css";
 import { timeTicks } from "./timeTicks";
@@ -9,7 +9,7 @@ import { useChartGestures } from "./useChartGestures";
 import { useWidth } from "./useWidth";
 import { clampWindow, drawnRange, fullWindow, type ChartWindow, type YRange } from "./viewport";
 
-export const MARKER_COLORS = { buy: "#5DB98A", sell: "#E0676E", dividend: "#7FB6E6", average: "#F0A43A" } as const;
+export const MARKER_COLORS = { buy: "#5DB98A", sell: "#E0676E", dividend: "#7FB6E6", average: "#F0A43A", note: "#C98BD9" } as const;
 
 const PAD = 0.05;
 const SAME_DAY_SHIFT = 16; // most of a 28 px tap target stays free beside its neighbour
@@ -49,10 +49,10 @@ function tickLabel(value: number, step: number): string {
   return `${whole!.replace(/\B(?=(\d{3})+(?!\d))/g, NBSP)}${fraction ? `,${fraction}` : ""}`;
 }
 
-interface Placed { marker: PriceMarker; index: number; at: number; shift: number }
+interface Placed { marker: ChartMark; index: number; at: number; shift: number }
 
 /** Shifts operations of one day apart so each keeps its own tappable spot. */
-function place(markers: PriceMarker[], dates: IsoDate[], view: ChartWindow): Placed[] {
+function place(markers: ChartMark[], dates: IsoDate[], view: ChartWindow): Placed[] {
   const placed = markers.flatMap((marker, index) => {
     const at = dateIndex(dates, marker.date);
     return at === null || at < view.from - 1e-9 || at > view.to + 1e-9 ? [] : [{ marker, index, at, shift: 0 }];
@@ -65,8 +65,16 @@ function place(markers: PriceMarker[], dates: IsoDate[], view: ChartWindow): Pla
   return placed;
 }
 
-function Mark({ kind, x, y, big }: { kind: PriceMarker["kind"]; x: number; y: number; big: boolean }) {
+function Mark({ kind, x, y, big }: { kind: ChartMark["kind"]; x: number; y: number; big: boolean }) {
   const r = big ? 7 : 5.5;
+  if (kind === "note") {
+    return (
+      <g data-mark="note">
+        <circle cx={x} cy={y} r={r + 1.5} fill={MARKER_COLORS.note} />
+        <text x={x} y={y + 3.5} className={styles.dividend}>N</text>
+      </g>
+    );
+  }
   if (kind === "dividend") {
     return (
       <g data-mark="dividend">
@@ -93,6 +101,7 @@ export function PriceChart({ data, average, selected, onSelect, view: requested,
 }) {
   const dates = useMemo(() => data.points.map((p) => p.date), [data.points]);
   const closes = useMemo(() => data.points.map((p) => Number(p.close)), [data.points]);
+  const marks = useMemo(() => chartMarks(data), [data]);
   const [figure, setFigure] = useState<HTMLElement | null>(null);
   const width = useWidth(figure, FRAME.width);
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
@@ -111,7 +120,7 @@ export function PriceChart({ data, average, selected, onSelect, view: requested,
 
   if (count < 2) return <p className={styles.note}>Brak notowań dla tego instrumentu.</p>;
 
-  const placed = place(data.markers, dates, view);
+  const placed = place(marks, dates, view);
   const firstShown = Math.ceil(view.from - 1e-9);
   const lastShown = Math.floor(view.to + 1e-9);
   const values = [
@@ -140,6 +149,7 @@ export function PriceChart({ data, average, selected, onSelect, view: requested,
 
   const spot = (p: Placed) => {
     const px = x(p.at) + p.shift;
+    if (p.marker.kind === "note") return { x: px, y: Math.max(frame.top + 8, y(closeAt(closes, p.at)) - 2 * MARK_GAP) };
     if (p.marker.kind === "dividend") return { x: px, y: baseline - MARK_GAP };
     const price = p.marker.price === null ? closeAt(closes, p.at) : Number(p.marker.price);
     return { x: px, y: y(price) + (p.marker.kind === "buy" ? MARK_GAP : -MARK_GAP) };

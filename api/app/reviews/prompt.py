@@ -22,6 +22,8 @@ zdaniem.
   branżowe, analizy, wiadomości). Każdą podawaj z linkiem i datą. Jeśli czegoś nie znajdziesz albo wyszukiwanie
   jest niedostępne, napisz to wprost zamiast zgadywać.
 - Kwoty pisz po polsku („1 234,56 zł”), procenty z przecinkiem.
+- Jeśli są notatki właściciela (sekcja „Notatki właściciela”), oceń, czy portfel jest zgodny z jego tezami i planem,
+  i wskaż rozbieżności.
 - W sekcji „Propozycje” możesz być konkretny (co kupić, sprzedać, przenieść, ile), ale zacznij ją zdaniem: „To nie
   jest porada inwestycyjna — to propozycje do przemyślenia; decyzja należy do Ciebie.”
 

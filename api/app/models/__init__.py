@@ -20,6 +20,7 @@ from app.models.ledger import (
     XtbSnapshot,
 )
 from app.models.market import Cpi, FxRate, NbpRefRate, Price
+from app.models.note import JournalEntry, Thesis
 from app.models.review import AiReview
 from app.models.scenario import SCENARIO_BASES, Scenario
 from app.models.tag import Tag, TagLink
@@ -36,9 +37,10 @@ from app.models.valuation import (
 __all__ = [
     "ACCOUNT_KINDS", "AiReview", "BOND_TYPES", "CAPITALIZATIONS", "CORPORATE_ACTION_SOURCES", "CORPORATE_ACTION_TYPES",
     "SCENARIO_BASES", "SNAPSHOT_KINDS", "TRANSACTION_TYPES", "WRAPPER_LIMIT_KINDS", "WRAPPERS", "Account", "Base", "BondHolding",
-    "BondSeries", "CorporateAction", "Cpi", "DailyValuation", "FxRate", "ImportRecord", "Instrument", "NbpRefRate",
+    "BondSeries", "CorporateAction", "Cpi", "DailyValuation", "FxRate", "ImportRecord", "Instrument", "JournalEntry",
+    "NbpRefRate",
     "PositionLot", "Price", "RefreshToken", "SavingsAccount", "SavingsBalance", "SavingsFlow", "SavingsRate", "Scenario", "Tag",
-    "TagLink", "Transaction",
+    "TagLink", "Thesis", "Transaction",
     "User",
     "WrapperLimit", "XtbSnapshot",
 ]

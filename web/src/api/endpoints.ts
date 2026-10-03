@@ -1,6 +1,6 @@
 import { request } from "./client";
 import type {
-  Account, AccountCreate, Analytics, AnalyticsPeriod, Holdings, HoldingsPeriod, IncomePeriod, IncomeReport, AccountUpdate, AccountUsage, CatalogGroup, CatalogItem, Review, ReviewListItem, Instrument, InstrumentUpdate, Scenario, ScenarioIn, ScenarioResult, BondDetail, BondIn, BondOut, Closed, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Limit, Position, PositionDetail, PriceChartData, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, Tag, TagLinkIn, TagsReport, TokenOut, Transaction, TransactionIn, UserOut,
+  Account, AccountCreate, Analytics, AnalyticsPeriod, Holdings, HoldingsPeriod, IncomePeriod, IncomeReport, AccountUpdate, AccountUsage, CatalogGroup, CatalogItem, Review, ReviewListItem, Instrument, InstrumentUpdate, Scenario, ScenarioIn, ScenarioResult, BondDetail, BondIn, BondOut, Closed, EntryIn, EntryPatch, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Journal, JournalEntry, Limit, NoteHolding, NoteTargetIn, Position, PositionDetail, PriceChartData, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, Tag, TagLinkIn, TagsReport, TokenOut, Transaction, TransactionIn, UserOut,
 } from "./types";
 
 function filesForm(files: File[]): FormData {
@@ -85,8 +85,8 @@ export const api = {
   saveReview: (content: string, ids: readonly number[]) =>
     request<Review>("/api/reviews", { method: "POST", json: { content, account_ids: ids } }),
   deleteReview: (id: number) => request<void>(`/api/reviews/${id}`, { method: "DELETE" }),
-  reviewPackage: (ids: readonly number[]) =>
-    request<string>("/api/reviews/package", { query: { account_id: ids }, text: true }),
+  reviewPackage: (ids: readonly number[], notes = true) =>
+    request<string>("/api/reviews/package", { query: { account_id: ids, notes: notes ? null : "false" }, text: true }),
   createSavingsAccount: (body: SavingsAccountCreate) =>
     request<SavingsAccountOut>("/api/savings-accounts", { method: "POST", json: body }),
   tags: () => request<Tag[]>("/api/tags"),
@@ -96,4 +96,12 @@ export const api = {
   deleteTag: (id: number) => request<void>(`/api/tags/${id}`, { method: "DELETE" }),
   linkTag: (id: number, body: TagLinkIn) => request<{ id: number }>(`/api/tags/${id}/links`, { method: "POST", json: body }),
   unlinkTag: (linkId: number) => request<void>(`/api/tag-links/${linkId}`, { method: "DELETE" }),
+  saveThesis: (target: NoteTargetIn, body: string) =>
+    request<unknown>("/api/theses", { method: "PUT", json: { ...target, body } }),
+  journal: (target: string | null) => request<Journal>("/api/journal", { query: { target } }),
+  journalTargets: () => request<NoteHolding[]>("/api/journal/targets"),
+  addEntry: (body: EntryIn) => request<JournalEntry>("/api/journal", { method: "POST", json: body }),
+  updateEntry: (id: number, body: EntryPatch) =>
+    request<JournalEntry>(`/api/journal/${id}`, { method: "PATCH", json: body }),
+  deleteEntry: (id: number) => request<void>(`/api/journal/${id}`, { method: "DELETE" }),
 };

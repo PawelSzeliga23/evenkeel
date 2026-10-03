@@ -2,8 +2,9 @@ import datetime as dt
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+from app.notes.schemas import HoldingNotesOut, PriceNoteOut
 from app.tags.schemas import TagOnOut
 from app.transactions.schemas import TransactionOut
 
@@ -152,6 +153,7 @@ class PositionDetailOut(BaseModel):
     reconciliation: ReconciliationOut
     average_price: Decimal | None = None  # quantity-weighted lot open price, quote currency
     tags: list[TagOnOut] = []
+    notes: HoldingNotesOut = Field(default_factory=HoldingNotesOut)
 
 
 class ClosedSaleOut(BaseModel):
@@ -251,3 +253,4 @@ class PriceChartOut(BaseModel):
     points: list[PricePointOut]
     markers: list[PriceMarkerOut]
     first_buy: dt.date | None
+    notes: list[PriceNoteOut] = []

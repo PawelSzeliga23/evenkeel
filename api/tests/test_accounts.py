@@ -220,7 +220,7 @@ def test_usage_counts_what_deleting_the_account_would_remove(
     response = client.get(f"/api/accounts/{account_id}/usage", headers=anna)
 
     assert response.status_code == 200
-    assert response.json() == {"transactions": 4, "imports": 1, "bond_holdings": 0, "savings_entries": 0}
+    assert response.json() == {"transactions": 4, "imports": 1, "bond_holdings": 0, "savings_entries": 0, "notes": 0}
 
 
 def test_usage_of_a_savings_account_counts_its_rates_and_flows(client: TestClient, login_as: LoginAs) -> None:
@@ -233,7 +233,7 @@ def test_usage_of_a_savings_account_counts_its_rates_and_flows(client: TestClien
 
     usage = client.get(f"/api/accounts/{created.json()['account_id']}/usage", headers=anna).json()
 
-    assert usage == {"transactions": 0, "imports": 0, "bond_holdings": 0, "savings_entries": 2}
+    assert usage == {"transactions": 0, "imports": 0, "bond_holdings": 0, "savings_entries": 2, "notes": 0}
 
 
 def test_usage_of_someone_elses_account_is_not_found(client: TestClient, login_as: LoginAs) -> None:

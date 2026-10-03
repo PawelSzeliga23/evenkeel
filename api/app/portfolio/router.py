@@ -19,6 +19,7 @@ from app.portfolio.schemas import (
 from app.portfolio.service import (
     list_positions, portfolio_history, portfolio_summary, position_detail, prices_refreshed_at,
 )
+from app.notes.service import holding_notes
 from app.scoping import AccountIds, DbId, UserScope, get_scope
 from app.tags.lookup import TagLookup
 from app.valuation.service import local_today, mark_market_changes, recompute_in_background
@@ -68,6 +69,7 @@ def get_position(
     account, instrument = scope.get_account(account_id), scope.get_instrument(instrument_id)
     detail = position_detail(scope, account, instrument, day or local_today())
     detail.tags = TagLookup(scope).on(f"i:{instrument.id}", account.id)
+    detail.notes = holding_notes(scope, f"i:{instrument.id}")
     return detail
 
 

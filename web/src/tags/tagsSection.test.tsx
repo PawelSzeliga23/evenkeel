@@ -127,7 +127,7 @@ describe("Tagi in the details", () => {
     const savings = {
       account_id: 5, capitalization: "monthly", rates: [], balances: [], flows: [],
       summary: { balance: "0.00", deposits: "0.00", interest_net: "0.00", tax: "0.00", accrued: "0.00", current_rate: null },
-      capitalizations: [], tags: [],
+      capitalizations: [], tags: [], notes: { thesis: null, recent: [], count: 0 },
     };
     mockFetch([
       ...SIGNED_IN,
