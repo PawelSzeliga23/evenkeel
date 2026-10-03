@@ -19,10 +19,12 @@ describe("settings model", () => {
   });
 
   it("describes what deleting an account removes", () => {
-    expect(usageSummary({ transactions: 42, imports: 3, bond_holdings: 0, savings_entries: 0 })).toBe("42 operacje, 3 importy");
-    expect(usageSummary({ transactions: 1, imports: 0, bond_holdings: 5, savings_entries: 2 }))
+    expect(usageSummary({ transactions: 42, imports: 3, bond_holdings: 0, savings_entries: 0, notes: 0 })).toBe("42 operacje, 3 importy");
+    expect(usageSummary({ transactions: 1, imports: 0, bond_holdings: 5, savings_entries: 2, notes: 0 }))
       .toBe("1 operacja, 5 zakupów obligacji, 2 wpisy konta oszczędnościowego");
-    expect(usageSummary({ transactions: 0, imports: 0, bond_holdings: 0, savings_entries: 0 })).toBe("");
+    expect(usageSummary({ transactions: 0, imports: 0, bond_holdings: 0, savings_entries: 0, notes: 0 })).toBe("");
+    expect(usageSummary({ transactions: 0, imports: 0, bond_holdings: 0, savings_entries: 2, notes: 3 }))
+      .toBe("2 wpisy konta oszczędnościowego, 3 notatki");
   });
 });
 

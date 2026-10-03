@@ -10,6 +10,7 @@ import { Confirm, Field, FormError, formErrors, useInvalidateAfterSave } from ".
 import forms from "../../ui/forms.module.css";
 import { ErrorState, Skeleton } from "../../ui/States";
 import ui from "../../ui/ui.module.css";
+import { NotesSection } from "../../notes/NotesSection";
 import { TagsSection } from "../../tags/TagsSection";
 import styles from "./Details.module.css";
 
@@ -61,6 +62,7 @@ function Detail({ detail }: { detail: BondDetail }) {
 
       <TagsSection tags={detail.tags} target={{ bond_series: bond.series }} accountId={bond.account_id}
         accountName={bond.account_name} />
+      <NotesSection notes={detail.notes} target={{ bond_series: bond.series }} />
 
       <dl className={ui.kv}>
         <dt>Wartość przy wykupie dziś</dt>

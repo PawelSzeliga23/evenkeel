@@ -3,6 +3,10 @@ const MONTHS_GENITIVE = [
   "lipca", "sierpnia", "września", "października", "listopada", "grudnia",
 ];
 const MONTHS_SHORT = ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"];
+const MONTHS_NOMINATIVE = [
+  "styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec",
+  "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień",
+];
 const WEEKDAYS = ["niedz.", "pon.", "wt.", "śr.", "czw.", "pt.", "sob."];
 
 function parts(iso: string): { year: number; month: number; day: number } {
@@ -25,6 +29,12 @@ export function formatDayLong(iso: string): string {
 
 export function monthShort(iso: string): string {
   return MONTHS_SHORT[parts(iso).month - 1]!;
+}
+
+/** "2026-10-03" → "październik 2026". */
+export function monthLong(iso: string): string {
+  const { year, month } = parts(iso);
+  return `${MONTHS_NOMINATIVE[month - 1]} ${year}`;
 }
 
 /** "2026-03-02T09:30:00(+00:00)" → "02.03.2026, 09:30" — the time as the API wrote it. */

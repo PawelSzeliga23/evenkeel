@@ -11,6 +11,7 @@ import forms from "../../ui/forms.module.css";
 import { Segmented } from "../../ui/Segmented";
 import { ErrorState, Skeleton } from "../../ui/States";
 import ui from "../../ui/ui.module.css";
+import { NotesSection } from "../../notes/NotesSection";
 import { TagsSection } from "../../tags/TagsSection";
 import { Back } from "../bonds/BondDetailScreen";
 import styles from "../bonds/Details.module.css";
@@ -129,6 +130,7 @@ function Detail({ account, savings }: { account: Account; savings: SavingsAccoun
       </section>
 
       <TagsSection tags={savings.tags} target={{ savings: true }} accountId={account.id} accountName={account.name} />
+      <NotesSection notes={savings.notes} target={{ account_id: account.id }} shared={false} />
 
       <dl className={ui.kv}>
         <dt>Wpłacono (netto)</dt><dd><Money value={summary.deposits} /></dd>

@@ -19,6 +19,7 @@ const DATA: PriceChartData = {
     { ...BUY, kind: "sell", quantity: "1", price: "598", amount_pln: "2560.00" },
     { date: "2026-03-05", kind: "dividend", price: null, price_with_fx: null, quantity: null, amount_pln: "40.00" },
   ],
+  notes: [],
   first_buy: "2026-03-04",
 };
 

@@ -1,4 +1,4 @@
-import type { Account, Analytics, CatalogGroup, Closed, Exposure, History, Instrument, ImportFile, ImportResult, Limit, Money, Position, PositionDetail, PriceChartData, Scenario, ScenarioMeasures, ScenarioResult, Summary , Holdings, IncomeMonth, IncomeReport, TagsReport } from "../api/types";
+import type { Account, Analytics, HoldingNotes, CatalogGroup, Closed, Exposure, History, Instrument, ImportFile, ImportResult, Limit, Money, Position, PositionDetail, PriceChartData, Scenario, ScenarioMeasures, ScenarioResult, Summary , Holdings, IncomeMonth, IncomeReport, TagsReport } from "../api/types";
 import { fromCents, toCents } from "../format";
 
 export const ACCOUNTS: Account[] = [
@@ -89,6 +89,8 @@ export const POSITIONS: Position[] = [
     unrealized_pln: "0.00", share_pct: "2.24" }),
 ];
 
+export const NO_NOTES: HoldingNotes = { thesis: null, recent: [], count: 0 };
+
 export const DETAIL: PositionDetail = {
   position: position({ instrument_id: 12, ticker: "CDR.PL", name: "CD Projekt", currency: "PLN", quantity: "48",
     price: "232.4700", price_currency: "PLN", price_source: "xtb", value_pln: "11158.56", cost_pln: "9227.52", unrealized_pln: "1931.04",
@@ -115,6 +117,7 @@ export const DETAIL: PositionDetail = {
   reconciliation: { status: "mismatch", taken_at: "2026-09-26T12:00:00", xtb_quantity: "50", calculated_quantity: "48" },
   average_price: "192.2338",
   tags: [],
+  notes: NO_NOTES,
 };
 
 export const IMPORT_FILE: ImportFile = {
@@ -327,6 +330,7 @@ export const PRICE_CHART: PriceChartData = {
     { date: "2026-04-10", kind: "sell", price: "223.26", price_with_fx: null, quantity: "5", amount_pln: "1116.30" },
     { date: "2026-06-20", kind: "dividend", price: null, price_with_fx: null, quantity: null, amount_pln: "60.00" },
   ],
+  notes: [],
   first_buy: "2025-05-12",
 };
 

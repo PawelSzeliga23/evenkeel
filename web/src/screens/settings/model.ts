@@ -32,6 +32,7 @@ export function usageSummary(usage: AccountUsage): string {
     [usage.imports, "import", "importy", "importów"],
     [usage.bond_holdings, "zakup obligacji", "zakupy obligacji", "zakupów obligacji"],
     [usage.savings_entries, "wpis konta oszczędnościowego", "wpisy konta oszczędnościowego", "wpisów konta oszczędnościowego"],
+    [usage.notes, "notatka", "notatki", "notatek"],
   ];
   return parts.filter(([n]) => n > 0).map(([n, one, few, many]) => `${n} ${pluralPl(n, one, few, many)}`).join(", ");
 }

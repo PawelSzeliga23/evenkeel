@@ -8,6 +8,7 @@ import { formatDate, formatDateTime, formatDays, formatDecimal, formatPercent, s
 import { HeroAmount, Money } from "../../ui/Amount";
 import { ErrorState, Skeleton } from "../../ui/States";
 import ui from "../../ui/ui.module.css";
+import { NotesSection } from "../../notes/NotesSection";
 import { TagsSection } from "../../tags/TagsSection";
 import { PriceSection } from "./PriceSection";
 import { transactionLabel } from "./model";
@@ -87,6 +88,7 @@ function Detail({ detail, accountId, instrumentId }: { detail: PositionDetail; a
 
       <TagsSection tags={detail.tags} target={{ instrument_id: instrumentId }} accountId={accountId}
         accountName={p.account_name} />
+      <NotesSection notes={detail.notes} target={{ instrument_id: instrumentId }} />
 
       <Section title="Podsumowanie">
         <dl className={ui.kv}>
