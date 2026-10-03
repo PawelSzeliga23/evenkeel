@@ -306,3 +306,13 @@ def test_month_label() -> None:
     from app.reviews.analysis import month_label
 
     assert month_label("2026-09") == "wrz 2026"
+
+
+def test_the_instructions_ask_for_w_skrocie_and_read_tags_and_notes() -> None:
+    from app.reviews.prompt import INSTRUCTIONS
+
+    assert SECTIONS[0] == "W skrócie" and len(SECTIONS) == 10
+    assert INSTRUCTIONS.index("## W skrócie") < INSTRUCTIONS.index("## Ocena ogólna")
+    assert "Wywnioskuj z nich, do czego zmierzam — nie pytaj mnie o to." in INSTRUCTIONS
+    assert "Potem od 1 do 5" in INSTRUCTIONS
+    assert "rozwiń propozycje z „W skrócie”" in INSTRUCTIONS

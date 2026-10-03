@@ -29,3 +29,17 @@ def _title(line: str) -> str:
 def count_sections(text: str) -> int:
     found = {_title(line) for line in text.splitlines() if line.startswith("## ")}
     return len(found & _KNOWN)
+
+
+def summary(text: str) -> str | None:
+    """The text of the „W skrócie” section, without its heading, up to the next `## `; None without one."""
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if line.startswith("## ") and _title(line) == SECTIONS[0].lower():
+            body: list[str] = []
+            for rest in lines[index + 1:]:
+                if rest.startswith("## "):
+                    break
+                body.append(rest)
+            return "\n".join(body).strip() or None
+    return None
