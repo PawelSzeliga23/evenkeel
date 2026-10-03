@@ -4,7 +4,7 @@ Every number comes from the services behind the screens (Pulpit, Pozycje, Analiz
 the package says what the app says. Account numbers, the e-mail and database ids never go in.
 """
 import datetime as dt
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal
 
 from sqlalchemy import select
 
@@ -17,56 +17,19 @@ from app.portfolio.exposure import currency_exposure
 from app.portfolio.limits import wrapper_limits
 from app.portfolio.schemas import AllocationOut, PositionOut
 from app.portfolio.service import average_price, build_positions, daily_totals, lot_outs, portfolio_summary
+from app.reviews.analysis import holdings_section, income_section, tag_names, tags_section
+from app.reviews.fmt import MONTHS, NONE, date, money, number, pct, table
 from app.reviews.prompt import INSTRUCTIONS
 from app.scenarios.service import plan_of, scenario_result
 from app.scoping import UserScope
+from app.tags.lookup import TagLookup
 from app.analytics.schemas import AnalyticsOut
 from app.valuation.engine import Book
 from app.valuation.service import load_fixed_income, load_inputs
 
-NBSP = " "
-MINUS = "−"
-NONE = "—"
 WRAPPERS = {"regular": "zwykłe", "ike": "IKE", "ikze": "IKZE"}
 KINDS = {"broker": "maklerskie", "bonds": "obligacje", "savings": "oszczędnościowe", "cash": "gotówka"}
 BASES = {"portfolio": "Mój portfel", "deposits": "Moje wpłaty"}
-MONTHS = ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"]
-
-
-def _decimal(value: Decimal, places: int) -> str:
-    """Polish: NBSP between thousands, a comma for decimals, a real minus sign."""
-    rounded = value.quantize(Decimal(1).scaleb(-places), rounding=ROUND_HALF_UP)
-    sign = MINUS if rounded < 0 else ""
-    whole, _, fraction = f"{abs(rounded):f}".partition(".")
-    grouped = f"{int(whole):,}".replace(",", NBSP)
-    return f"{sign}{grouped},{fraction}" if places else f"{sign}{grouped}"
-
-
-def money(value: Decimal | None) -> str:
-    return NONE if value is None else f"{_decimal(value, 2)}{NBSP}zł"
-
-
-def pct(value: Decimal | None) -> str:
-    return NONE if value is None else f"{_decimal(value, 2)}{NBSP}%"
-
-
-def number(value: Decimal | None, places: int = 4) -> str:
-    if value is None:
-        return NONE
-    text = _decimal(value, places)
-    return text.rstrip("0").rstrip(",") if "," in text else text
-
-
-def date(value: dt.date | None) -> str:
-    return NONE if value is None else value.strftime("%d.%m.%Y")
-
-
-def table(headers: list[str], rows: list[list[str]]) -> str:
-    if not rows:
-        return "brak"
-    lines = ["| " + " | ".join(headers) + " |", "|" + "---|" * len(headers)]
-    lines += ["| " + " | ".join(cell.replace("|", "/") for cell in row) + " |" for row in rows]
-    return "\n".join(lines)
 
 
 def _allocation(items: list[AllocationOut]) -> list[list[str]]:
@@ -77,7 +40,7 @@ def _accounts(scope: UserScope, account_ids: frozenset[int] | None) -> list[Acco
     return [a for a in scope.db.scalars(scope.accounts()) if account_ids is None or a.id in account_ids]
 
 
-def _positions(scope: UserScope, book: Book, items: list[PositionOut], today: dt.date) -> str:
+def _positions(scope: UserScope, book: Book, items: list[PositionOut], today: dt.date, lookup: TagLookup) -> str:
     instruments = [p for p in items if p.kind == "instrument"]
     rows = [[
         p.ticker or NONE, p.name, p.category or NONE, p.account_name, p.currency or NONE, number(p.quantity),
@@ -85,10 +48,11 @@ def _positions(scope: UserScope, book: Book, items: list[PositionOut], today: dt
         date(p.price_date), money(p.payout_pln), money(p.cost_pln), money(p.unrealized_pln), pct(p.unrealized_pct),
         money(p.price_effect_pln), money(p.fx_effect_pln), money(p.dividends_net_pln), pct(p.share_pct),
         money(p.day_change_pln), "cena z XTB" if "xtb_price" in p.flags else "",
+        tag_names(lookup, f"i:{p.instrument_id}", p.account_id),
     ] for p in instruments]
     out = [table(["Ticker", "Nazwa", "Rodzaj", "Konto", "Waluta", "Sztuk", "Cena bieżąca", "Z dnia",
                   "Wartość do wypłaty", "Koszt", "Zysk", "Zysk %", "Efekt ceny", "Efekt waluty", "Dywidendy netto",
-                  "Udział", "Zmiana dnia", "Uwagi"], rows)]
+                  "Udział", "Zmiana dnia", "Uwagi", "Tagi"], rows)]
     accounts = {a.id: a for a in scope.db.scalars(scope.accounts())}
     for p in instruments:
         if p.instrument_id is None:
@@ -103,7 +67,7 @@ def _positions(scope: UserScope, book: Book, items: list[PositionOut], today: dt
     return "\n".join(out)
 
 
-def _bonds(scope: UserScope, items: list[PositionOut], today: dt.date) -> str:
+def _bonds(scope: UserScope, items: list[PositionOut], today: dt.date, lookup: TagLookup) -> str:
     holdings = [p for p in items if p.kind == "bond" and p.bond_holding_id is not None]
     if not holdings:
         return "brak"
@@ -118,11 +82,12 @@ def _bonds(scope: UserScope, items: list[PositionOut], today: dt.date) -> str:
         period = next((x for x in detail.periods if x.start <= today < x.end), None)
         rows.append([detail.bond.series, str(detail.bond.quantity), date(detail.bond.purchase_date),
                      pct(period.rate) if period else NONE, money(detail.bond.value_pln),
-                     date(detail.bond.maturity_date), WRAPPERS[accounts[stored.account_id].wrapper]])
-    return table(["Seria", "Sztuk", "Zakup", "Oprocentowanie teraz", "Wartość netto", "Wykup", "Konto"], rows)
+                     date(detail.bond.maturity_date), WRAPPERS[accounts[stored.account_id].wrapper],
+                     tag_names(lookup, f"b:{stored.series}", stored.account_id)])
+    return table(["Seria", "Sztuk", "Zakup", "Oprocentowanie teraz", "Wartość netto", "Wykup", "Konto", "Tagi"], rows)
 
 
-def _savings(scope: UserScope, items: list[PositionOut], today: dt.date) -> str:
+def _savings(scope: UserScope, items: list[PositionOut], today: dt.date, lookup: TagLookup) -> str:
     rows = []
     for p in items:
         if p.kind != "savings" or p.savings_account_id is None:
@@ -132,8 +97,8 @@ def _savings(scope: UserScope, items: list[PositionOut], today: dt.date) -> str:
             SavingsRate.savings_account_id == p.savings_account_id, SavingsRate.valid_from <= today,
         ).order_by(SavingsRate.valid_from.desc()))
         rows.append([p.account_name, money(p.payout_pln), pct(rate), account.capitalization if account else NONE,
-                     money(p.unrealized_pln)])
-    return table(["Konto", "Saldo", "Oprocentowanie roczne", "Kapitalizacja", "Odsetki od wpłat"], rows)
+                     money(p.unrealized_pln), tag_names(lookup, "s:", p.account_id)])
+    return table(["Konto", "Saldo", "Oprocentowanie roczne", "Kapitalizacja", "Odsetki od wpłat", "Tagi"], rows)
 
 
 def _measures(results: list[tuple[str, AnalyticsOut]]) -> str:
@@ -256,6 +221,7 @@ def build_package(scope: UserScope, account_ids: frozenset[int] | None, today: d
     whole, last_year = (portfolio_analytics(scope, account_ids, period) for period in ("all", "1y"))
     exposure = currency_exposure(scope, account_ids, today, today)
     by_account = {item.key: item for item in summary.by_account}
+    lookup = TagLookup(scope)
 
     parts = [INSTRUCTIONS, f"# Dane portfela (stan na {date(summary.as_of or today)}, konta: {scope_label})"]
     if summary.recalculating:
@@ -281,14 +247,17 @@ def build_package(scope: UserScope, account_ids: frozenset[int] | None, today: d
              money(by_account[str(a.id)].value_pln) if str(a.id) in by_account else NONE,
              pct(by_account[str(a.id)].share_pct) if str(a.id) in by_account else NONE] for a in accounts
         ]),
-        "## Pozycje (akcje i ETF-y)", _positions(scope, book, items, today),
-        "## Obligacje", _bonds(scope, items, today),
-        "## Konta oszczędnościowe", _savings(scope, items, today),
+        "## Pozycje (akcje i ETF-y)", _positions(scope, book, items, today, lookup),
+        "## Obligacje", _bonds(scope, items, today, lookup),
+        "## Konta oszczędnościowe", _savings(scope, items, today, lookup),
         "## Alokacja",
         "**Według rodzaju**\n\n" + table(["Rodzaj", "Wartość", "Udział"], _allocation(summary.by_kind)),
         "**Według waluty**\n\n" + table(["Waluta", "Wartość", "Udział"],
                                         [[c.currency, money(c.value_pln), pct(c.share_pct)] for c in exposure.current]),
         "**Według konta**\n\n" + table(["Konto", "Wartość", "Udział"], _allocation(summary.by_account)),
+        "## Tagi", tags_section(scope, account_ids),
+        "## Walory", holdings_section(scope, account_ids),
+        "## Dochód i koszty", income_section(scope, account_ids),
         "## Miary (Analiza)", _measures([("Cały okres", whole), ("Ostatni rok", last_year)]),
         "## Historia", _history(scope, account_ids, whole),
         f"## Limity IKE/IKZE ({today.year})", _limits(scope, accounts, today),

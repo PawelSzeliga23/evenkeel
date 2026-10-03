@@ -5,7 +5,7 @@ from fastapi.exceptions import RequestValidationError
 
 from app.errors import ApiError
 from app.models import AiReview
-from app.reviews.clean import clean, count_sections
+from app.reviews.clean import clean, count_sections, summary
 from app.reviews.package import build_package
 from app.reviews.schemas import MAX_CONTENT, ReviewIn, ReviewListItem, ReviewOut
 from app.scoping import AccountIds, DbId, UserScope, get_scope
@@ -25,8 +25,9 @@ def get_package(scope: UserScope = Depends(get_scope), account_ids: AccountIds =
 
 
 @router.get("", response_model=list[ReviewListItem])
-def list_reviews(scope: UserScope = Depends(get_scope)) -> list[AiReview]:
-    return list(scope.db.scalars(scope.reviews()))
+def list_reviews(scope: UserScope = Depends(get_scope)) -> list[ReviewListItem]:
+    return [ReviewListItem(id=r.id, created_at=r.created_at, account_label=r.account_label, sections=r.sections,
+                           summary=summary(r.content)) for r in scope.db.scalars(scope.reviews())]
 
 
 @router.post("", response_model=ReviewOut, status_code=201)

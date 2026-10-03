@@ -23,9 +23,23 @@ def clean(text: str) -> str:
 
 def _title(line: str) -> str:
     """A level-2 heading's words: emoji, numbering and punctuation around them dropped, lower case."""
-    return re.sub(r"^[^\wąćęłńóśźż]+|[^\wąćęłńóśźż]+$", "", line[3:].strip().lower())
+    return re.sub(r"^[^a-ząćęłńóśźż]+|[^a-ząćęłńóśźż]+$", "", line[3:].strip().lower())
 
 
 def count_sections(text: str) -> int:
     found = {_title(line) for line in text.splitlines() if line.startswith("## ")}
     return len(found & _KNOWN)
+
+
+def summary(text: str) -> str | None:
+    """The text of the „W skrócie” section, without its heading, up to the next `## `; None without one."""
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if line.startswith("## ") and _title(line) == SECTIONS[0].lower():
+            body: list[str] = []
+            for rest in lines[index + 1:]:
+                if rest.startswith("## "):
+                    break
+                body.append(rest)
+            return "\n".join(body).strip() or None
+    return None

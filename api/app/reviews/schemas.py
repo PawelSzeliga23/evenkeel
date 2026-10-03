@@ -20,6 +20,7 @@ class ReviewListItem(BaseModel):
     created_at: dt.datetime
     account_label: str
     sections: int
+    summary: str | None = None
 
 
 class ReviewOut(ReviewListItem):

@@ -4,9 +4,10 @@ import { api } from "../../api/endpoints";
 import { keys } from "../../api/queryKeys";
 import { formatRefreshed } from "../../format";
 import ui from "../../ui/ui.module.css";
+import { Markdown } from "./Markdown";
 import styles from "./Review.module.css";
 
-/** On Analiza: when the last review was made, and the way to the review screen; nothing while unreadable. */
+/** On Analiza: when the last review was made, its „W skrócie”, and the way to the review screen; nothing while unreadable. */
 export function ReviewCard() {
   const reviews = useQuery({ queryKey: keys.reviews, queryFn: api.reviews });
   if (!reviews.data) return null;
@@ -20,6 +21,12 @@ export function ReviewCard() {
       <p className={styles.note}>
         {latest ? `Ostatni przegląd: ${formatRefreshed(latest.created_at)}` : "Jeszcze nie ma przeglądu."}
       </p>
+      {latest?.summary && (
+        <>
+          <Markdown text={latest.summary} />
+          <small className="dim">To nie jest porada inwestycyjna.</small>
+        </>
+      )}
     </section>
   );
 }

@@ -6,7 +6,7 @@ from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
 from app.models import Account, User
-from app.reviews.clean import clean, count_sections
+from app.reviews.clean import clean, count_sections, summary
 from app.reviews.prompt import SECTIONS
 
 LoginAs = Callable[[str], dict[str, str]]
@@ -29,7 +29,7 @@ def test_clean_keeps_inner_code_blocks_inside_a_four_backtick_fence() -> None:
 
 
 def test_sections_are_counted_whatever_the_case_or_an_emoji() -> None:
-    assert count_sections(ANSWER) == 9
+    assert count_sections(ANSWER) == 10
     assert count_sections("## 📊 ocena OGÓLNA\n\n## Ryzyka:\n\n### Rynek") == 2  # ### is not a section
     assert count_sections("zwykły tekst") == 0
 
@@ -43,10 +43,10 @@ def test_save_list_read_and_delete(client: TestClient, anna: dict) -> None:
     created = client.post("/api/reviews", json={"content": f"````markdown\n{ANSWER}\n````"}, headers=anna)
     assert created.status_code == 201
     body = created.json()
-    assert (body["content"], body["sections"], body["account_label"]) == (ANSWER, 9, "Cały portfel")
+    assert (body["content"], body["sections"], body["account_label"]) == (ANSWER, 10, "Cały portfel")
 
     listed = client.get("/api/reviews", headers=anna).json()
-    assert [(r["id"], r["sections"]) for r in listed] == [(body["id"], 9)] and "content" not in listed[0]
+    assert [(r["id"], r["sections"]) for r in listed] == [(body["id"], 10)] and "content" not in listed[0]
     assert client.get(f"/api/reviews/{body['id']}", headers=anna).json()["content"] == ANSWER
     assert client.delete(f"/api/reviews/{body['id']}", headers=anna).status_code == 204
     assert client.get(f"/api/reviews/{body['id']}", headers=anna).status_code == 404
@@ -85,3 +85,26 @@ def test_empty_or_too_long_content_is_422(client: TestClient, anna: dict) -> Non
 def test_a_code_block_inside_an_unwrapped_answer_keeps_the_whole_review() -> None:
     copied = "## Ocena ogólna\n\ntekst\n\n```\nkod\n```\n\n## Ryzyka\n\nwięcej"  # Copy in claude.ai drops the outer fence
     assert clean(copied) == copied
+
+
+def test_the_summary_is_the_text_of_w_skrocie() -> None:
+    text = "## 📌 W SKRÓCIE\n\nPortfel jest ostrożny.\n\n1. **Porządki:** wpłać 1 000 zł.\n\n### Szczegół\n\nx\n\n## Ocena ogólna\n\nDalej."
+
+    assert summary(text) == "Portfel jest ostrożny.\n\n1. **Porządki:** wpłać 1 000 zł.\n\n### Szczegół\n\nx"
+    assert summary("## Ocena ogólna\n\nBez skrótu.") is None
+    assert summary("## W skrócie\n\n## Ocena ogólna") is None
+
+
+def test_the_list_carries_the_summary(client: TestClient, anna: dict) -> None:
+    saved = client.post("/api/reviews", json={"content": "## W skrócie\n\nKrótko.\n\n## Ryzyka\n\nDużo."}, headers=anna)
+    assert saved.status_code == 201, saved.text
+    client.post("/api/reviews", json={"content": "## Ryzyka\n\nStary układ."}, headers=anna)
+
+    items = client.get("/api/reviews", headers=anna).json()
+
+    assert [item["summary"] for item in items] == [None, "Krótko."]
+
+
+def test_a_numbered_heading_is_still_its_section() -> None:
+    assert summary("## 1. W skrócie\n\nKrótko.\n\n## 2. Ocena ogólna\n\nDalej.") == "Krótko."
+    assert count_sections("## 1. W skrócie\n\n## 2) Ryzyka") == 2

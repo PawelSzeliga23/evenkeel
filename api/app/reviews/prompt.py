@@ -1,8 +1,8 @@
 """The instruction part of the Claude review package (spec 2026-10-02 §2.A) and the answer's section headings."""
 
 SECTIONS = (
-    "Ocena ogólna", "Mocne strony", "Ryzyka", "Rynek", "Twoje instrumenty", "Pomysły do rozważenia", "Propozycje",
-    "Pytania do przemyślenia", "Źródła",
+    "W skrócie", "Ocena ogólna", "Mocne strony", "Ryzyka", "Rynek", "Twoje instrumenty", "Pomysły do rozważenia",
+    "Propozycje", "Pytania do przemyślenia", "Źródła",
 )
 
 _HEADINGS = "\n".join(f"## {section}" for section in SECTIONS)
@@ -22,10 +22,14 @@ zdaniem.
   branżowe, analizy, wiadomości). Każdą podawaj z linkiem i datą. Jeśli czegoś nie znajdziesz albo wyszukiwanie
   jest niedostępne, napisz to wprost zamiast zgadywać.
 - Kwoty pisz po polsku („1 234,56 zł”), procenty z przecinkiem.
-- Jeśli są notatki właściciela (sekcja „Notatki właściciela”), oceń, czy portfel jest zgodny z jego tezami i planem,
-  i wskaż rozbieżności.
-- W sekcji „Propozycje” możesz być konkretny (co kupić, sprzedać, przenieść, ile), ale zacznij ją zdaniem: „To nie
-  jest porada inwestycyjna — to propozycje do przemyślenia; decyzja należy do Ciebie.”
+- Tagi i notatki (sekcje „Tagi” i „Notatki właściciela”) to mój własny opis portfela: z tagów wynika, jaką rolę
+  pełni każdy walor (np. trzon, emerytura, poduszka, spekulacja, region), a notatki dodają moje powody i plany.
+  Wywnioskuj z nich, do czego zmierzam — nie pytaj mnie o to. Oceniaj portfel względem tego i wskazuj rozbieżności.
+- Zysk walorów za okresy, według kont i typów jest w sekcji „Walory”; dywidendy, odsetki, podatki i koszty
+  w „Dochód i koszty”; udział i zysk tagów w „Tagi”.
+- W sekcji „Propozycje” rozwiń propozycje z „W skrócie” (szczegóły, ryzyka, alternatywy); możesz być
+  konkretny (co kupić, sprzedać, przenieść, ile), ale zacznij ją zdaniem: „To nie jest porada inwestycyjna — to
+  propozycje do przemyślenia; decyzja należy do Ciebie.”
 
 ## Co wyszukać
 
@@ -40,6 +44,12 @@ czterema backtickami — bez żadnego tekstu przed blokiem ani po nim. Wewnątrz
 kolejności:
 
 {_HEADINGS}
+
+„W skrócie”: najpierw 2–3 zdania — jak rozumiesz mój plan i jak portfel do niego dziś pasuje. Potem od 1 do 5
+propozycji jako lista numerowana; każda zaczyna się pogrubioną nazwą perspektywy (np. **Więcej ryzyka, większy
+potencjał:**, **Bezpieczniej:**, **Porządki:**), ma konkretną kwotę i jedno zdanie powodu. Każda propozycja z innej
+perspektywy; gdy dajesz więcej niż jedną, przynajmniej jedna ma zwiększać potencjał zysku, a jedna zmniejszać ryzyko.
+Liczbę propozycji dobierz do tego, co naprawdę warto zrobić.
 
 W sekcji „Twoje instrumenty” każdy instrument jako podrozdział `### TICKER — nazwa`: co to jest, plusy i minusy w
 kontekście mojego portfela, prognozy i opinie ze źródłami. Dla obligacji i kont oszczędnościowych zamiast prognoz
