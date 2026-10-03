@@ -1,10 +1,13 @@
 import datetime as dt
 from collections.abc import Callable
+from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
+from sqlalchemy.orm import Session
 
+from app.models import Instrument, Price, Transaction
 from app.valuation.service import local_today
 from tests.tag_seed import tag_world
 
@@ -173,3 +176,91 @@ def test_a_series_without_bonds_keeps_its_notes_as_closed_without_a_link(client:
     target = _journal(client, world)["entries"][0]["target"]
 
     assert (target["key"], target["label"], target["closed"], target["link"]) == ("b:EDO0336", "EDO0336", True, None)
+
+
+def test_details_carry_the_thesis_and_the_three_newest_entries(client: TestClient, world: dict) -> None:
+    _thesis(client, world, "Rdzeń", instrument_id=world["sxr8"])
+    for day in ("2026-05-01", "2026-06-01", "2026-07-01", "2026-08-01"):
+        _entry(client, world, day, instrument_id=world["sxr8"], entry_date=day)
+    _entry(client, world, "Seria", bond_series="EDO0336")
+    _thesis(client, world, "Poduszka", account_id=world["savings"])
+
+    detail = client.get(f"/api/positions/{world['ike']}/{world['sxr8']}", headers=world["anna"]).json()["notes"]
+    bond = client.get(f"/api/bonds/{world['bond']}", headers=world["anna"]).json()["notes"]
+    savings = client.get(f"/api/savings-accounts/{world['savings']}", headers=world["anna"]).json()["notes"]
+
+    assert detail["thesis"]["body"] == "Rdzeń"
+    assert [e["body"] for e in detail["recent"]] == ["2026-08-01", "2026-07-01", "2026-06-01"]
+    assert detail["count"] == 4 and "target" not in detail["recent"][0]
+    assert (bond["thesis"], [e["body"] for e in bond["recent"]], bond["count"]) == (None, ["Seria"], 1)
+    assert (savings["thesis"]["body"], savings["recent"], savings["count"]) == ("Poduszka", [], 0)
+
+
+def _closed_cdr(engine: Engine, world: dict) -> int:
+    """CD Projekt bought and fully sold on the plain account."""
+    with Session(engine) as db:
+        cdr = Instrument(xtb_ticker="CDR.PL", name="CD Projekt", category="stock", currency="PLN", price_symbol="CDR.WA")
+        db.add(cdr)
+        db.flush()
+        db.add(Price(instrument_id=cdr.id, date=dt.date(2026, 4, 1), close=Decimal("250"), source="yahoo"))
+        for number, (kind, amount, day) in enumerate(
+                [("deposit", "1000", 1), ("buy", "-500", 2), ("sell", "520", 3)], start=900):
+            db.add(Transaction(account_id=world["plain"], type=kind, xtb_type=kind, amount=Decimal(amount),
+                               occurred_at=dt.datetime(2026, 4, day, 10, tzinfo=dt.UTC), currency="PLN",
+                               external_id=str(number), comment="", raw={},
+                               **({} if kind == "deposit" else {"instrument_id": cdr.id, "quantity": Decimal("2"),
+                                                                "price": Decimal("250")})))
+        db.commit()
+        return cdr.id
+
+
+def test_targets_list_open_holdings_before_closed_ones(client: TestClient, world: dict, engine: Engine) -> None:
+    cdr = _closed_cdr(engine, world)
+
+    targets = client.get("/api/journal/targets", headers=world["anna"]).json()
+
+    assert [(t["label"], t["closed"]) for t in targets] == [
+        ("EDO0336", False), ("Konto oszczędnościowe", False), ("SXR8.DE", False), ("CDR.PL", True)]
+    assert targets[-1]["link"] == {"kind": "position", "account_id": world["plain"], "instrument_id": cdr,
+                                   "bond_holding_id": None}
+
+
+def test_a_closed_position_still_shows_its_notes(client: TestClient, world: dict, engine: Engine) -> None:
+    cdr = _closed_cdr(engine, world)
+    _thesis(client, world, "Sprzedane po premierze", instrument_id=cdr)
+
+    detail = client.get(f"/api/positions/{world['plain']}/{cdr}", headers=world["anna"]).json()
+
+    assert detail["notes"]["thesis"]["body"] == "Sprzedane po premierze"
+
+
+def test_deleting_the_savings_account_removes_its_notes(client: TestClient, world: dict) -> None:
+    _thesis(client, world, "Poduszka", account_id=world["savings"])
+    _entry(client, world, "Wpłata", account_id=world["savings"])
+    _entry(client, world, "Portfel")
+
+    usage = client.get(f"/api/accounts/{world['savings']}/usage", headers=world["anna"]).json()
+    assert usage["notes"] == 2
+    assert client.delete(f"/api/accounts/{world['savings']}", headers=world["anna"]).status_code == 204
+
+    assert [e["body"] for e in _journal(client, world)["entries"]] == ["Portfel"]
+
+
+def test_the_price_chart_puts_entries_on_closes(client: TestClient, world: dict, engine: Engine) -> None:
+    with Session(engine) as db:  # closes: Mon 03-02, Mon 06-15, Fri 09-25 (from the seed and here)
+        db.add(Price(instrument_id=world["sxr8"], date=dt.date(2026, 6, 15), close=Decimal("550"), source="yahoo"))
+        db.commit()
+    _entry(client, world, "przed notowaniami", instrument_id=world["sxr8"], entry_date="2026-03-01")
+    _entry(client, world, "w poniedziałek", instrument_id=world["sxr8"], entry_date="2026-03-02")
+    sat = _entry(client, world, "w sobotę", instrument_id=world["sxr8"], entry_date="2026-06-13")
+    _entry(client, world, "po ostatnim", instrument_id=world["sxr8"], entry_date="2026-09-27")
+    _entry(client, world, "o portfelu", entry_date="2026-06-15")
+
+    notes = client.get(f"/api/positions/{world['ike']}/{world['sxr8']}/prices", headers=world["anna"]).json()["notes"]
+    later = client.get(f"/api/positions/{world['ike']}/{world['sxr8']}/prices", params={"from": "2026-06-01"},
+                       headers=world["anna"]).json()["notes"]
+
+    assert [(n["date"], [e["body"] for e in n["entries"]]) for n in notes] == [
+        ("2026-03-02", ["w poniedziałek"]), ("2026-06-15", ["w sobotę"]), ("2026-09-25", ["po ostatnim"])]
+    assert notes[1]["entries"][0] == {"id": sat["id"], "entry_date": "2026-06-13", "body": "w sobotę"}
+    assert [n["date"] for n in later] == ["2026-06-15", "2026-09-25"]

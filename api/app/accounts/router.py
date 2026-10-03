@@ -9,7 +9,10 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.accounts.schemas import AccountCreate, AccountOut, AccountUpdate, AccountUsageOut
 from app.db import get_session_factory
 from app.errors import ApiError
-from app.models import Account, BondHolding, ImportRecord, SavingsAccount, SavingsBalance, SavingsFlow, SavingsRate, Transaction
+from app.models import (
+    Account, BondHolding, ImportRecord, JournalEntry, SavingsAccount, SavingsBalance, SavingsFlow, SavingsRate, Thesis,
+    Transaction,
+)
 from app.scoping import DbId, UserScope, get_scope
 from app.valuation.service import mark_stale, recompute_in_background
 
@@ -56,6 +59,7 @@ def get_account_usage(account_id: DbId, scope: UserScope = Depends(get_scope)) -
         imports=count(ImportRecord, ImportRecord.account_id),
         bond_holdings=count(BondHolding, BondHolding.account_id),
         savings_entries=savings_entries,
+        notes=count(Thesis, Thesis.account_id) + count(JournalEntry, JournalEntry.account_id),
     )
 
 

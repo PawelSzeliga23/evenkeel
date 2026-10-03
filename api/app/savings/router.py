@@ -19,6 +19,7 @@ from app.savings.schemas import (
     SavingsFlowOut, SavingsRateIn, SavingsRateOut, SavingsSettingsIn, SummaryOut,
 )
 from app.savings.summary import capitalizations, summarize
+from app.notes.service import holding_notes
 from app.scoping import DbId, UserScope, get_scope, not_found
 from app.tags.lookup import TagLookup
 from app.valuation.service import local_today, lock_user, mark_stale, recompute_in_background
@@ -94,6 +95,7 @@ def _out(scope: UserScope, settings: SavingsAccount, day: dt.date | None = None)
         summary=SummaryOut(**asdict(summarize(days)), current_rate=current_rate),
         capitalizations=[CapitalizationOut(**asdict(c)) for c in capitalizations(days)],
         tags=TagLookup(scope).on("s:", settings.account_id),
+        notes=holding_notes(scope, f"s:{settings.account_id}"),
     )
 
 
