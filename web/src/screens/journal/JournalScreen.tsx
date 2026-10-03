@@ -67,6 +67,9 @@ export function JournalScreen() {
   function openAdding(open: boolean) { add.reset(); setAdding(open); }
   const holdings = choices.data ?? [];
   const knownFilter = filter === ALL || filter === PORTFOLIO || holdings.some((c) => c.key === filter);
+  // A holding outside the choices (a series without bonds, or while they load): named from its entries, not by key.
+  const filterLabel = journal.data?.entries.find((e) => e.target?.key === filter)?.target?.label
+    ?? (choices.isPending ? "Wczytuję…" : "Nieznany walor");
 
   return (
     <div className={ui.page}>
@@ -78,7 +81,7 @@ export function JournalScreen() {
             onChange={(e) => setParams(e.target.value === ALL ? {} : { target: e.target.value }, { replace: true })}>
             <option value={ALL}>Wszystkie</option>
             <option value={PORTFOLIO}>Portfel</option>
-            {!knownFilter && <option value={filter}>{filter}</option>}
+            {!knownFilter && <option value={filter}>{filterLabel}</option>}
             {holdings.map((c) => <option key={c.key} value={c.key}>{choiceLabel(c)}</option>)}
           </select>
         </Field>
@@ -86,6 +89,7 @@ export function JournalScreen() {
       </div>
       {adding && (
         <EntryForm id="journal-new" choices={holdings} busy={add.isPending} error={add.error}
+          targetLabel={filterLabel}
           initial={{ entry_date: todayIso(), body: "", target: filter === ALL ? PORTFOLIO : filter }}
           onSave={(draft) => add.mutate(draft)} onCancel={() => openAdding(false)} />
       )}

@@ -96,4 +96,17 @@ describe("Dziennik", () => {
 
     expect(await screen.findByText("Zapisuj, dlaczego kupujesz i sprzedajesz — za rok to bezcenne.")).toBeInTheDocument();
   });
+
+  it("names a filtered holding that is not among the choices, never by its key", async () => {
+    const series: NoteHolding = { key: "b:EDO0936", label: "EDO0936", sublabel: "obligacje skarbowe", closed: true, link: null };
+    const orphan: JournalEntry = { ...ENTRIES[0]!, id: 9, body: "Seria bez obligacji.", target: series };
+    const { user } = open("/ustawienia/dziennik?target=b%3AEDO0936", [orphan]);
+
+    const filter = await screen.findByLabelText("Pokaż");
+    await waitFor(() => expect(within(filter).getByRole("option", { name: "EDO0936" })).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "+ Wpis" }));
+    const form = screen.getByRole("form", { name: "Wpis" });
+    expect(within(within(form).getByLabelText("Dotyczy")).queryByRole("option", { name: "b:EDO0936" })).not.toBeInTheDocument();
+    expect(within(filter).queryByRole("option", { name: "b:EDO0936" })).not.toBeInTheDocument();
+  });
 });
