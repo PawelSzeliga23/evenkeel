@@ -16,9 +16,9 @@ WHOLE = "Cały portfel"
 
 
 @router.get("/package")
-def get_package(scope: UserScope = Depends(get_scope), account_ids: AccountIds = None) -> Response:
+def get_package(scope: UserScope = Depends(get_scope), account_ids: AccountIds = None, notes: bool = True) -> Response:
     today = local_today()
-    text = build_package(scope, scope.account_filter(account_ids), today)
+    text = build_package(scope, scope.account_filter(account_ids), today, notes)
     return Response(text, media_type="text/markdown; charset=utf-8", headers={
         "Content-Disposition": f'attachment; filename="evenkeel-przeglad-{today.isoformat()}.md"',
     })
