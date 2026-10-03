@@ -351,3 +351,9 @@ def test_package_says_when_the_valuation_is_still_being_recalculated(
 
     for heading in ("## Tagi", "## Walory"):  # income comes from the operations, not from the valuation
         assert "w trakcie przeliczania" in _section(body, heading), heading
+
+
+def test_a_table_cell_stays_on_one_line() -> None:
+    from app.reviews.fmt import table
+
+    assert table(["Nazwa"], [["Konto\r\nwspólne | żony"]]) == "| Nazwa |\n|---|\n| Konto wspólne / żony |"

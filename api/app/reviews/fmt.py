@@ -40,7 +40,12 @@ def table(headers: list[str], rows: list[list[str]]) -> str:
     if not rows:
         return "brak"
     lines = ["| " + " | ".join(headers) + " |", "|" + "---|" * len(headers)]
-    lines += ["| " + " | ".join(cell.replace("|", "/") for cell in row) + " |" for row in rows]
+    lines += ["| " + " | ".join(_cell(cell) for cell in row) + " |" for row in rows]
     return "\n".join(lines)
 
 
+
+
+def _cell(text: str) -> str:
+    """One table cell on one line: a pipe would start a new column and a line break would end the row."""
+    return " ".join(text.replace("|", "/").splitlines())
