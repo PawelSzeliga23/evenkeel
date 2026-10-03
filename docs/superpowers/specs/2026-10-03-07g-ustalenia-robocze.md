@@ -49,3 +49,25 @@
   - czy także paczki, czyli żadnych nowych tabel, tylko tagi przy walorach i notatki?
 - **„Konkretne kroki” i „krótszy”:** czy mają nadal obowiązywać dla długiego przeglądu, skoro ma zostać „dokładnie to samo”?
 - **Dane z 7c/7d:** czy na pewno mają nie trafić do paczki?
+
+## Wyjaśnienie właściciela (2026-10-03, później) — wiążące
+
+> „chodziło mi o to, aby wszystkie informacje z modułu analizy, czyli praktycznie cały plan 7, trafiały do prompta;
+> co za tym idzie trafiłyby tam też tagi i notatki. Z tagów powinno wynikać, co jest core, emeryturą, a co jest
+> spekulacją i tak dalej, z notatek jakieś dodatkowe rzeczy — daje to dużo kontekstu dla analizy przez AI, bo wie
+> wtedy, do czego użytkownik zmierza. Dodatkowo niech najpierw napisze krótkie 2–3-zdaniowe podsumowanie i do tego
+> 1–5 propozycji poprawienia sytuacji w portfelu, ale z różnych perspektyw: np. że warto zainwestować w to czy to,
+> bo będzie większe ryzyko, ale potencjalnie większy zysk, a w innym punkcie, że warto lepiej hedgować na cały świat.”
+
+Wcześniej: krótka część widoczna od razu w Analizie, długi przegląd po wejściu w raport.
+
+Zrozumienie Claude (do potwierdzenia):
+- Paczka = wszystko z Analizy (plan 7). Już jest: 7a (miary, historia), 7b (scenariusze), 7f-2 (notatki).
+  Dochodzi: 7c Walory (zysk za okresy, według kont i typów, ranking), 7d Dochód i koszty, 7f-1 Tagi
+  (tagi przy walorach, udział i zysk per tag). 7e (wykres ceny) nie wnosi nic ponad tabele — pomijamy.
+- Tagi i notatki mówią, do czego zmierzam (core / emerytura / spekulacja / poduszka…); Claude wnioskuje plan sam.
+- Odpowiedź Claude: najpierw część krótka — podsumowanie 2–3 zdania + 1–5 propozycji, każda z innej perspektywy
+  (np. „więcej ryzyka, większy potencjał”, „lepsze zabezpieczenie / szersza dywersyfikacja na cały świat”),
+  potem dotychczasowy długi przegląd bez zmian.
+- Krótka część widoczna od razu na karcie „Przegląd AI” w Analizie; długi po wejściu w przegląd.
+- Nadal jedna paczka i jedna wklejana odpowiedź (założenie).
