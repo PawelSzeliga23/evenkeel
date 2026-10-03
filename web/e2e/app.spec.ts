@@ -52,6 +52,15 @@ test("rejestracja, import eksportu XTB, pulpit, pozycje i szczegóły pozycji", 
   await tags.getByPlaceholder("Nowy tag…").fill("emerytura");
   await tags.getByPlaceholder("Nowy tag…").press("Enter");
   await expect(tags.getByRole("group", { name: "Walor — na wszystkich kontach" }).getByText("emerytura")).toBeVisible();
+  const notes = page.getByRole("region", { name: "Notatki" });
+  await notes.getByRole("button", { name: "+ Dodaj tezę" }).click();
+  await notes.getByLabel("Treść tezy").fill("Trzymam do premiery kolejnej gry.");
+  await notes.getByRole("button", { name: "Zapisz" }).click();
+  await expect(notes.getByText("Trzymam do premiery kolejnej gry.")).toBeVisible();
+  await notes.getByRole("button", { name: "+ Wpis" }).click();
+  await notes.getByLabel("Treść", { exact: true }).fill("Dokupiłem po spadku.");
+  await notes.getByRole("button", { name: "Zapisz" }).click();
+  await expect(notes.getByRole("button", { name: "Dokupiłem po spadku." })).toBeVisible();
   await page.goto("/analiza/tagi");
   const shares = page.getByRole("list", { name: "Udział w portfelu" });
   await expect(shares.getByRole("listitem").filter({ hasText: "emerytura" })).toContainText("1 walor");
@@ -59,6 +68,14 @@ test("rejestracja, import eksportu XTB, pulpit, pozycje i szczegóły pozycji", 
   await expect(shares.getByText("bez tagu")).toHaveCount(0);
   await expect(page.getByRole("status", { name: "Wczytuję Evenkeel" })).toHaveCount(0, { timeout: 10_000 }); // the startup splash after goto
   await page.screenshot({ path: `${SCREENS}/tagi.png`, fullPage: true });
+  await page.goto("/ustawienia/dziennik");
+  await expect(page.getByRole("link", { name: "CDR.PL" })).toBeVisible();
+  await page.getByRole("button", { name: "+ Wpis" }).click();
+  await page.getByLabel("Treść", { exact: true }).fill("Plan na rok: dopłaty co miesiąc.");
+  await page.getByRole("button", { name: "Zapisz" }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: "Plan na rok" })).toContainText("Portfel");
+  await expect(page.getByRole("status", { name: "Wczytuję Evenkeel" })).toHaveCount(0, { timeout: 10_000 });
+  await page.screenshot({ path: `${SCREENS}/dziennik.png`, fullPage: true });
 
   await page.goto("/ekspozycja");
   await expect(page.getByRole("img", { name: /Udział walut w czasie/ })).toBeVisible();
