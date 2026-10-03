@@ -167,6 +167,10 @@ def _section(body: str, heading: str) -> str:
     return body.split(f"\n{heading}", 1)[1].split("\n## ", 1)[0]
 
 
+def _dec(value: str | None) -> Decimal | None:
+    return None if value is None else Decimal(value)
+
+
 def _savings_balance(engine: Engine, world: dict) -> None:
     """Gives tag_world's savings account a balance, so the package lists it."""
     with Session(engine) as db:
@@ -234,3 +238,71 @@ def test_package_tags_follow_the_account_filter(client: TestClient, tagged: dict
 
 def test_package_without_tags_says_so(client: TestClient, world: dict) -> None:
     assert _section(_package(client, world["anna"]), "## Tagi").strip() == "Brak tagów."
+
+
+def test_package_ranks_the_holdings_over_three_periods(client: TestClient, world: dict) -> None:
+    anna = world["anna"]
+    whole = client.get("/api/analytics/holdings", params={"period": "all"}, headers=anna).json()
+    month = client.get("/api/analytics/holdings", params={"period": "1m"}, headers=anna).json()
+    (item,) = whole["items"]
+    in_month = {i["key"]: i for i in month["items"]}.get(item["key"])
+
+    section = _section(_package(client, anna), "## Walory")
+
+    assert "| Walor | Typ | Wartość | Zysk 1 mies. | % | Zysk 1 rok | % | Zysk cały okres | % |" in section
+    month_cells = (f"{money(Decimal(in_month['gain_pln']))} | {pct(_dec(in_month['gain_pct']))}" if in_month
+                   else "— | —")
+    assert (f"| SXR8.DE — Core S&P 500 | ETF | {money(Decimal(item['value_pln']))} | {month_cells} |") in section
+    assert f"| {money(Decimal(item['gain_pln']))} | {pct(Decimal(item['gain_pct']))} |" in section
+    assert "### Według kont" in section and "| XTB IKE |" in section
+    assert "### Według typów" in section and "| ETF |" in section
+    assert "cały okres: " in section  # the dates of the periods
+
+
+def test_a_holding_outside_a_period_has_dashes(client: TestClient, world: dict, engine: Engine) -> None:
+    with Session(engine) as db:  # CD Projekt bought and sold in April: in the whole history only
+        cdr = Instrument(xtb_ticker="CDR.PL", name="CD Projekt", category="stock", currency="PLN", price_symbol="CDR.WA")
+        db.add(cdr)
+        db.flush()
+        db.add(Price(instrument_id=cdr.id, date=dt.date(2026, 4, 1), close=Decimal("250"), source="yahoo"))
+        for number, (kind, amount, day) in enumerate([("buy", "-500", 2), ("sell", "520", 3)], start=900):
+            db.add(Transaction(account_id=world["account_id"], type=kind, xtb_type=kind, amount=Decimal(amount),
+                               occurred_at=dt.datetime(2026, 4, day, 10, tzinfo=dt.UTC), currency="PLN",
+                               external_id=str(number), comment="", raw={}, instrument_id=cdr.id,
+                               quantity=Decimal("2"), price=Decimal("250")))
+        db.commit()
+        valuate(db, world["user_id"])
+
+    section = _section(_package(client, world["anna"]), "## Walory")
+
+    row = next(line for line in section.splitlines() if line.startswith("| CDR.PL — CD Projekt |"))
+    assert "| — | — |" in row  # not in the last month
+    assert section.index("| SXR8.DE") < section.index("| CDR.PL")  # by the whole-history gain, highest first
+
+
+def test_package_has_income_and_costs(client: TestClient, world: dict) -> None:
+    section = _section(_package(client, world["anna"]), "## Dochód i koszty")
+
+    assert "| Ostatnie 12 miesięcy |" in section and "| Cały okres |" in section
+    assert f"| SXR8.DE Core S&P 500 | dywidenda | {money(Decimal('40'))} | {money(Decimal('6'))} | {money(Decimal('34'))} |" in section
+    assert f"| Przewalutowanie XTB | {money(Decimal('21.41'))} | 1 |" in section
+    assert "### Miesiące (ostatnie 12)" in section and "| cze 2026 |" in section
+
+
+def test_package_analysis_follows_the_account_filter(client: TestClient, world: dict, engine: Engine) -> None:
+    with Session(engine) as db:
+        other = Account(user_id=world["user_id"], name="Puste", kind="broker", wrapper="regular", currency="PLN")
+        db.add(other)
+        db.commit()
+        other_id = other.id
+
+    body = _package(client, world["anna"], account_id=other_id)
+
+    assert "SXR8.DE" not in _section(body, "## Walory")
+    assert "dywidenda" not in _section(body, "## Dochód i koszty")
+
+
+def test_month_label() -> None:
+    from app.reviews.analysis import month_label
+
+    assert month_label("2026-09") == "wrz 2026"

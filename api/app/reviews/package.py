@@ -17,7 +17,7 @@ from app.portfolio.exposure import currency_exposure
 from app.portfolio.limits import wrapper_limits
 from app.portfolio.schemas import AllocationOut, PositionOut
 from app.portfolio.service import average_price, build_positions, daily_totals, lot_outs, portfolio_summary
-from app.reviews.analysis import tag_names, tags_section
+from app.reviews.analysis import holdings_section, income_section, tag_names, tags_section
 from app.reviews.fmt import MONTHS, NONE, date, money, number, pct, table
 from app.reviews.prompt import INSTRUCTIONS
 from app.scenarios.service import plan_of, scenario_result
@@ -256,6 +256,8 @@ def build_package(scope: UserScope, account_ids: frozenset[int] | None, today: d
                                         [[c.currency, money(c.value_pln), pct(c.share_pct)] for c in exposure.current]),
         "**Według konta**\n\n" + table(["Konto", "Wartość", "Udział"], _allocation(summary.by_account)),
         "## Tagi", tags_section(scope, account_ids),
+        "## Walory", holdings_section(scope, account_ids),
+        "## Dochód i koszty", income_section(scope, account_ids),
         "## Miary (Analiza)", _measures([("Cały okres", whole), ("Ostatni rok", last_year)]),
         "## Historia", _history(scope, account_ids, whole),
         f"## Limity IKE/IKZE ({today.year})", _limits(scope, accounts, today),
