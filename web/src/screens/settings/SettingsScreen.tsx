@@ -63,6 +63,12 @@ export function SettingsScreen() {
         <Link className={`${ui.secondary} ${styles.start}`} to="/ustawienia/tagi">Tagi</Link>
       </section>
 
+      <section className={ui.section} aria-labelledby="journal-title">
+        <h2 id="journal-title" className={ui.sectionTitle}>Dziennik</h2>
+        <p className="dim">Teza i decyzje przy walorach oraz wpisy o całym portfelu.</p>
+        <Link className={`${ui.secondary} ${styles.start}`} to="/ustawienia/dziennik">Dziennik</Link>
+      </section>
+
       <section className={styles.about} aria-label="O aplikacji">
         <Logo layout="inline" />
         <small className="dim">Wersja {__APP_VERSION__}</small>
