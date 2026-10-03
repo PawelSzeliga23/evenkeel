@@ -62,9 +62,12 @@ export function JournalScreen() {
     mutationFn: (id: number) => api.deleteEntry(id),
     onSuccess: async () => { setEditing(null); await refresh(); },
   });
-  // Opening or closing an editor forgets the previous attempt's error.
-  function edit(id: number | null) { update.reset(); remove.reset(); setEditing(id); }
-  function openAdding(open: boolean) { add.reset(); setAdding(open); }
+  // Opening or closing an editor forgets the previous attempt's error — but not while a save is still running.
+  function edit(id: number | null) {
+    if (!update.isPending && !remove.isPending) { update.reset(); remove.reset(); }
+    setEditing(id);
+  }
+  function openAdding(open: boolean) { if (!add.isPending) add.reset(); setAdding(open); }
   const holdings = choices.data ?? [];
   const knownFilter = filter === ALL || filter === PORTFOLIO || holdings.some((c) => c.key === filter);
   // A holding outside the choices (a series without bonds, or while they load): named from its entries, not by key.

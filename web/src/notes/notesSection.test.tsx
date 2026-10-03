@@ -147,4 +147,23 @@ describe("Notatki in the details", () => {
 
     expect(within(box).queryByRole("alert")).not.toBeInTheDocument();
   });
+
+  it("keeps a pending save visible when another entry is opened", async () => {
+    mockFetch([
+      ...SIGNED_IN,
+      { path: "/api/positions/2/12", respond: () => ({ ...DETAIL,
+        notes: { thesis: null, count: 2, recent: [entry(5, "2026-09-22", "Pierwszy"), entry(4, "2026-09-21", "Drugi")] } }) },
+      { path: "/api/positions/2/12/prices", respond: () => PRICE_CHART },
+      { method: "PATCH", path: /^\/api\/journal\/\d+$/, respond: () => new Promise<Response>(() => {}) },
+    ]);
+    const { user } = renderApp("/pozycje/2/12");
+    const box = await section();
+
+    await user.click(within(box).getByRole("button", { name: "Pierwszy" }));
+    await user.click(within(box).getByRole("button", { name: "Zapisz" }));
+    await user.click(within(box).getByRole("button", { name: "Anuluj" }));
+    await user.click(within(box).getByRole("button", { name: "Drugi" }));
+
+    expect(within(box).getByRole("button", { name: "Zapisz" })).toBeDisabled();
+  });
 });

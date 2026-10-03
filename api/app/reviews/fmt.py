@@ -44,8 +44,6 @@ def table(headers: list[str], rows: list[list[str]]) -> str:
     return "\n".join(lines)
 
 
-
-
 def _cell(text: str) -> str:
     """One table cell on one line: a pipe would start a new column and a line break would end the row."""
     return " ".join(text.replace("|", "/").splitlines())

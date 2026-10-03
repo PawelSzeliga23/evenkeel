@@ -47,10 +47,13 @@ export function NotesSection({ notes, target, shared = true }: { notes: HoldingN
     mutationFn: (id: number) => api.deleteEntry(id),
     onSuccess: async () => { setEditing(null); await refresh(); },
   });
-  // Opening or closing an editor forgets the previous attempt's error.
-  function edit(id: number | null) { update.reset(); remove.reset(); setEditing(id); }
-  function openAdding(open: boolean) { add.reset(); setAdding(open); }
-  function editThesis(text: string | null) { saveThesis.reset(); setThesis(text); }
+  // Opening or closing an editor forgets the previous attempt's error — but not while a save is still running.
+  function edit(id: number | null) {
+    if (!update.isPending && !remove.isPending) { update.reset(); remove.reset(); }
+    setEditing(id);
+  }
+  function openAdding(open: boolean) { if (!add.isPending) add.reset(); setAdding(open); }
+  function editThesis(text: string | null) { if (!saveThesis.isPending) saveThesis.reset(); setThesis(text); }
 
   function submitThesis(event: FormEvent) {
     event.preventDefault();
