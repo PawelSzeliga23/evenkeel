@@ -5,7 +5,7 @@ import styles from "./Markdown.module.css";
 
 /** The section a heading opens, by its words (emoji, numbering and case ignored), and its marker colour. */
 const SECTION_COLOURS: [string, string][] = [
-  ["Ocena ogólna", "var(--amber)"], ["Mocne strony", "var(--gain)"], ["Ryzyka", "var(--loss)"],
+  ["W skrócie", "var(--amber)"], ["Ocena ogólna", "var(--amber)"], ["Mocne strony", "var(--gain)"], ["Ryzyka", "var(--loss)"],
   ["Rynek", "#3987e5"], ["Twoje instrumenty", "#3987e5"], ["Pomysły do rozważenia", "#9085e9"],
   ["Propozycje", "var(--amber)"], ["Pytania do przemyślenia", "var(--dim)"], ["Źródła", "var(--dim)"],
 ];

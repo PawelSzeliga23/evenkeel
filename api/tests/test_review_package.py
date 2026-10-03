@@ -316,3 +316,9 @@ def test_the_instructions_ask_for_w_skrocie_and_read_tags_and_notes() -> None:
     assert "Wywnioskuj z nich, do czego zmierzam — nie pytaj mnie o to." in INSTRUCTIONS
     assert "Potem od 1 do 5" in INSTRUCTIONS
     assert "rozwiń propozycje z „W skrócie”" in INSTRUCTIONS
+
+
+def test_the_instructions_read_any_tag_names_as_roles() -> None:
+    from app.reviews.prompt import INSTRUCTIONS
+
+    assert "z tagów wynika, jaką rolę pełni każdy walor" in INSTRUCTIONS.replace("\n  ", " ")

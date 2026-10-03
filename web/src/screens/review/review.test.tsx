@@ -129,6 +129,14 @@ function viewRoutes(review: object) {
 }
 
 describe("Reading a review", () => {
+
+  it("marks „W skrócie” like the other sections", async () => {
+    viewRoutes({ ...SAVED, id: 5, content: "## W skrócie\n\nKrótko.\n\n## Ryzyka\n\nDużo." });
+    renderApp("/analiza/przeglad/5");
+
+    const head = await screen.findByRole("heading", { name: "W skrócie", level: 2 });
+    expect(head).toHaveAttribute("data-section", "W skrócie");
+  });
   it("renders the answer like a README with marked sections, tables and outside links", async () => {
     viewRoutes({ ...SAVED, id: 5, content: CONTENT });
     renderApp("/analiza/przeglad/5");

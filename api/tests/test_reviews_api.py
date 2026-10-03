@@ -103,3 +103,8 @@ def test_the_list_carries_the_summary(client: TestClient, anna: dict) -> None:
     items = client.get("/api/reviews", headers=anna).json()
 
     assert [item["summary"] for item in items] == [None, "Krótko."]
+
+
+def test_a_numbered_heading_is_still_its_section() -> None:
+    assert summary("## 1. W skrócie\n\nKrótko.\n\n## 2. Ocena ogólna\n\nDalej.") == "Krótko."
+    assert count_sections("## 1. W skrócie\n\n## 2) Ryzyka") == 2

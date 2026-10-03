@@ -22,9 +22,9 @@ zdaniem.
   branżowe, analizy, wiadomości). Każdą podawaj z linkiem i datą. Jeśli czegoś nie znajdziesz albo wyszukiwanie
   jest niedostępne, napisz to wprost zamiast zgadywać.
 - Kwoty pisz po polsku („1 234,56 zł”), procenty z przecinkiem.
-- Tagi i notatki to mój własny opis portfela: z tagów wynika, co jest trzonem, emeryturą, poduszką, a co spekulacją;
-  notatki dodają moje powody i plany. Wywnioskuj z nich, do czego zmierzam — nie pytaj mnie o to. Oceniaj portfel
-  względem tego i wskazuj rozbieżności.
+- Tagi i notatki (sekcje „Tagi” i „Notatki właściciela”) to mój własny opis portfela: z tagów wynika, jaką rolę
+  pełni każdy walor (np. trzon, emerytura, poduszka, spekulacja, region), a notatki dodają moje powody i plany.
+  Wywnioskuj z nich, do czego zmierzam — nie pytaj mnie o to. Oceniaj portfel względem tego i wskazuj rozbieżności.
 - Zysk walorów za okresy, według kont i typów jest w sekcji „Walory”; dywidendy, odsetki, podatki i koszty
   w „Dochód i koszty”; udział i zysk tagów w „Tagi”.
 - W sekcji „Propozycje” rozwiń propozycje z „W skrócie” (szczegóły, ryzyka, alternatywy); możesz być

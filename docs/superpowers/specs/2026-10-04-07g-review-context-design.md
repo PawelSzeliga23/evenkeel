@@ -149,7 +149,7 @@ Tabela z `tag_analytics(scope, account_ids, "all")`:
   - razem 10 sekcji.
 - **W „Zasadach”:**
   - zdanie o notatkach z 7f-2 zastępuje to:
-    > Tagi i notatki to mój własny opis portfela: z tagów wynika, co jest trzonem, emeryturą, poduszką, a co spekulacją; notatki dodają moje powody i plany. Wywnioskuj z nich, do czego zmierzam — nie pytaj mnie o to. Oceniaj portfel względem tego i wskazuj rozbieżności.
+    > Tagi i notatki (sekcje „Tagi” i „Notatki właściciela”) to mój własny opis portfela: z tagów wynika, jaką rolę pełni każdy walor (np. trzon, emerytura, poduszka, spekulacja, region), a notatki dodają moje powody i plany. Wywnioskuj z nich, do czego zmierzam — nie pytaj mnie o to. Oceniaj portfel względem tego i wskazuj rozbieżności.
   - dochodzi zdanie:
     > Zysk walorów za okresy, według kont i typów jest w sekcji „Walory”; dywidendy, odsetki, podatki i koszty w „Dochód i koszty”; udział i zysk tagów w „Tagi”.
 - **W „Formacie odpowiedzi”** dochodzi opis sekcji „W skrócie”:

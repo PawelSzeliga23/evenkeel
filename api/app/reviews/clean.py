@@ -23,7 +23,7 @@ def clean(text: str) -> str:
 
 def _title(line: str) -> str:
     """A level-2 heading's words: emoji, numbering and punctuation around them dropped, lower case."""
-    return re.sub(r"^[^\wąćęłńóśźż]+|[^\wąćęłńóśźż]+$", "", line[3:].strip().lower())
+    return re.sub(r"^[^a-ząćęłńóśźż]+|[^a-ząćęłńóśźż]+$", "", line[3:].strip().lower())
 
 
 def count_sections(text: str) -> int:
