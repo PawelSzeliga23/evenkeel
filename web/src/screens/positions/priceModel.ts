@@ -1,5 +1,5 @@
 /** Wykres ceny (plan 7e): ranges and the names of the operation markers. */
-import type { IsoDate, Money, PriceMarker } from "../../api/types";
+import type { IsoDate, Money, PriceChartData, PriceMarker, PriceNote } from "../../api/types";
 import { NBSP, addMonths, formatDate, formatDecimal, formatMoney } from "../../format";
 
 export type PriceRange = "buy" | "6m" | "1y" | "5y" | "max";
@@ -39,8 +39,18 @@ export function formatPrice(value: Money, currency: string | null): string {
   return `${whole},${fraction.padEnd(2, "0")}${symbol ? `${NBSP}${symbol}` : ""}`;
 }
 
-export function markerLabel(marker: PriceMarker, currency: string | null): string {
+/** A day of journal entries on the chart (plan 7f-2): drawn as „N” above the price. */
+export interface NoteMark { date: IsoDate; kind: "note"; price: null; entries: PriceNote["entries"] }
+export type ChartMark = PriceMarker | NoteMark;
+
+/** The operations, then one mark per day of entries; the chart's and the panel's index into this list. */
+export function chartMarks(data: PriceChartData): ChartMark[] {
+  return [...data.markers, ...data.notes.map((n): NoteMark => ({ date: n.date, kind: "note", price: null, entries: n.entries }))];
+}
+
+export function markerLabel(marker: ChartMark, currency: string | null): string {
   const day = formatDate(marker.date);
+  if (marker.kind === "note") return `Notatka ${day}`;
   if (marker.kind === "dividend") return `Dywidenda ${day}, ${formatMoney(marker.amount_pln, { sign: true })}`;
   const kind = marker.kind === "buy" ? "Zakup" : "Sprzedaż";
   const quantity = marker.quantity === null ? "" : `${formatDecimal(marker.quantity, 8)} szt.`;

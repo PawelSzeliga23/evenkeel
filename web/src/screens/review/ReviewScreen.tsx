@@ -34,6 +34,12 @@ export function ReviewRow({ review }: { review: ReviewListItem }) {
   );
 }
 
+const NOTES_KEY = "evenkeel.review.notes";
+
+function storedNotes(): boolean {
+  try { return localStorage.getItem(NOTES_KEY) !== "false"; } catch { return true; }
+}
+
 /** Prepare the package for claude.ai, paste Claude's answer back, and the saved reviews. */
 export function ReviewScreen() {
   const [accountIds, setAccountIds] = useAccountSelection();
@@ -42,6 +48,11 @@ export function ReviewScreen() {
   const [status, setStatus] = useState<string | null>(null);
   const [pasted, setPasted] = useState("");
   const [manual, setManual] = useState<string | null>(null);
+  const [withNotes, setWithNotes] = useState(storedNotes);
+  function toggleNotes(next: boolean) {
+    setWithNotes(next);
+    try { localStorage.setItem(NOTES_KEY, String(next)); } catch { /* storage unavailable: the choice lasts this visit */ }
+  }
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const save = useMutation({
@@ -54,7 +65,7 @@ export function ReviewScreen() {
 
   async function download() {
     try {
-      const text = await api.reviewPackage(accountIds);
+      const text = await api.reviewPackage(accountIds, withNotes);
       const url = URL.createObjectURL(new Blob([text], { type: "text/markdown" }));
       const link = document.createElement("a");
       link.href = url;
@@ -69,7 +80,7 @@ export function ReviewScreen() {
 
   async function copy() {
     setManual(null);
-    const text = api.reviewPackage(accountIds);
+    const text = api.reviewPackage(accountIds, withNotes);
     try {
       if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
         // Safari allows the copy only within the click: hand it the pending text instead of awaiting it first.
@@ -101,6 +112,10 @@ export function ReviewScreen() {
             <li>W claude.ai włącz wyszukiwanie w sieci, potem załącz plik albo wklej treść.</li>
             <li>Claude odpowie jednym blokiem Markdown — skopiuj go przyciskiem Copy.</li>
           </ol>
+          <label className={styles.toggle}>
+            <input type="checkbox" role="switch" checked={withNotes} onChange={(e) => toggleNotes(e.target.checked)} />
+            <span>Dołącz notatki <small className="dim">tezy + wpisy z 12 miesięcy</small></span>
+          </label>
           <div className={styles.actions}>
             <button type="button" className={ui.primaryButton} onClick={() => void download()}>Pobierz plik</button>
             <button type="button" className={ui.secondary} onClick={() => void copy()}>Kopiuj do schowka</button>

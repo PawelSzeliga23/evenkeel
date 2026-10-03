@@ -111,5 +111,19 @@ describe("Wykres ceny in the position details", () => {
     open({ ...PRICE_CHART, points: [] });
     expect(within(await section()).getByText("Brak notowań dla tego instrumentu.")).toBeInTheDocument();
   });
+
+  it("shows the day's entries under the chart, then that day's operations", async () => {
+    const user = userEvent.setup();
+    open({ ...PRICE_CHART, notes: [{ date: "2026-02-03", entries: [{ id: 7, entry_date: "2026-02-03", body: "Dokupiłem." }] }] });
+    const box = await section();
+
+    expect(within(box).getByText("Notatka")).toBeInTheDocument(); // the legend
+    await user.click(within(box).getByRole("button", { name: "Notatka 03.02.2026" }));
+
+    const statuses = within(box).getAllByRole("status");
+    expect(statuses[0]).toHaveTextContent("Notatki, 03.02.2026");
+    expect(statuses[0]).toHaveTextContent("Dokupiłem.");
+    expect(statuses[1]).toHaveTextContent("Zakup, 03.02.2026");
+  });
 });
 

@@ -9,7 +9,7 @@ import { formatDate, formatDecimal, formatMoney, formatPercent, signOf, todayIso
 import { ErrorState, Skeleton } from "../../ui/States";
 import { Segmented } from "../../ui/Segmented";
 import ui from "../../ui/ui.module.css";
-import { PRICE_RANGES, formatPrice, rangeFrom, type PriceRange } from "./priceModel";
+import { PRICE_RANGES, chartMarks, formatPrice, rangeFrom, type NoteMark, type PriceRange } from "./priceModel";
 import styles from "./Positions.module.css";
 
 const TITLE_ID = "section-Wykres-ceny";
@@ -53,13 +53,30 @@ function Operation({ marker, last, currency }: { marker: PriceMarker; last: numb
   );
 }
 
-function Legend({ average }: { average: boolean }) {
-  const items: [string, string][] = [["▲", "Zakup"], ["▼", "Sprzedaż"], ["D", "Dywidenda"]];
-  const colors = [MARKER_COLORS.buy, MARKER_COLORS.sell, MARKER_COLORS.dividend];
+function NoteDay({ mark }: { mark: NoteMark }) {
+  return (
+    <div className={styles.operation} role="status">
+      <b>{`Notatki, ${formatDate(mark.date)}`}</b>
+      {mark.entries.map((entry) => (
+        <span key={entry.id} className={styles.noteLine}>
+          <b style={{ color: MARKER_COLORS.note }} aria-hidden="true">N </b>
+          {entry.entry_date !== mark.date && <span className="dim">{`(${formatDate(entry.entry_date)}) `}</span>}
+          {entry.body}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function Legend({ average, notes }: { average: boolean; notes: boolean }) {
+  const items: [string, string, string][] = [
+    ["▲", "Zakup", MARKER_COLORS.buy], ["▼", "Sprzedaż", MARKER_COLORS.sell], ["D", "Dywidenda", MARKER_COLORS.dividend],
+    ...(notes ? [["N", "Notatka", MARKER_COLORS.note] as [string, string, string]] : []),
+  ];
   return (
     <p className={styles.legend}>
-      {items.map(([mark, name], i) => (
-        <span key={name}><b style={{ color: colors[i] }} aria-hidden="true">{mark}</b> {name}</span>
+      {items.map(([mark, name, color]) => (
+        <span key={name}><b style={{ color }} aria-hidden="true">{mark}</b> {name}</span>
       ))}
       {average && <span><i className={styles.averageSwatch} style={{ borderColor: MARKER_COLORS.average }} /> Średnia cena zakupu</span>}
     </p>
@@ -80,7 +97,8 @@ function Chart({ data, average, sinceBuy }: { data: PriceChartData; average: Mon
   const fromBuy = sinceBuy && firstBuy !== undefined;
   const base = fromBuy ? Number(firstBuy.price) : Number(data.points[Math.ceil(view.from - 1e-9)]!.close);
   const moved = change(last, base);
-  const marker = selected === null ? null : data.markers[selected] ?? null;
+  const marks = chartMarks(data);
+  const marker = selected === null ? null : marks[selected] ?? null;
 
   return (
     <>
@@ -90,8 +108,16 @@ function Chart({ data, average, sinceBuy }: { data: PriceChartData; average: Mon
       </p>
       <PriceChart data={data} average={average} selected={selected} onSelect={setSelected}
         view={view} onViewChange={setZoom} onReset={() => setZoom(null)} />
-      <Legend average={average !== null} />
-      {marker && <Operation marker={marker} last={last} currency={data.currency} />}
+      <Legend average={average !== null} notes={data.notes.length > 0} />
+      {marker?.kind === "note" && (
+        <>
+          <NoteDay mark={marker} />
+          {data.markers.filter((m) => m.date === marker.date).map((m, i) => (
+            <Operation key={i} marker={m} last={last} currency={data.currency} />
+          ))}
+        </>
+      )}
+      {marker && marker.kind !== "note" && <Operation marker={marker} last={last} currency={data.currency} />}
       <p className={styles.hint}>Szczypnij lub przesuń, żeby zmienić zakres; dotknij znacznika, żeby zobaczyć operację.</p>
     </>
   );
