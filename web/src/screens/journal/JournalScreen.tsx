@@ -62,6 +62,9 @@ export function JournalScreen() {
     mutationFn: (id: number) => api.deleteEntry(id),
     onSuccess: async () => { setEditing(null); await refresh(); },
   });
+  // Opening or closing an editor forgets the previous attempt's error.
+  function edit(id: number | null) { update.reset(); remove.reset(); setEditing(id); }
+  function openAdding(open: boolean) { add.reset(); setAdding(open); }
   const holdings = choices.data ?? [];
   const knownFilter = filter === ALL || filter === PORTFOLIO || holdings.some((c) => c.key === filter);
 
@@ -79,12 +82,12 @@ export function JournalScreen() {
             {holdings.map((c) => <option key={c.key} value={c.key}>{choiceLabel(c)}</option>)}
           </select>
         </Field>
-        <button type="button" className={ui.primaryButton} aria-expanded={adding} onClick={() => setAdding(!adding)}>+ Wpis</button>
+        <button type="button" className={ui.primaryButton} aria-expanded={adding} onClick={() => openAdding(!adding)}>+ Wpis</button>
       </div>
       {adding && (
         <EntryForm id="journal-new" choices={holdings} busy={add.isPending} error={add.error}
           initial={{ entry_date: todayIso(), body: "", target: filter === ALL ? PORTFOLIO : filter }}
-          onSave={(draft) => add.mutate(draft)} onCancel={() => setAdding(false)} />
+          onSave={(draft) => add.mutate(draft)} onCancel={() => openAdding(false)} />
       )}
       {journal.isPending ? <Skeleton rows={3} />
         : journal.isError ? <ErrorState error={journal.error} onRetry={() => void journal.refetch()} />
@@ -99,9 +102,9 @@ export function JournalScreen() {
                     <EntryForm id={`journal-${entry.id}`} choices={holdings} targetLabel={entry.target?.label}
                       initial={{ entry_date: entry.entry_date, body: entry.body, target: entry.target?.key ?? PORTFOLIO }}
                       busy={update.isPending || remove.isPending} error={update.error ?? remove.error}
-                      onSave={(draft) => update.mutate({ entry, draft })} onCancel={() => setEditing(null)}
+                      onSave={(draft) => update.mutate({ entry, draft })} onCancel={() => edit(null)}
                       onDelete={() => remove.mutate(entry.id)} />
-                  ) : <Row entry={entry} onEdit={() => setEditing(entry.id)} />}
+                  ) : <Row entry={entry} onEdit={() => edit(entry.id)} />}
                 </li>
               ))}
             </ul>

@@ -126,4 +126,25 @@ describe("Notatki in the details", () => {
     const box = await section();
     expect(within(box).getByText("Teza serii")).toBeInTheDocument();
   });
+
+  it("forgets a failed save after Anuluj", async () => {
+    mockFetch([
+      ...SIGNED_IN,
+      { path: "/api/positions/2/12", respond: () => ({ ...DETAIL,
+        notes: { thesis: null, count: 2, recent: [entry(5, "2026-09-22", "Pierwszy"), entry(4, "2026-09-21", "Drugi")] } }) },
+      { path: "/api/positions/2/12/prices", respond: () => PRICE_CHART },
+      { method: "PATCH", path: /^\/api\/journal\/\d+$/,
+        respond: () => json(422, { code: "entry_date", message: "Data wpisu nie może być sprzed 2000 roku." }) },
+    ]);
+    const { user } = renderApp("/pozycje/2/12");
+    const box = await section();
+
+    await user.click(within(box).getByRole("button", { name: "Pierwszy" }));
+    await user.click(within(box).getByRole("button", { name: "Zapisz" }));
+    expect(await within(box).findByRole("alert")).toHaveTextContent("sprzed 2000 roku");
+    await user.click(within(box).getByRole("button", { name: "Anuluj" }));
+    await user.click(within(box).getByRole("button", { name: "Drugi" }));
+
+    expect(within(box).queryByRole("alert")).not.toBeInTheDocument();
+  });
 });
