@@ -22,3 +22,4 @@ web/e2e/screens/
 web/test-results/
 web/playwright-report/
 api/.e2e/
+backups/
