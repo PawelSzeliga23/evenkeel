@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     # since anyone talking to the API directly could write the header themselves.
     client_ip_header: str = ""
     login_rate_limit_per_minute: int = 10
+    login_failures_per_email_per_minute: int = 20  # wrong passwords for one e-mail, from any IP
     register_rate_limit_per_minute: int = 5
     catalog_add_rate_limit_per_minute: int = 10  # each new ticker is fetched now and by the worker for good
     market_daily_at: str = Field(default="23:00", pattern=HH_MM)

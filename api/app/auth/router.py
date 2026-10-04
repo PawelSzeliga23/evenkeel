@@ -129,15 +129,17 @@ def login(
     settings: Settings = Depends(app_settings),
 ) -> TokenOut:
     email = body.email.lower()
-    limiter = request.app.state.login_limiter
-    # Per IP, and per e-mail so that guessing one password from many IPs is slowed down too.
-    if not limiter.hit(_client_key(request)) or not limiter.hit(f"email:{email}"):
+    failures = request.app.state.email_limiter
+    # Per IP, and wrong passwords per e-mail so that guessing one password from many IPs is slowed down too.
+    if not request.app.state.login_limiter.hit(_client_key(request)) or failures.full(email):
         raise _rate_limited()
     user = db.scalar(select(User).where(User.email == email))
     if user is None:
         verify_password(_DUMMY_HASH, body.password)
+        failures.hit(email)
         raise _invalid_credentials()
     if not verify_password(user.password_hash, body.password):
+        failures.hit(email)
         raise _invalid_credentials()
     now = datetime.now(UTC)
     return _issue_tokens(db, user, response, settings, _new_session(request, now), now)

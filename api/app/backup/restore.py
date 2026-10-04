@@ -139,6 +139,11 @@ def read_backup(content: bytes) -> Backup:
     }
     for spec in TABLES:
         tables[spec.name] = _rows(data, spec.name, spec.model, {spec.owner_column} if spec.owner_column else set())
+    if "catalog_additions" not in data:  # a backup from before 0018: the added tickers in the catalog were the user's
+        tables["catalog_additions"] = [
+            {"id": number, "instrument_id": row["id"]}
+            for number, row in enumerate(tables["instruments"], start=1)
+            if row.get("in_catalog") and row.get("catalog_group") == ADDED_GROUP]
 
     ids: dict[str, set[Any]] = {}
     for name, rows in tables.items():
@@ -148,7 +153,7 @@ def read_backup(content: bytes) -> Backup:
             raise _corrupt(f"powtórzony numer w tabeli {name}")
         ids[name] = set(values)
     for row in tables["instruments"]:  # a symbol the API would not accept could point the worker anywhere
-        if row.get("price_symbol") is not None and not re.match(SYMBOL_PATTERN, row["price_symbol"]):
+        if row.get("price_symbol") is not None and not re.fullmatch(SYMBOL_PATTERN, row["price_symbol"]):
             raise _corrupt(f"zły symbol cen {row['price_symbol']}")
     tickers = [row["xtb_ticker"] for row in tables["instruments"]]
     if len(set(tickers)) != len(tickers):

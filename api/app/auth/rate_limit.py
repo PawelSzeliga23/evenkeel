@@ -29,6 +29,12 @@ class RateLimiter:
         for tracked_key in empty_keys:
             del self._hits[tracked_key]
 
+    def full(self, key: str) -> bool:
+        """Whether the next hit of `key` would be refused (records nothing)."""
+        now = self._clock()
+        self._evict_stale(now)
+        return len(self._hits.get(key, ())) >= self.limit
+
     def hit(self, key: str) -> bool:
         now = self._clock()
         self._evict_stale(now)

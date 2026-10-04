@@ -274,6 +274,8 @@ def test_bad_files_are_refused_and_the_old_data_stays(client: TestClient, login_
     status, message = _rejected(client, anna, changed(
         lambda b: b["data"]["instruments"][0].update(price_symbol="evil/../x?y")))
     assert status == 422 and "zły symbol cen" in message
+    status, message = _rejected(client, anna, changed(lambda b: b["data"]["instruments"][0].update(price_symbol="AAPL\n")))
+    assert status == 422 and "zły symbol cen" in message
     assert _rejected(client, anna, json.dumps(good).encode(), confirm="tak") == (
         422, "Wpisz ZASTĄP, żeby wczytać kopię.")
     big = _upload(client, anna, "/api/backup/restore", b" " * (20 * 1024 * 1024 + 1), "ZASTĄP")
@@ -296,3 +298,16 @@ def test_a_backup_cannot_put_an_instrument_on_everyones_starter_list(
     with Session(engine) as db:
         fake = db.scalar(select(Instrument).where(Instrument.xtb_ticker == "FAKE.US"))
         assert (fake.in_catalog, fake.catalog_group, fake.catalog_seeded) == (False, None, False)
+
+
+def test_a_backup_from_before_catalog_additions_keeps_the_added_tickers(
+    client: TestClient, login_as: LoginAs, engine: Engine,
+) -> None:
+    anna, ben = login_as("anna@portfolio.dev"), login_as("ben@portfolio.dev")
+    seed(engine, "anna@portfolio.dev")  # its instrument is one Anna added to the catalog
+    old = client.get("/api/backup", headers=anna).json()
+    del old["data"]["catalog_additions"]
+
+    assert _upload(client, ben, "/api/backup/restore", json.dumps(old).encode(), "ZASTĄP").status_code == 200
+    groups = {g["group"]: [i["ticker"] for i in g["items"]] for g in client.get("/api/catalog", headers=ben).json()}
+    assert groups["Dodane przez Ciebie"] == ["CDR.PL"]
