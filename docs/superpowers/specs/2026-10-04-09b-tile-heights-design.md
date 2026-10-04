@@ -70,6 +70,37 @@ Układ domyślny (bez zapisanego): Wartość portfela M·4U + Wykres wartości�
 dzisiejszy porządek bez przerw (np. Wartość portfela L·3U, Wykres wartości L·6U, Alokacja M·4U obok Analiza M·3U +
 Limity… — dobrać tak, by sumy U w parach się zgadzały).
 
+## Pełna lista kafelków po 9b (prośba właściciela: więcej wariantów S)
+
+S = 1 kolumna (ćwiartka ekranu komputera, pół telefonu), M = 2, L = 4. „n” = wysokość z liczby pól (zasada wyżej).
+**Nowe w 9b** oznaczone ★. Wariant S zawsze pokazuje jedną najważniejszą rzecz z kafelka i link do szczegółów.
+
+| # | Kafelek | S | M | L |
+|---|---|---|---|---|
+| 1 | Wartość portfela | S·2U kwota i zmiana dziś | M·n kwota + pola po 2 (1–8 pól) | L·n kwota + pola po 4 |
+| 2 | Jedna miara | S·1U nazwa i liczba w wierszu · S·2U z dopiskiem | — | — |
+| 3 | Wykres wartości | ★S·2U wartość, zmiana w zakresie i mała linia (bez osi) | M·4U | L·4U · L·6U |
+| 4 | Wykres ceny waloru | ★S·2U cena, zmiana od 1. zakupu, mała linia | M·5U | L·6U |
+| 5 | Alokacja | S·2U pasek + największa część | M·4U pasek + lista | L·4U lista w 2 kolumnach |
+| 6 | Analiza | ★S·n miary jedna pod drugą (1–3 miary, 1U + nU) | M·n miary po 2 | L·n po 4 · L·n + wykres obsunięcia |
+| 7 | Limity IKE/IKZE | S·2U % wykorzystania | M·2U | — |
+| 8 | Dziś najbardziej | ★S·2U największy wzrost i największy spadek | M·n (3/5/10) | L·n w 2 kolumnach |
+| 9 | Walory (mapa cieplna) | ★S·3U mała mapa bez podpisów | M·3U | L·5U |
+| 10 | Dochód i koszty | S·2U bilans od pocz. roku | M·2U | — |
+| 11 | Tagi | ★S·2U największy tag i jego udział | M·3U | — |
+| 12 | Symulator | ★S·2U najlepszy scenariusz i różnica wobec portfela | M·4U | — |
+| 13 | Przegląd AI | ★S·2U data ostatniego przeglądu i liczba sekcji | M·4U | L·4U |
+| 14 | ★Ekspozycja walutowa | S·2U udział największej waluty obcej | M·3U pasek walut + lista | — |
+| 15 | ★Ostatnie operacje | S·2U ostatnia operacja | M·n (3/5/10) | L·n w 2 kolumnach |
+| 16 | ★Najlepsze i najgorsze walory | S·2U najlepszy i najgorszy za okres | M·n (po 2/3/5) | L·n obok siebie |
+| 17 | ★Gotówka na kontach | S·2U gotówka razem | M·3U per konto | — |
+| 18 | ★Obligacje | S·2U wartość obligacji i najbliższy wykup | M·3U lista serii z wartością i datą wykupu | — |
+| 19 | ★Konta oszczędnościowe | S·2U saldo i oprocentowanie | M·3U lista kont z saldem, stawką i odsetkami | — |
+| 20 | ★Dziennik | S·2U data i początek ostatniego wpisu | M·3U 3 ostatnie wpisy (teza / dziennik) | — |
+
+Kafelki 18–20 to propozycje z tej samej rozmowy (dane już są w API: `/api/bonds`, `/api/savings-accounts`,
+`/api/journal` / notatki z planu 7f-2); do potwierdzenia przez właściciela razem z tą listą.
+
 ## Decyzje właściciela (2026-10-04)
 
 1. **1U = 72 px** — tak.
