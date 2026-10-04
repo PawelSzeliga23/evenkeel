@@ -28,8 +28,9 @@ def test_password_change_keeps_this_session_and_ends_the_others(make_app: Callab
 
     assert _change(phone, headers).status_code == 204
 
-    assert phone.post("/api/auth/refresh").status_code == 200
     assert laptop.post("/api/auth/refresh").status_code == 401
+    # the laptop trying its old cookie is not a stolen one: this session goes on
+    assert phone.post("/api/auth/refresh").status_code == 200
     assert phone.post("/api/auth/login", json={"email": EMAIL, "password": OLD}).status_code == 401
     assert phone.post("/api/auth/login", json={"email": EMAIL, "password": NEW}).status_code == 200
 

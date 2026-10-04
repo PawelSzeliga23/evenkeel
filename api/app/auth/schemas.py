@@ -1,3 +1,5 @@
+import uuid
+from datetime import datetime
 from typing import Annotated
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, EmailStr, Field
@@ -37,3 +39,18 @@ class UserOut(BaseModel):
     email: str
     base_currency: str
     preferences: PreferencesOut = Field(default_factory=PreferencesOut)
+
+
+class SessionOut(BaseModel):
+    """One signed-in device (plan 8d): its rotating tokens share the session number."""
+
+    id: uuid.UUID
+    user_agent: str | None
+    started_at: datetime
+    last_used_at: datetime
+    current: bool
+
+
+class AccountDeleteIn(BaseModel):
+    password: str = Field(max_length=128)
+    confirm: str = Field(max_length=40)
