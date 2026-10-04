@@ -14,14 +14,18 @@ import ui from "../ui/ui.module.css";
 import styles from "./Dashboard.module.css";
 import { METRICS, metricValue, type MetricKey } from "./metrics";
 
-export function TileSection({ title, more, children }: {
-  title: string; more?: { to: string; label: string; text?: string }; children: ReactNode;
+export function TileSection({ title, note, more, children }: {
+  title: string; /** A short word beside the title, e.g. the period (plan 9b: no extra line in a tile of 2U). */ note?: string;
+  more?: { to: string; label: string; text?: string }; children: ReactNode;
 }) {
   const id = useId();
   return (
     <section className={styles.tileSection} aria-labelledby={id}>
       <div className={ui.sectionHead}>
-        <h2 id={id} className={ui.sectionTitle}>{title}</h2>
+        <span className={styles.tileTitleRow}>
+          <h2 id={id} className={ui.sectionTitle}>{title}</h2>
+          {note && <span className={styles.tileNoteInline}>{note}</span>}
+        </span>
         {more && <Link className={ui.sectionMore} to={more.to} aria-label={more.label}>{more.text ?? "Szczegóły"}</Link>}
       </div>
       {children}

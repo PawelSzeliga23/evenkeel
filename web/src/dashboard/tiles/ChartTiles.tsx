@@ -69,7 +69,7 @@ export function ValueChartTile({ tile, summary }: { tile: Tile<"value_chart">; s
       {history.isPending ? <Skeleton chart rows={0} />
         : history.isError ? <TileError onRetry={() => void history.refetch()} />
           : <ValueChart points={history.data.points} view={zoom ?? rangeView} yRange={yRange}
-            maxHeight={tile.variant === "L6" ? 300 : 190}
+            maxHeight={tile.variant === "L6" ? 360 : 180}
             onViewChange={setZoom} onYRangeChange={setYRange} onReset={resetChart} />}
       <Segmented label="Zakres wykresu" options={RANGES} value={zoom ? null : range}
         onChange={(next) => { setRange(next); resetChart(); }} />

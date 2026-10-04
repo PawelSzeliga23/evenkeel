@@ -322,17 +322,14 @@ test("pulpit z kafelków: dodanie miary na telefonie, układ na komputerze", asy
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.getByRole("button", { name: "Edytuj pulpit" }).click();
   await page.getByRole("button", { name: "+ Dodaj kafelek" }).click();
-  await page.getByRole("button", { name: /^Jedna miara/ }).click();
+  await page.getByRole("button", { name: "Jedna miara S · 1U" }).click();
   await page.screenshot({ path: `${SCREENS}/pulpit-edycja.png`, fullPage: true });
   await page.getByRole("button", { name: "Ustaw kafelek Jedna miara" }).click();
   await page.screenshot({ path: `${SCREENS}/pulpit-edycja-kafelek.png` });
   await page.getByRole("button", { name: "Zamknij ustawienia" }).click();
   // a small allocation sits beside the metric, half a phone wide
   await page.getByRole("button", { name: "+ Dodaj kafelek" }).click();
-  await page.getByRole("button", { name: /^Alokacja/ }).click();
-  await page.getByRole("button", { name: "Ustaw kafelek Alokacja" }).first().click();
-  await page.getByRole("radio", { name: "S" }).click();
-  await page.getByRole("button", { name: "Zamknij ustawienia" }).click();
+  await page.getByRole("button", { name: "Alokacja S · 2U" }).click();
   await page.getByRole("button", { name: "Gotowe" }).click();
   await expect(page.getByRole("button", { name: "Gotowe" })).toBeHidden();
 
@@ -351,6 +348,12 @@ test("pulpit z kafelków: dodanie miary na telefonie, układ na komputerze", asy
   await desk.getByRole("button", { name: "Zaloguj się" }).click();
   await expect(desk.getByRole("region", { name: "XIRR" })).toBeVisible({ timeout: 45_000 });
   await expect(desk.getByRole("img", { name: /Wykres wartości portfela/ })).toBeVisible();
+  // heights in U: tiles side by side end on the same line, so no gaps (plan 9b)
+  const boxes = await desk.locator("[data-variant]").evaluateAll((els) => els.map((el) => {
+    const r = el.getBoundingClientRect();
+    return { top: Math.round(r.top), bottom: Math.round(r.bottom), u: getComputedStyle(el).getPropertyValue("--u") };
+  }));
+  for (const box of boxes) expect(box.bottom - box.top).toBe(Number(box.u) * 72 + (Number(box.u) - 1) * 16);
   await desk.screenshot({ path: `${SCREENS}/pulpit-komputer.png`, fullPage: true });
   await desk.getByRole("navigation", { name: "Główna" }).getByRole("link", { name: "Edytuj pulpit" }).click();
   await expect(desk.getByRole("button", { name: "Gotowe" })).toBeVisible();

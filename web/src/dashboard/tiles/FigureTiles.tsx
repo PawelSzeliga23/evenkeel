@@ -82,8 +82,7 @@ export function AnalysisTile({ tile, summary }: { tile: Tile<"analysis">; summar
   const analytics = useTileAnalytics(period, true);
   const data = analytics.data;
   return (
-    <TileSection title="Analiza" more={{ to: "/analiza", label: "Szczegóły analizy" }}>
-      <span className="dim">{PERIOD_NAMES[period]}</span>
+    <TileSection title="Analiza" note={PERIOD_NAMES[period]} more={{ to: "/analiza", label: "Szczegóły analizy" }}>
       {analytics.isPending ? <Skeleton rows={2} />
         : analytics.isError ? <TileError onRetry={() => void analytics.refetch()} />
           : data!.period === null ? <TileNote>Brak wyceny w tym okresie.</TileNote> : (

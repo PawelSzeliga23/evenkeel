@@ -39,7 +39,7 @@ export function yDomain(points: ChartPoint[]): { min: number; max: number; ticks
   return { min, max, ticks };
 }
 
-export function frameFor(width: number, maxHeight = 300): Frame {
+export function frameFor(width: number, maxHeight = 300): Frame { // a tile of the Pulpit may allow a taller one
   return { ...FRAME, width, height: Math.min(Math.max(Math.round(width * 0.45), Math.min(190, maxHeight)), maxHeight) };
 }
 
