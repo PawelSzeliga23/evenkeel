@@ -541,6 +541,8 @@ export interface Preferences {
   value_range: "1M" | "3M" | "1R" | "ALL";
   price_range: "buy" | "6m" | "1y" | "5y" | "max";
   holdings_without_fixed_income: boolean;
+  /** Plan 9: the Pulpit's tiles; null = the default layout. Read through normalize() in src/dashboard/layout. */
+  dashboard: unknown;
 }
 
 /** Plan 8c: what a backup file holds (POST /api/backup/check and /restore). */
