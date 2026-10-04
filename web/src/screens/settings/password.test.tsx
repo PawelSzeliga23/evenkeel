@@ -63,8 +63,11 @@ describe("password change", () => {
 
     await user.type(await screen.findByLabelText("Obecne hasło"), "stare-haslo-1");
     const long = "a".repeat(129);
-    await user.type(screen.getByLabelText("Nowe hasło"), long);
-    await user.type(screen.getByLabelText("Powtórz nowe hasło"), long);
+    // pasted: typing 258 keys one by one runs into the test timeout on a busy machine
+    await user.click(screen.getByLabelText("Nowe hasło"));
+    await user.paste(long);
+    await user.click(screen.getByLabelText("Powtórz nowe hasło"));
+    await user.paste(long);
     await user.click(screen.getByRole("button", { name: "Zmień hasło" }));
 
     expect(screen.getByText("Hasło może mieć najwyżej 128 znaków.")).toBeInTheDocument();
