@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import { useAccountSelection } from "../../accounts/AccountSelection";
 import { api } from "../../api/endpoints";
 import { keys } from "../../api/queryKeys";
@@ -34,6 +34,7 @@ const tone = (value: string | null) => (signOf(value) > 0 ? "up" : signOf(value)
 export function DashboardScreen() {
   const queryClient = useQueryClient();
   const [accountIds, setAccountIds, ready] = useAccountSelection();
+  const notice = (useLocation().state as { notice?: string } | null)?.notice; // e.g. after restoring a backup
   const [hidden, setHidden] = usePrivacy();
   const prefs = usePreferences();
   const [range, setRange] = useState<Range>(prefs.value_range);
@@ -108,6 +109,7 @@ export function DashboardScreen() {
           </button>
         </span>
       </div>
+      {notice && <p className={ui.notice} role="status">{notice}</p>}
       {refresh.isError && <p role="alert" className={styles.refreshError}>Nie udało się odświeżyć cen. Spróbuj ponownie.</p>}
     </>
   );
