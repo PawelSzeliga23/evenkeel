@@ -11,4 +11,4 @@
 .table th, .table td { text-align: right; padding: 6px 0; border-top: 1px solid var(--rule); }
 .table th:first-child, .table td:first-child { text-align: left; }
 .note { color: var(--dim); }
-.chart summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; color: var(--amber); }
+.chart summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; color: var(--amber-text); }

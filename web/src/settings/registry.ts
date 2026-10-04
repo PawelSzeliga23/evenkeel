@@ -21,6 +21,7 @@ export const SETTINGS: SettingItem[] = [
   { id: "sources", group: "Portfel", title: "Źródła cen", keywords: "ceny notowania symbol Yahoo spread", to: "/ustawienia/zrodla-cen" },
   { id: "tags", group: "Portfel", title: "Tagi walorów", keywords: "tag kolor kategorie", to: "/ustawienia/tagi" },
   { id: "journal", group: "Portfel", title: "Dziennik", keywords: "notatki teza wpisy", to: "/ustawienia/dziennik" },
+  { id: "theme", group: "Wygląd i prywatność", title: "Motyw", keywords: "jasny ciemny kolor kolory tryb wygląd", to: "/ustawienia/wyglad#motyw" },
   { id: "hide", group: "Wygląd i prywatność", title: "Ukrywanie kwot", keywords: "prywatność ukryj oko kwoty", to: "/ustawienia/wyglad" },
   { id: "start", group: "Wygląd i prywatność", title: "Ekran startowy", keywords: "start pierwszy ekran po zalogowaniu", to: "/ustawienia/wyglad#start" },
   { id: "defaults", group: "Domyślne widoki", title: "Domyślne widoki", keywords: "domyślne okres zakres", to: "/ustawienia/domyslne" },

@@ -8,17 +8,17 @@
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
   display: grid; grid-template-columns: repeat(5, 1fr);
   padding: 8px 6px calc(10px + env(safe-area-inset-bottom));
-  background: rgba(14, 17, 22, .92); backdrop-filter: blur(12px);
+  background: var(--nav-bg); backdrop-filter: blur(12px);
   border-top: 1px solid var(--rule);
 }
 .item {
   display: grid; justify-items: center; align-content: center; gap: 3px; min-height: 48px;
   color: var(--dim); font-size: 11px; font-weight: 500;
 }
-.item[aria-current="page"] { color: var(--amber); }
+.item[aria-current="page"] { color: var(--amber-text); }
 .sidebarBrand { display: none; }
 .plus {
-  width: 42px; height: 30px; border-radius: 10px; background: var(--amber); color: var(--night);
+  width: 42px; height: 30px; border-radius: 10px; background: var(--amber); color: var(--on-amber);
   display: grid; place-items: center;
 }
 
@@ -51,4 +51,4 @@
 /* Pulpit's top row on a phone: the logo and the gear. */
 .topRow { justify-content: space-between; align-items: center; margin: -6px -10px 0 0; }
 .gear { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 999px; color: var(--dim); }
-.gear:hover { color: var(--amber); }
+.gear:hover { color: var(--amber-text); }

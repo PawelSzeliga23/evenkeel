@@ -22,7 +22,7 @@ describe("chartData", () => {
       ["1", ["500.00", "10900.00", "11000.00", "12044.20"]],
       ["2", [null, "10900.00", "11000.00", "9000.00"]],
     ]);
-    expect(data.lines[2]).toMatchObject({ color: "#9085e9", dashed: true });
+    expect(data.lines[2]).toMatchObject({ color: "var(--series-4)", dashed: true });
     expect(data.invested).toEqual([null, "10000.00", "10000.00", "10000.00"]);
   });
 

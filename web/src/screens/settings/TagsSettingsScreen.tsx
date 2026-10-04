@@ -4,7 +4,7 @@ import { api } from "../../api/endpoints";
 import { errorMessage } from "../../api/messages";
 import { keys } from "../../api/queryKeys";
 import type { Tag } from "../../api/types";
-import { TAG_PALETTE } from "../../tags/model";
+import { TAG_PALETTE, tagColor } from "../../tags/model";
 import { TagChip } from "../../tags/TagChip";
 import tagStyles from "../../tags/Tags.module.css";
 import { BackLink } from "../../ui/BackLink";
@@ -61,7 +61,7 @@ function TagItem({ tag }: { tag: Tag }) {
           <div className={tagStyles.chips} role="group" aria-label="Kolor tagu">
             {TAG_PALETTE.map((color) => (
               <button key={color} type="button" className={styles.swatch} aria-label={`Kolor ${color}`}
-                aria-pressed={tag.color === color} style={{ background: color }} onClick={() => update.mutate({ color })} />
+                aria-pressed={tag.color === color} style={{ background: tagColor(color) }} onClick={() => update.mutate({ color })} />
             ))}
           </div>
         </form>

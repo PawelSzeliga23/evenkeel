@@ -8,17 +8,17 @@
 .leaving .stack { transform: scale(7); opacity: 0; }
 .mark {
   position: relative; width: 84px; height: 84px; border-radius: 20px; overflow: hidden;
-  background: linear-gradient(135deg, #1C2129, #0E1116); border: 1px solid #242A33;
+  background: linear-gradient(135deg, var(--brand-tile-from), var(--brand-tile-to)); border: 1px solid var(--brand-tile-border);
 }
 .bars { position: absolute; left: 11px; width: 62px; bottom: 15px; height: 50px; overflow: hidden; }
 .bar {
   position: absolute; bottom: 0; width: 10px; border-radius: 2px 2px 0 0;
-  background: linear-gradient(0deg, #8A5A1C, #FFC266);
+  background: linear-gradient(0deg, var(--brand-bar-from), var(--brand-bar-to));
   animation: rise .9s cubic-bezier(.45, 0, .2, 1) both;
   transition: height .9s cubic-bezier(.45, 0, .2, 1), left .9s cubic-bezier(.45, 0, .2, 1), transform .9s cubic-bezier(.45, 0, .2, 1);
 }
 .gone { animation: none; transform: translateY(105%); }
-.base { position: absolute; left: 9px; right: 9px; bottom: 14px; height: 1px; background: #3A424E; }
+.base { position: absolute; left: 9px; right: 9px; bottom: 14px; height: 1px; background: var(--brand-base); }
 .stack .word { font-size: 24px; }
 @keyframes rise { from { transform: translateY(105%); } to { transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) {

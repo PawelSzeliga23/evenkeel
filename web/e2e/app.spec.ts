@@ -3,7 +3,13 @@ import { execSync } from "node:child_process";
 import { resolve } from "node:path";
 
 const EXPORT = resolve(import.meta.dirname, "../../api/.e2e/IKE_56216965_2006-01-01_2026-09-26.xlsx");
-const SCREENS = resolve(import.meta.dirname, "screens");
+/** E2E_THEME=light runs every test in the light theme (plan 8b) and keeps its screenshots apart, to compare by eye. */
+const LIGHT = process.env.E2E_THEME === "light";
+const SCREENS = resolve(import.meta.dirname, LIGHT ? "screens/light" : "screens");
+
+test.beforeEach(async ({ page }) => {
+  if (LIGHT) await page.addInitScript(() => localStorage.setItem("evenkeel.theme", "light"));
+});
 
 test("rejestracja, import eksportu XTB, pulpit, pozycje i szczegóły pozycji", async ({ page }) => {
   await page.goto("/rejestracja");

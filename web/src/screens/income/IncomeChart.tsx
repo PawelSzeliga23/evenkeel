@@ -13,13 +13,13 @@ const MIN_LABEL_W = 28;
 
 export const PARTS = {
   income: [
-    { key: "interest", label: "odsetki", color: "#5DB98A" },
-    { key: "dividends", label: "dywidendy", color: "#7FB6E6" },
+    { key: "interest", label: "odsetki", color: "var(--income-interest)" },
+    { key: "dividends", label: "dywidendy", color: "var(--income-dividends)" },
   ],
   costs: [
-    { key: "fx", label: "przewalutowanie", color: "#E0676E" },
-    { key: "taxes", label: "podatki", color: "#B07FE0" },
-    { key: "fees", label: "opłaty", color: "#F0A43A" },
+    { key: "fx", label: "przewalutowanie", color: "var(--income-fx)" },
+    { key: "taxes", label: "podatki", color: "var(--income-taxes)" },
+    { key: "fees", label: "opłaty", color: "var(--income-fees)" },
   ],
 } as const;
 

@@ -8,7 +8,7 @@ import { FormError } from "../ui/forms";
 import { Segmented } from "../ui/Segmented";
 import ui from "../ui/ui.module.css";
 import { TagChip } from "./TagChip";
-import { linkBody, rows, type TagLevel, type TagTarget } from "./model";
+import { linkBody, rows, tagColor, type TagLevel, type TagTarget } from "./model";
 import styles from "./Tags.module.css";
 
 const EVERYWHERE = "Walor — na wszystkich kontach";
@@ -79,7 +79,7 @@ export function TagsSection({ tags, target, accountId, accountName }: {
           <div className={styles.chips} role="group" aria-label="Dostępne tagi">
             {available.map((tag) => (
               <button key={tag.id} type="button" className={styles.pick} disabled={link.isPending}
-                style={{ "--tag": tag.color } as CSSProperties} onClick={() => link.mutate(tag.id)}>
+                style={{ "--tag": tagColor(tag.color) } as CSSProperties} onClick={() => link.mutate(tag.id)}>
                 <i className={styles.dot} aria-hidden="true" />{tag.name}
               </button>
             ))}

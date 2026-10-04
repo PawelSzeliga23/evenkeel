@@ -9,4 +9,5 @@ afterEach(() => {
   setAccessToken(null);
   try { localStorage.clear(); } catch { /* storage unavailable */ }
   try { sessionStorage.clear(); } catch { /* storage unavailable */ }
+  delete document.documentElement.dataset.theme;
 });

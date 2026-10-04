@@ -13,6 +13,16 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Evenkeel" />
     <title>Evenkeel</title>
+    <script>
+      // The theme chosen in Ustawienia (plan 8b, settings/theme.tsx), applied before anything is drawn.
+      try {
+        if (localStorage.getItem("evenkeel.theme") === "light") {
+          document.documentElement.dataset.theme = "light";
+          document.querySelector('meta[name="theme-color"]').setAttribute("content", "#F6F3EC");
+          document.querySelector('meta[name="color-scheme"]').setAttribute("content", "light");
+        }
+      } catch (e) { /* storage unavailable: dark */ }
+    </script>
   </head>
   <body>
     <div id="root"></div>

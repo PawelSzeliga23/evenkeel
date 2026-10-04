@@ -47,8 +47,8 @@ describe("heatColor", () => {
 
   it("is green for a gain and red for a loss, fully saturated at the period's limit", () => {
     expect(heatColor("3.00", "1d")).toBe(heatColor("9.00", "1d"));
-    expect(heatColor("3.00", "1d")).toMatch(/^rgba\(93, 185, 138/);
-    expect(heatColor("-3.00", "1d")).toMatch(/^rgba\(224, 103, 110/);
+    expect(heatColor("3.00", "1d")).toBe("color-mix(in srgb, var(--heat-gain) 70%, transparent)");
+    expect(heatColor("-3.00", "1d")).toBe("color-mix(in srgb, var(--heat-loss) 70%, transparent)");
   });
 
   it("saturates later for longer periods", () => {

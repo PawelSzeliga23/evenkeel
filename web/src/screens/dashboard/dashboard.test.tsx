@@ -36,7 +36,7 @@ describe("dashboard model", () => {
   it("colours allocation rows by their order, the largest in amber", () => {
     const rows = allocationRows("kind", SUMMARY, undefined);
     expect(rows.map((r) => [r.name, r.color])).toEqual([
-      ["ETF", "var(--amber)"], ["Konta oszczędnościowe", "#C9B48A"], ["Obligacje", "#7C8898"], ["Gotówka", "#4A5361"],
+      ["ETF", "var(--alloc-1)"], ["Konta oszczędnościowe", "var(--alloc-2)"], ["Obligacje", "var(--alloc-3)"], ["Gotówka", "var(--alloc-4)"],
     ]);
     expect(allocationRows("currency", SUMMARY, EXPOSURE).map((r) => r.name)).toEqual(["EUR", "PLN"]);
     expect(allocationRows("currency", SUMMARY, undefined)).toEqual([]);

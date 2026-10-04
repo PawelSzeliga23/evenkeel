@@ -9,7 +9,7 @@ import { useChartGestures } from "./useChartGestures";
 import { useWidth } from "./useWidth";
 import { clampWindow, drawnRange, fullWindow, type ChartWindow, type YRange } from "./viewport";
 
-export const MARKER_COLORS = { buy: "#5DB98A", sell: "#E0676E", dividend: "#7FB6E6", average: "#F0A43A", note: "#C98BD9" } as const;
+export const MARKER_COLORS = { buy: "var(--mark-buy)", sell: "var(--mark-sell)", dividend: "var(--mark-dividend)", average: "var(--mark-average)", note: "var(--mark-note)" } as const;
 
 const PAD = 0.05;
 const SAME_DAY_SHIFT = 16; // most of a 28 px tap target stays free beside its neighbour

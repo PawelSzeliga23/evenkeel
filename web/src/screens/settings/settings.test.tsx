@@ -50,6 +50,19 @@ describe("settings screen", () => {
     expect(screen.getByRole("link", { name: /O aplikacji.*0\.1\.0/ })).toHaveAttribute("href", "/ustawienia/o-aplikacji");
   });
 
+  it("switches the theme in Wygląd i prywatność, on this device only", async () => {
+    mockFetch([...SIGNED_IN, { path: "/api/accounts", respond: () => [] }]);
+    const { user } = renderApp("/ustawienia/wyglad");
+
+    const theme = await screen.findByRole("group", { name: "Motyw" });
+    expect(within(theme).getByRole("button", { name: "Ciemny" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(within(theme).getByRole("button", { name: "Jasny" }));
+
+    expect(within(theme).getByRole("button", { name: "Jasny" })).toHaveAttribute("aria-pressed", "true");
+    expect(document.documentElement).toHaveAttribute("data-theme", "light");
+    expect(localStorage.getItem("evenkeel.theme")).toBe("light");
+  });
+
   it("searches the settings, the accounts and the tags", async () => {
     mockFetch([...SIGNED_IN, { path: "/api/accounts", respond: () => ACCOUNTS }, { path: "/api/instruments", respond: () => [] },
       { path: "/api/tags", respond: () => [] }]);

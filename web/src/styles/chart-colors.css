@@ -1,0 +1,85 @@
+/* Colours of the charts (plan 8b): dark by default, light under html[data-theme="light"]. Code names them only as
+ * var(--…). The light sets were checked with the dataviz palette validator on the light card #FFFDF8. */
+:root {
+  /* series in a fixed order: currencies, simulator lines, AI review headings */
+  --series-1: #F0A43A;
+  --series-2: #3987e5;
+  --series-3: #d55181;
+  --series-4: #9085e9;
+
+  /* price chart markers (buy and sell also differ by shape) */
+  --mark-buy: #5DB98A;
+  --mark-sell: #E0676E;
+  --mark-dividend: #7FB6E6;
+  --mark-average: #F0A43A;
+  --mark-note: #C98BD9;
+
+  /* Dochód i koszty */
+  --income-interest: #5DB98A;
+  --income-dividends: #7FB6E6;
+  --income-fx: #E0676E;
+  --income-taxes: #B07FE0;
+  --income-fees: #F0A43A;
+
+  /* Pulpit allocation, largest first */
+  --alloc-1: var(--amber);
+  --alloc-2: #C9B48A;
+  --alloc-3: #7C8898;
+  --alloc-4: #4A5361;
+  --alloc-5: #39414C;
+
+  --untagged: #4A525E;
+
+  /* heat map of Walory and the monthly returns: mixed with transparency by the size of the move */
+  --heat-gain: #5DB98A;
+  --heat-loss: #E0676E;
+
+  /* the eight tag colours; the server stores the dark hex, tagColor() maps it to these */
+  --tag-1: #F0A43A;
+  --tag-2: #7FB6E6;
+  --tag-3: #5DB98A;
+  --tag-4: #C98BD9;
+  --tag-5: #E0C36A;
+  --tag-6: #E0676E;
+  --tag-7: #6FC7C0;
+  --tag-8: #B0B7C3;
+}
+
+:root[data-theme="light"] {
+  --series-1: #C77E12;
+  --series-2: #2A6FC9;
+  --series-3: #C03D70;
+  --series-4: #6C5FD0;
+
+  --mark-buy: #1F8556;
+  --mark-sell: #C2414A;
+  --mark-dividend: #2F72B8;
+  --mark-average: #C2780F;
+  --mark-note: #9B4FB0;
+
+  --income-interest: #1F8556;
+  --income-dividends: #2F72B8;
+  --income-fx: #C2414A;
+  --income-taxes: #8A4FC8;
+  --income-fees: #C2780F;
+
+  --alloc-1: var(--amber);
+  --alloc-2: #B39459;
+  --alloc-3: #7C8898;
+  --alloc-4: #A3ABB6;
+  --alloc-5: #C9CED6;
+
+  --untagged: #A3ABB6;
+
+  --heat-gain: #3FA874;
+  --heat-loss: #D9545C;
+
+  --tag-1: #C2780F;
+  --tag-2: #2F72B8;
+  --tag-3: #1F8556;
+  --tag-4: #9B4FB0;
+  --tag-5: #9A7A10;
+  --tag-6: #C2414A;
+  --tag-7: #00877E;
+  --tag-8: #6B7280;
+}

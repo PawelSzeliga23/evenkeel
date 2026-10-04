@@ -11,10 +11,10 @@ export const BASE_CONFLICT = "Podmiana działa tylko na punkcie wyjścia „Mój
 export const FIRST_MONTH = "2016-01"; // the catalog's prices, NBP rates and EDO issues start here (plan 7b-1)
 export const MAX_LINES = 3;
 const MAX_TOP_UP_CENTS = 100_000_000n; // 1 000 000 zł, the API's limit
-export const PORTFOLIO_COLOR = "#F0A43A";
+export const PORTFOLIO_COLOR = "var(--series-1)";
 /** Validated on the dark surface: blue, magenta, violet; violet is dashed (close to blue for protan readers). */
 export const SLOTS: { color: string; dashed: boolean }[] = [
-  { color: "#3987e5", dashed: false }, { color: "#d55181", dashed: false }, { color: "#9085e9", dashed: true },
+  { color: "var(--series-2)", dashed: false }, { color: "var(--series-3)", dashed: false }, { color: "var(--series-4)", dashed: true },
 ];
 export const BASES: { value: ScenarioBase; label: string }[] = [
   { value: "portfolio", label: "Mój portfel" }, { value: "deposits", label: "Moje wpłaty" },

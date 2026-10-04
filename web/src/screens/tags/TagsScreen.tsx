@@ -15,6 +15,7 @@ import ui from "../../ui/ui.module.css";
 import { RECALC_POLL_MS } from "../dashboard/model";
 import holdingsStyles from "../holdings/Holdings.module.css";
 import { PERIODS } from "../holdings/model";
+import { tagColor } from "../../tags/model";
 import { NO_TAGS, NO_VALUE, UNTAGGED, UNTAGGED_COLOR, chartLines, holdingsLabel, legend } from "./model";
 import styles from "./Tags.module.css";
 import { usePreferences } from "../../settings/preferences";
@@ -51,7 +52,7 @@ function Shares({ report }: { report: TagsReport }) {
       {report.tags.length === 0 && <p className={styles.note}>{NO_VALUE}</p>}
       <ul className={styles.list} aria-label="Udział w portfelu">
         {report.tags.map((tag) => (
-          <Row key={tag.id} name={tag.name} color={tag.color} value={tag.value_pln} sharePct={tag.share_pct}
+          <Row key={tag.id} name={tag.name} color={tagColor(tag.color)} value={tag.value_pln} sharePct={tag.share_pct}
             meta={<><span>{`${share(tag.share_pct)} · ${holdingsLabel(tag.holdings)}`}</span><Gain pln={tag.gain_pln} pct={tag.gain_pct} /></>} />
         ))}
         {report.untagged && (
