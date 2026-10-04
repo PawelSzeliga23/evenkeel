@@ -8,7 +8,7 @@ import type { Position } from "../../api/types";
 import { TagChip } from "../../tags/TagChip";
 import tagStyles from "../../tags/Tags.module.css";
 import { tagColor } from "../../tags/model";
-import { AccountSelect } from "../../ui/AccountPicker";
+import { AccountSelect, AccountsFailed } from "../../ui/AccountPicker";
 import { Money } from "../../ui/Amount";
 import { ListRow } from "../../ui/ListRow";
 import { Segmented } from "../../ui/Segmented";
@@ -74,7 +74,8 @@ export function PositionsScreen() {
   return (
     <div className={ui.page}>
       <h1 className={ui.pageTitle}>Pozycje</h1>
-      {(accounts.data?.length ?? 0) > 0 && <AccountSelect accounts={accounts.data!} value={accountIds} onChange={setAccountIds} />}
+      {(accounts.data?.length ?? 0) > 0 ? <AccountSelect accounts={accounts.data!} value={accountIds} onChange={setAccountIds} />
+          : accounts.isError ? <AccountsFailed onRetry={() => void accounts.refetch()} /> : null}
       <Segmented label="Widok pozycji" value={view} onChange={setView}
         options={[{ value: "open", label: "Otwarte" }, { value: "closed", label: "Zamknięte" }]} />
       {view === "open" && (

@@ -6,7 +6,7 @@ import { keys } from "../../api/queryKeys";
 import { ShareChart } from "../../charts/ShareChart";
 import { colorOf, shareSeries, sharePoints } from "../../charts/shares";
 import { formatPercent, todayIso } from "../../format";
-import { AccountSelect } from "../../ui/AccountPicker";
+import { AccountSelect, AccountsFailed } from "../../ui/AccountPicker";
 import { Money } from "../../ui/Amount";
 import { BackLink } from "../../ui/BackLink";
 import { Segmented } from "../../ui/Segmented";
@@ -39,7 +39,8 @@ export function ExposureScreen() {
         <h1 className={ui.pageTitle}>Ekspozycja walutowa</h1>
         <p className="dim">Udział wartości portfela. Liczy się waluta notowania, nie waluta aktywów bazowych (np. ETF na S&P 500 notowany w EUR liczy się jako EUR).</p>
       </div>
-      {accounts.data && <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} />}
+      {accounts.data ? <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} />
+        : accounts.isError ? <AccountsFailed onRetry={() => void accounts.refetch()} /> : null}
       {exposure.isPending ? <Skeleton chart rows={2} />
         : exposure.isError ? <ErrorState error={exposure.error} onRetry={() => void exposure.refetch()} />
         : exposure.data.current.length === 0 ? <EmptyState title="Nie ma jeszcze wyceny do pokazania." />

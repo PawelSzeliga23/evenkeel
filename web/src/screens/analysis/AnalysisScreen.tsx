@@ -6,7 +6,7 @@ import { keys } from "../../api/queryKeys";
 import type { Analytics, AnalyticsPeriod, DayExtreme } from "../../api/types";
 import { DrawdownChart } from "../../charts/DrawdownChart";
 import { formatDate, formatDecimal, formatMoney, formatPercent, signOf } from "../../format";
-import { AccountSelect } from "../../ui/AccountPicker";
+import { AccountSelect, AccountsFailed } from "../../ui/AccountPicker";
 import { Money } from "../../ui/Amount";
 import { Segmented } from "../../ui/Segmented";
 import { HELP } from "../../ui/help";
@@ -93,7 +93,8 @@ export function AnalysisScreen() {
   return (
     <div className={ui.page}>
       <h1 className={ui.pageTitle}>Analiza</h1>
-      {accounts.data && <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} />}
+      {accounts.data ? <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} />
+        : accounts.isError ? <AccountsFailed onRetry={() => void accounts.refetch()} /> : null}
       <Segmented label="Okres" options={PERIODS} value={period} onChange={setPeriod} className={styles.periods} />
       {analytics.isPending ? <Skeleton rows={4} />
         : analytics.isError ? <ErrorState error={analytics.error} onRetry={() => void analytics.refetch()} />

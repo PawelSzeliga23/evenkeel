@@ -110,6 +110,16 @@ describe("dashboard screen", () => {
     ]);
   });
 
+  it("offers to load the accounts again when their list fails, instead of hiding the picker", async () => {
+    let calls = 0;
+    mockFetch(routes({ accounts: () => (++calls === 1 ? json(500, { code: "internal_error", message: "Błąd.", details: {} }) : ACCOUNTS) }));
+    const { user } = renderApp("/");
+
+    await user.click(await screen.findByRole("button", { name: "Konta niedostępne · Ponów" }));
+
+    expect(await screen.findByRole("button", { name: /^Konta: / })).toBeInTheDocument();
+  });
+
   it("invites an empty portfolio to import", async () => {
     mockFetch(routes({ summary: () => ({ ...SUMMARY, as_of: null, by_kind: [], by_account: [] }) }));
     renderApp("/");

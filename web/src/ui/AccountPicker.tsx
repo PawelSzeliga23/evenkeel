@@ -65,3 +65,12 @@ export function AccountSelect({
     </div>
   );
 }
+
+/** In place of the account picker when the list of accounts could not be loaded. */
+export function AccountsFailed({ onRetry }: { onRetry: () => void }) {
+  return (
+    <button type="button" className={styles.selectButton} onClick={onRetry}>
+      <span className={styles.selectLabel}>Konta niedostępne · Ponów</span>
+    </button>
+  );
+}

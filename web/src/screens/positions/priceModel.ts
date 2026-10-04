@@ -51,7 +51,10 @@ export function chartMarks(data: PriceChartData): ChartMark[] {
 export function markerLabel(marker: ChartMark, currency: string | null): string {
   const day = formatDate(marker.date);
   if (marker.kind === "note") return `Notatka ${day}`;
-  if (marker.kind === "dividend") return `Dywidenda ${day}, ${formatMoney(marker.amount_pln, { sign: true })}`;
+  if (marker.kind === "dividend") {
+    const amount = marker.amount_pln === null ? "kwota po pobraniu kursu NBP" : formatMoney(marker.amount_pln, { sign: true });
+    return `Dywidenda ${day}, ${amount}`;
+  }
   const kind = marker.kind === "buy" ? "Zakup" : "Sprzedaż";
   const quantity = marker.quantity === null ? "" : `${formatDecimal(marker.quantity, 8)} szt.`;
   const price = marker.price === null ? "" : `po ${formatPrice(marker.price, currency)}`;

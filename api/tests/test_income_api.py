@@ -231,3 +231,34 @@ def test_one_bond_series_on_ike_and_a_regular_account_are_two_sources(
 
     assert (bonds["EDO0336 · EDO IKE"]["taxed"], bonds["EDO0336 · EDO IKE"]["tax_pln"]) == (False, "0.00")
     assert bonds["EDO0336 · EDO zwykłe"]["taxed"] is True and Decimal(bonds["EDO0336 · EDO zwykłe"]["tax_pln"]) > 0
+
+
+def test_an_early_redemption_fee_is_a_fee_not_negative_interest(
+    client: TestClient, world: dict, engine: Engine,
+) -> None:
+    with Session(engine) as db:
+        bonds = Account(user_id=world["user_id"], name="Obligacje", kind="bonds", currency="PLN")
+        db.add_all([bonds, BondSeries(series="EDO0336", bond_type="EDO", issue_month=dt.date(2026, 3, 1),
+                                      maturity_months=120, first_period_rate=Decimal("6.25"), margin=Decimal("2.00"),
+                                      early_redemption_fee=Decimal("3.00"), interest_mode="capitalized",
+                                      rate_basis="cpi")])
+        db.flush()
+        db.add(BondHolding(account_id=bonds.id, bond_type="EDO", series="EDO0336", quantity=10,
+                           purchase_date=dt.date(2026, 3, 2), redeemed_at=dt.date(2026, 9, 2)))
+        db.commit()
+        valuate(db, world["user_id"])
+
+    body = _get(client, world["anna"], period="all", account_id=bonds_id(engine, world))
+    bond = next(s for s in body["sources"] if s["kind"] == "bond")
+    fees = next(c for c in body["costs"] if c["key"] == "fees")
+
+    assert all(Decimal(m["interest_pln"]) >= 0 for m in body["months"])
+    assert (fees["amount_pln"], fees["count"]) == ("30.00", 1)  # 3 zł on each of 10 bonds
+    gross, tax = Decimal(bond["gross_pln"]), Decimal(bond["tax_pln"])
+    assert Decimal("30") < gross < Decimal("40")
+    assert abs(tax - (gross - 30) * Decimal("0.19")) <= Decimal("0.02")  # tax only on the interest the fee left
+
+
+def bonds_id(engine: Engine, world: dict) -> int:
+    with Session(engine) as db:
+        return db.scalar(select(Account.id).where(Account.user_id == world["user_id"], Account.name == "Obligacje"))

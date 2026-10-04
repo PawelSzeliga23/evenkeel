@@ -5,7 +5,7 @@ import { api } from "../../api/endpoints";
 import { keys } from "../../api/queryKeys";
 import type { IncomeCost, IncomePeriod, IncomeSource } from "../../api/types";
 import { formatMoney, signOf } from "../../format";
-import { AccountSelect } from "../../ui/AccountPicker";
+import { AccountSelect, AccountsFailed } from "../../ui/AccountPicker";
 import { Money } from "../../ui/Amount";
 import { BackLink } from "../../ui/BackLink";
 import { Segmented } from "../../ui/Segmented";
@@ -78,7 +78,8 @@ export function IncomeScreen() {
     <div className={ui.page}>
       <BackLink to="/analiza" label="Analiza" />
       <h1 className={ui.pageTitle}>Dochód i koszty</h1>
-      {accounts.data && <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} />}
+      {accounts.data ? <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} />
+        : accounts.isError ? <AccountsFailed onRetry={() => void accounts.refetch()} /> : null}
       <Segmented label="Okres" options={PERIODS} value={period} onChange={(value) => { setPeriod(value); setSelected(null); }} />
       {report.isPending ? <Skeleton rows={4} />
         : report.isError ? <ErrorState error={report.error} onRetry={() => void report.refetch()} />

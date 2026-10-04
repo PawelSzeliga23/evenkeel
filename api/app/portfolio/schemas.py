@@ -245,7 +245,7 @@ class PriceMarkerOut(BaseModel):
     price: Decimal | None  # quote currency, after later splits
     price_with_fx: Decimal | None  # PLN paid ÷ quantity ÷ NBP rate (XTB's conversion inside), foreign only
     quantity: Decimal | None  # after later splits
-    amount_pln: Decimal
+    amount_pln: Decimal | None  # None while the NBP rate of its day is still missing
 
 
 class PriceChartOut(BaseModel):

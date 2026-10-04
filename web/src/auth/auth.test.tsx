@@ -248,6 +248,20 @@ describe("registration and session edge cases", () => {
     expect(screen.queryByRole("button", { name: "Załóż konto" })).not.toBeInTheDocument();
   });
 
+  it("says why signing in after registering failed: too many attempts", async () => {
+    mockFetch([
+      NO_SESSION,
+      { method: "POST", path: "/api/auth/register", status: 201, respond: () => USER },
+      { method: "POST", path: "/api/auth/login", status: 429, respond: () => ({ code: "rate_limited", message: "Zbyt wiele prób.", details: {} }) },
+    ]);
+    const { user } = renderRoutes(ROUTES, "/rejestracja");
+    await user.type(await screen.findByLabelText("E-mail"), USER.email);
+    await user.type(screen.getByLabelText("Hasło"), "dlugie-haslo-1");
+    await user.click(screen.getByRole("button", { name: "Załóż konto" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Za dużo prób logowania — poczekaj minutę.");
+  });
+
   it("goes to the login screen when the user behind the session no longer exists", async () => {
     mockFetch([
       { method: "POST", path: "/api/auth/refresh", respond: () => ({ access_token: "token", token_type: "bearer" }) },

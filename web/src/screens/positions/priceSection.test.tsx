@@ -97,6 +97,15 @@ describe("Wykres ceny in the position details", () => {
     expect(within(box).getByRole("status")).toHaveTextContent("+60,00 zł");
   });
 
+  it("says the amount comes with the NBP rate instead of showing 0,00 zł", async () => {
+    open({ ...PRICE_CHART, markers: [{ ...PRICE_CHART.markers[0]!, amount_pln: null }, ...PRICE_CHART.markers.slice(1)] });
+    const box = await section();
+
+    await userEvent.click(within(box).getByRole("button", { name: /^Zakup 12\.05\.2025/ }));
+
+    expect(within(box).getByRole("status")).toHaveTextContent("zapłacone kwota w zł po pobraniu kursu NBP");
+  });
+
   it("draws the average purchase price, none for a closed position", async () => {
     open();
     expect(within(await section()).getByText("średnia 192,2338 zł")).toBeInTheDocument();
