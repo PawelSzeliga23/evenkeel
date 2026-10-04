@@ -13,7 +13,8 @@ export default defineConfig(({ mode }) => ({
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   plugins: [react(), ...(mode === "test" ? [] : [VitePWA(pwaOptions)])],
   server: { port: 5173, proxy: { "/api": { target: apiTarget } } },
-  preview: { proxy: { "/api": { target: apiTarget } } },
+  // the iPhone PWA test goes through a quick Cloudflare tunnel (https://*.trycloudflare.com) to `vite preview`
+  preview: { allowedHosts: [".trycloudflare.com"], proxy: { "/api": { target: apiTarget } } },
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
