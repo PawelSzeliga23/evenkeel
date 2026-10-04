@@ -267,3 +267,41 @@ test("kopia portfela: pobranie i wczytanie na nowym koncie daje ten sam Pulpit",
   expect(await heroValue(other)).toBe(original);
   await other.close();
 });
+
+test("sesje: wylogowanie drugiego urządzenia, potem usunięcie konta", async ({ page, browser }) => {
+  const email = `e2e-sessions-${Date.now()}@portfolio.dev`;
+  await page.goto("/rejestracja");
+  await page.getByLabel("E-mail").fill(email);
+  await page.getByLabel("Hasło").fill("e2e-haslo-12345");
+  await page.getByRole("button", { name: "Załóż konto" }).click();
+  await expect(page.getByText("Wgraj eksport z XTB, żeby zobaczyć swój portfel.")).toBeVisible();
+
+  const laptop = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  await laptop.goto("/logowanie");
+  await laptop.getByLabel("E-mail").fill(email);
+  await laptop.getByLabel("Hasło").fill("e2e-haslo-12345");
+  await laptop.getByRole("button", { name: "Zaloguj się" }).click();
+  await expect(laptop.getByText("Wgraj eksport z XTB, żeby zobaczyć swój portfel.")).toBeVisible();
+
+  await page.goto("/ustawienia/sesje");
+  const list = page.getByRole("list", { name: "Sesje" });
+  await expect(list.getByRole("listitem")).toHaveCount(2);
+  await expect(list.getByText("To urządzenie")).toBeVisible();
+  await expect(page.getByRole("status", { name: "Wczytuję Evenkeel" })).toHaveCount(0, { timeout: 10_000 }); // the startup splash after goto
+  await page.screenshot({ path: `${SCREENS}/sesje.png`, fullPage: true });
+  await page.getByRole("button", { name: "Wyloguj wszystkie inne" }).click();
+  await expect(list.getByRole("listitem")).toHaveCount(1);
+
+  await laptop.reload();
+  await expect(laptop.getByRole("button", { name: "Zaloguj się" })).toBeVisible({ timeout: 15_000 });
+  await laptop.close();
+
+  await page.goto("/ustawienia/usun-konto");
+  await page.getByLabel("Hasło").fill("e2e-haslo-12345");
+  await page.getByLabel("Wpisz USUŃ KONTO").fill("USUŃ KONTO");
+  await page.getByRole("button", { name: "Usuń konto" }).click();
+  await expect(page.getByText("Konto zostało usunięte.")).toBeVisible();
+  // signing in again is covered by the API tests; here the login limit is spent by the earlier tests
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "Zaloguj się" })).toBeVisible({ timeout: 15_000 });
+});
