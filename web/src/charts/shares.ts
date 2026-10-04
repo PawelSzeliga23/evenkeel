@@ -1,8 +1,8 @@
 /** Pure geometry of the currency-share chart. Shares are display proportions (Number), never money. */
 import type { Exposure } from "../api/types";
 
-/** Validated with the dataviz palette checker on the dark surface #0E1116 (see the plan's Global Constraints). */
-export const SHARE_COLORS = ["#F0A43A", "#3987e5", "#d55181", "#9085e9"] as const;
+/** The series colours of chart-colors.css, validated with the dataviz palette checker in both themes. */
+export const SHARE_COLORS = ["var(--series-1)", "var(--series-2)", "var(--series-3)", "var(--series-4)"] as const;
 const MAX_SERIES = SHARE_COLORS.length;
 const OTHER = "other";
 

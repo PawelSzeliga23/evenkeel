@@ -58,8 +58,8 @@ describe("Analiza → Tagi", () => {
     const { user } = renderApp("/analiza/tagi");
 
     const legend = await screen.findByRole("group", { name: "Linie na wykresie" });
-    expect(line("1")).toHaveAttribute("stroke", "#F0A43A");
-    expect(line("2")).toHaveAttribute("stroke", "#7FB6E6");
+    expect(line("1")).toHaveAttribute("stroke", "var(--tag-1)");
+    expect(line("2")).toHaveAttribute("stroke", "var(--tag-2)");
     expect(line("untagged")).toBeNull();
     expect(within(legend).getByRole("button", { name: "bez tagu" })).toHaveAttribute("aria-pressed", "false");
     await user.click(within(legend).getByRole("button", { name: "USA" }));

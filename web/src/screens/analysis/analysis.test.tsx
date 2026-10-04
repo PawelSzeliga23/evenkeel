@@ -146,8 +146,8 @@ describe("analysis model", () => {
   it("colours a month by its return, saturated at ±5 %", () => {
     expect(cellBackground(null)).toBe("transparent");
     expect(cellBackground("0.00")).toBe("transparent");
-    expect(cellBackground("2.50")).toBe("rgba(93, 185, 138, 0.28)");
-    expect(cellBackground("-9.00")).toBe("rgba(224, 103, 110, 0.55)");
+    expect(cellBackground("2.50")).toBe("color-mix(in srgb, var(--heat-gain) 28%, transparent)");
+    expect(cellBackground("-9.00")).toBe("color-mix(in srgb, var(--heat-loss) 55%, transparent)");
   });
 });
 describe("Pulpit card", () => {

@@ -18,7 +18,7 @@ export type AllocationMode = "kind" | "account" | "currency";
 export const ALLOCATION_MODES: { value: AllocationMode; label: string }[] = [
   { value: "kind", label: "Typ" }, { value: "account", label: "Konto" }, { value: "currency", label: "Waluta" },
 ];
-export const ALLOCATION_COLORS = ["var(--amber)", "#C9B48A", "#7C8898", "#4A5361", "#39414C"];
+export const ALLOCATION_COLORS = ["var(--alloc-1)", "var(--alloc-2)", "var(--alloc-3)", "var(--alloc-4)", "var(--alloc-5)"];
 
 export interface AllocationRow { key: string; name: string; value: string; share: string | null; color: string }
 

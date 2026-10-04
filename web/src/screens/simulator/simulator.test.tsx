@@ -43,12 +43,12 @@ describe("Symulator", () => {
     const { user } = renderApp("/analiza/symulator");
     await screen.findByRole("img", { name: "Porównanie wartości: Mój portfel, A, B, C" });
 
-    expect(stroke("1")).toBe("#3987e5");
+    expect(stroke("1")).toBe("var(--series-2)");
     await user.click(within(legend()).getByRole("button", { name: "A" }));
     await user.click(within(legend()).getByRole("button", { name: "D" }));
 
-    expect(stroke("4")).toBe("#3987e5");
-    expect(stroke("2")).toBe("#d55181");
+    expect(stroke("4")).toBe("var(--series-2)");
+    expect(stroke("2")).toBe("var(--series-3)");
     expect(stroke("1")).toBeUndefined();
   });
 

@@ -6,6 +6,7 @@ import { keys } from "../../api/queryKeys";
 import { formatPercent } from "../../format";
 import ui from "../../ui/ui.module.css";
 import { RECALC_POLL_MS } from "../dashboard/model";
+import { tagColor } from "../../tags/model";
 import { NO_TAGS, NO_VALUE, TAGS_PATH } from "./model";
 import styles from "./Tags.module.css";
 
@@ -30,7 +31,7 @@ export function TagsCard() {
         <ul className={styles.cardList}>
           {top.map((tag) => (
             <li key={tag.id}>
-              <i className={styles.dot} style={{ background: tag.color }} aria-hidden="true" />
+              <i className={styles.dot} style={{ background: tagColor(tag.color) }} aria-hidden="true" />
               <span>{tag.name}</span>
               <span className="num">{formatPercent(tag.share_pct, { sign: false })}</span>
             </li>

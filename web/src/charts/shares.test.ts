@@ -6,9 +6,9 @@ import { bands, colorOf, monthlyRows, shareSeries, sharePoints, thin } from "./s
 describe("currency shares", () => {
   it("orders series by today's value, keeps colours with the currency and adds currencies seen only earlier", () => {
     expect(shareSeries(EXPOSURE_HISTORY)).toEqual([
-      { key: "EUR", label: "EUR", color: "#F0A43A" },
-      { key: "PLN", label: "PLN", color: "#3987e5" },
-      { key: "USD", label: "USD", color: "#d55181" },
+      { key: "EUR", label: "EUR", color: "var(--series-1)" },
+      { key: "PLN", label: "PLN", color: "var(--series-2)" },
+      { key: "USD", label: "USD", color: "var(--series-3)" },
     ]);
   });
 
@@ -22,7 +22,7 @@ describe("currency shares", () => {
     expect(series.map((s) => s.label)).toEqual(["EUR", "PLN", "USD", "Inne"]);
     const [point] = sharePoints(five, series);
     expect(point!.shares.map((s) => s.toFixed(4))).toEqual(["0.2083", "0.2042", "0.2000", "0.3875"]);
-    expect([colorOf(series, "USD"), colorOf(series, "CHF")]).toEqual(["#d55181", "#9085e9"]);
+    expect([colorOf(series, "USD"), colorOf(series, "CHF")]).toEqual(["var(--series-3)", "var(--series-4)"]);
   });
 
   it("gives each day's shares summing to one, negative values counting as zero", () => {

@@ -1,10 +1,11 @@
 import type { TagsReport } from "../../api/types";
+import { tagColor } from "../../tags/model";
 import type { ComparisonLine } from "../../charts/ComparisonChart";
 import { pluralPl } from "../../format";
 
 export const TAGS_PATH = "/analiza/tagi";
 export const UNTAGGED = "untagged";
-export const UNTAGGED_COLOR = "#4A525E";
+export const UNTAGGED_COLOR = "var(--untagged)";
 export const NO_TAGS = "Nie masz jeszcze tagów. Dodasz je w szczegółach pozycji.";
 export const NO_VALUE = "Żaden tag nie ma wartości na wybranych kontach.";
 
@@ -18,7 +19,7 @@ export function legend(report: TagsReport): LegendEntry[] {
   return report.history.series.flatMap((series) => {
     if (series.key === UNTAGGED) return [{ key: UNTAGGED, label: "bez tagu", color: UNTAGGED_COLOR }];
     const tag = names.get(series.key);
-    return tag ? [{ key: series.key, label: tag.name, color: tag.color }] : [];
+    return tag ? [{ key: series.key, label: tag.name, color: tagColor(tag.color) }] : [];
   });
 }
 

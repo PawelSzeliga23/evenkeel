@@ -22,5 +22,5 @@ export function cellBackground(pct: Money | null): string {
   const value = pct === null ? 0 : Number(pct);
   if (value === 0) return "transparent";
   const alpha = Math.round(Math.min(Math.abs(value) / SATURATION_PCT, 1) * MAX_ALPHA * 100) / 100;
-  return value > 0 ? `rgba(93, 185, 138, ${alpha})` : `rgba(224, 103, 110, ${alpha})`;
+  return `color-mix(in srgb, var(${value > 0 ? "--heat-gain" : "--heat-loss"}) ${Math.round(alpha * 100)}%, transparent)`;
 }

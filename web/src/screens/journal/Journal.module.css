@@ -8,4 +8,4 @@
   text-decoration: none; border: 1px solid var(--rule);
 }
 a.label:hover { border-color: var(--amber); }
-.portfolio { color: #7FB6E6; border-color: rgba(127, 182, 230, .4); background: rgba(127, 182, 230, .12); }
+.portfolio { color: var(--info); border-color: color-mix(in srgb, var(--info) 40%, transparent); background: color-mix(in srgb, var(--info) 12%, transparent); }

@@ -72,5 +72,5 @@ export function heatColor(pct: Money | null, period: HoldingsPeriod): string {
   if (value === 0) return "var(--slab)";
   const strength = Math.min(Math.abs(value) / SATURATION[period], 1);
   const alpha = Math.round((MIN_ALPHA + strength * (MAX_ALPHA - MIN_ALPHA)) * 100) / 100;
-  return value > 0 ? `rgba(93, 185, 138, ${alpha})` : `rgba(224, 103, 110, ${alpha})`;
+  return `color-mix(in srgb, var(${value > 0 ? "--heat-gain" : "--heat-loss"}) ${Math.round(alpha * 100)}%, transparent)`;
 }

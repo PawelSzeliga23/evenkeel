@@ -6,8 +6,8 @@
 .axisStrong { fill: var(--ink); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .price { fill: none; stroke: var(--ink); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
 .average { stroke-width: 1.2; stroke-dasharray: 5 4; }
-.averageLabel { fill: #F0A43A; font-size: 11px; font-variant-numeric: tabular-nums; }
-.dividend { fill: #0b1220; font-size: 9px; font-weight: 700; text-anchor: middle; pointer-events: none; }
+.averageLabel { fill: var(--mark-average); font-size: 11px; font-variant-numeric: tabular-nums; }
+.dividend { fill: var(--on-accent); font-size: 9px; font-weight: 700; text-anchor: middle; pointer-events: none; }
 /* A 28 × 28 px tap target over each drawn marker; the mark itself is in the SVG. */
 .hit {
   position: absolute; width: 28px; height: 28px; margin: 0; padding: 0; transform: translate(-50%, -50%);

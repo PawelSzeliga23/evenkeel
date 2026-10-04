@@ -7,6 +7,7 @@ import { keys } from "../../api/queryKeys";
 import type { Position } from "../../api/types";
 import { TagChip } from "../../tags/TagChip";
 import tagStyles from "../../tags/Tags.module.css";
+import { tagColor } from "../../tags/model";
 import { AccountSelect } from "../../ui/AccountPicker";
 import { Money } from "../../ui/Amount";
 import { ListRow } from "../../ui/ListRow";
@@ -94,7 +95,7 @@ export function PositionsScreen() {
                 <h2 id={`group-${group.key}`} className={styles.groupTitle}>
                   {group.color && (
                     <i className={`${tagStyles.dot} ${styles.groupDot}`} aria-hidden="true"
-                      style={{ "--tag": group.color } as CSSProperties} />
+                      style={{ "--tag": tagColor(group.color) } as CSSProperties} />
                   )}
                   {group.title}
                 </h2>
