@@ -102,6 +102,7 @@ def test_a_bad_layout_is_refused(client: TestClient, login_as: LoginAs) -> None:
         {"version": 1, "tiles": [{**tile, "variant": "M4"}]},  # a single metric is S only
         {"version": 1, "tiles": [{**tile, "size": "S"}]},  # a size and a variant at once
         {"version": 1, "tiles": [{**{k: v for k, v in tile.items() if k != "variant"}, "size": "L"}]},
+        {"version": 1, "tiles": [{**{k: v for k, v in tile.items() if k != "variant"}, "size": ["S"]}]},
         {"version": 1, "tiles": [{**LAYOUT["tiles"][0], "settings": {"fields": ["xirr"] * 9}}]},  # 8 fields at most
         {"version": 1, "tiles": [{**LAYOUT["tiles"][5], "settings": {"count": 4, "period": "1y"}}]},
         {"version": 1, "tiles": [{**tile, "settings": {"metric": "luck"}}]},

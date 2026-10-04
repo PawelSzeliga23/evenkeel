@@ -98,7 +98,7 @@ class _Tile(BaseModel):
     def _from_size(cls, data: Any) -> Any:
         if isinstance(data, dict) and "size" in data and "variant" not in data:
             legacy = LEGACY_SIZES.get(str(data.get("kind")), {})
-            if data["size"] in legacy:
+            if isinstance(data["size"], str) and data["size"] in legacy:
                 rest = {key: value for key, value in data.items() if key != "size"}
                 return {**rest, "variant": legacy[data["size"]]}
         return data
