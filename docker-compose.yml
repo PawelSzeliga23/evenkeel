@@ -41,6 +41,7 @@ services:
       COOKIE_SECURE: "false"
       REGISTRATION_MODE: ${REGISTRATION_MODE:-open}
       INVITE_CODES: ${INVITE_CODES:-}
+      CLIENT_IP_HEADER: ${CLIENT_IP_HEADER:-}
       WATCHFILES_FORCE_POLLING: "true"
       PYTHONPATH: /app
     ports:

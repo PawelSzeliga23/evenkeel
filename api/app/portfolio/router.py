@@ -2,6 +2,7 @@ import datetime as dt
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from sqlalchemy import text
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.db import get_session_factory
@@ -103,6 +104,7 @@ def get_limits(scope: UserScope = Depends(get_scope)) -> list[LimitOut]:
 
 
 REFRESH_THROTTLE = dt.timedelta(seconds=60)
+REFRESH_LOCK_NAMESPACE = 5  # high 32 bits of the advisory lock key "price refresh of user N"
 
 
 @router.post("/portfolio/refresh", response_model=RefreshOut)
@@ -118,7 +120,13 @@ def refresh_prices(
     instruments = list(db.scalars(scope.instruments()))
     if not instruments:
         return RefreshOut(refreshed_at=None, fetched=False)
+    # Two taps at once: the second one finds the lock taken and fetches nothing, like a tap within the minute.
+    locked = db.scalar(text("SELECT pg_try_advisory_xact_lock(CAST(:key AS bigint))"),
+                       {"key": (REFRESH_LOCK_NAMESPACE << 32) | scope.user.id})
     latest = prices_refreshed_at(scope)
+    if not locked:
+        db.rollback()
+        return RefreshOut(refreshed_at=latest, fetched=False)
     now = dt.datetime.now(dt.UTC)
     if latest is not None and now - latest < REFRESH_THROTTLE:
         return RefreshOut(refreshed_at=latest, fetched=False)

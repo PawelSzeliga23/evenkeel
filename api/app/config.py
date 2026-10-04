@@ -1,6 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
+from fastapi import Request
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -11,12 +12,16 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str = "postgresql+psycopg://portfolio:portfolio@localhost:5432/portfolio"
-    jwt_secret: str
+    jwt_secret: str = Field(min_length=32)
     access_token_minutes: int = 15
     refresh_token_days: int = 30
     cookie_secure: bool = True
     registration_mode: Literal["open", "invite"] = "open"
     invite_codes: str = ""
+    # Behind a proxy (Cloudflare Tunnel) every request comes from the proxy; its header carries the real client IP
+    # for the rate limits. Set it (e.g. CF-Connecting-IP) only when the API is reachable through that proxy alone,
+    # since anyone talking to the API directly could write the header themselves.
+    client_ip_header: str = ""
     login_rate_limit_per_minute: int = 10
     register_rate_limit_per_minute: int = 5
     catalog_add_rate_limit_per_minute: int = 10  # each new ticker is fetched now and by the worker for good
@@ -35,3 +40,8 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def app_settings(request: Request) -> Settings:
+    """The settings the app was created with (`create_app`), for routes."""
+    return request.app.state.settings

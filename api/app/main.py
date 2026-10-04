@@ -29,6 +29,7 @@ from app.transactions.router import router as transactions_router
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     app = FastAPI(title="Portfolio API")
+    app.state.settings = settings
     app.state.login_limiter = RateLimiter(settings.login_rate_limit_per_minute)
     app.state.register_limiter = RateLimiter(settings.register_rate_limit_per_minute)
     app.state.catalog_limiter = RateLimiter(settings.catalog_add_rate_limit_per_minute)
