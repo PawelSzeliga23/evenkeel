@@ -3,15 +3,16 @@ import { describe, expect, it } from "vitest";
 import { SIGNED_IN, mockFetch, renderApp } from "../test/render";
 
 describe("app shell", () => {
-  it("pins Ustawienia to the bottom of the sidebar, after the five tabs", async () => {
+  it("pins Edytuj pulpit and Ustawienia to the bottom of the sidebar, after the five tabs", async () => {
     mockFetch([...SIGNED_IN, { path: "/api/accounts", respond: () => [] }, { path: "/api/instruments", respond: () => [] }]);
     renderApp("/historia");
 
     const nav = await screen.findByRole("navigation", { name: "Główna" });
     // jsdom applies no @media, so the sidebar-only link reads as hidden here
     const links = within(nav).getAllByRole("link", { hidden: true });
-    expect(links.map((l) => l.textContent)).toEqual(["Pulpit", "Pozycje", "Dodaj", "Historia", "Analiza", "Ustawienia"]);
-    expect(links.at(-1)!.className).toMatch(/pinned/);
+    expect(links.map((l) => l.textContent)).toEqual(
+      ["Pulpit", "Pozycje", "Dodaj", "Historia", "Analiza", "Edytuj pulpit", "Ustawienia"]);
+    expect(links.at(-2)!.className).toMatch(/pinned/); // Edytuj pulpit and Ustawienia at the bottom
   });
 
   it("shows the navigation with the current screen marked", async () => {
