@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { ApiError } from "./api/client";
 import { SessionProvider } from "./auth/session";
+import { ThemeProvider } from "./settings/theme";
 
 /** Retries only what may heal by itself (no connection, server errors); never 4xx. */
 export function createQueryClient({ test = false }: { test?: boolean } = {}): QueryClient {
@@ -20,7 +21,7 @@ export function createQueryClient({ test = false }: { test?: boolean } = {}): Qu
 export function AppProviders({ client, children }: { client: QueryClient; children: ReactNode }) {
   return (
     <QueryClientProvider client={client}>
-      <SessionProvider>{children}</SessionProvider>
+      <ThemeProvider><SessionProvider>{children}</SessionProvider></ThemeProvider>
     </QueryClientProvider>
   );
 }
