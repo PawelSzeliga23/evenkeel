@@ -542,3 +542,23 @@ export interface Preferences {
   price_range: "buy" | "6m" | "1y" | "5y" | "max";
   holdings_without_fixed_income: boolean;
 }
+
+/** Plan 8c: what a backup file holds (POST /api/backup/check and /restore). */
+export interface BackupSummary {
+  exported_at: string;
+  app_version: string;
+  counts: {
+    accounts: number; transactions: number; bond_holdings: number; savings_accounts: number;
+    tags: number; notes: number; scenarios: number; ai_reviews: number;
+  };
+}
+
+/** Plan 8c: GET /api/market/schedule — the worker's refresh schedule and the user's last refresh. */
+export interface RefreshSchedule {
+  intraday_every_minutes: number;
+  intraday_from: string;
+  intraday_to: string;
+  daily_at: string;
+  timezone: string;
+  last_refreshed_at: string | null;
+}

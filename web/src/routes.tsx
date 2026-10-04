@@ -29,6 +29,8 @@ import { TagsSettingsScreen } from "./screens/settings/TagsSettingsScreen";
 import { DefaultsScreen } from "./screens/settings/DefaultsScreen";
 import { AppearanceScreen } from "./screens/settings/AppearanceScreen";
 import { AboutScreen } from "./screens/settings/AboutScreen";
+import { BackupScreen } from "./screens/settings/BackupScreen";
+import { RefreshScreen } from "./screens/settings/RefreshScreen";
 import { AccountsScreen } from "./screens/settings/AccountsScreen";
 import { ProfileScreen } from "./screens/settings/ProfileScreen";
 import { JournalScreen } from "./screens/journal/JournalScreen";
@@ -82,6 +84,8 @@ export const appRoutes: RouteObject[] = [
           { path: "/ustawienia/zrodla-cen", element: <PriceSourcesScreen /> },
           { path: "/ustawienia/tagi", element: <TagsSettingsScreen /> },
           { path: "/ustawienia/dziennik", element: <JournalScreen /> },
+          { path: "/ustawienia/kopia", element: <BackupScreen /> },
+          { path: "/ustawienia/odswiezanie", element: <RefreshScreen /> },
           { path: "/ustawienia/konta/:accountId", element: <AccountScreen /> },
           { path: "/wiecej", element: <Navigate to="/ustawienia" replace /> },
           { path: "*", element: <Navigate to="/" replace /> },

@@ -14,6 +14,7 @@ import { ListRow } from "../../ui/ListRow";
 import ui from "../../ui/ui.module.css";
 import { START_SCREENS } from "./appearance";
 import { problemCount } from "./model";
+import { everyLabel } from "./RefreshScreen";
 import styles from "./Settings.module.css";
 
 const CHEVRON = <span className={styles.chevron} aria-hidden="true">›</span>;
@@ -26,6 +27,7 @@ export function SettingsScreen() {
   const accounts = useQuery({ queryKey: keys.accounts, queryFn: api.accounts });
   const instruments = useQuery({ queryKey: keys.instruments, queryFn: api.instruments });
   const tags = useQuery({ queryKey: keys.tags, queryFn: api.tags });
+  const schedule = useQuery({ queryKey: keys.refreshSchedule, queryFn: api.refreshSchedule });
   const [hidden] = usePrivacy();
   const [theme] = useTheme();
   const prefs = usePreferences();
@@ -38,6 +40,7 @@ export function SettingsScreen() {
     theme: theme === "light" ? "jasny" : "ciemny",
     hide: hidden ? "wł." : "wył.",
     start: START_SCREENS.find((s) => s.value === prefs.start_screen)?.label,
+    refresh: schedule.data ? everyLabel(schedule.data) : undefined,
     about: __APP_VERSION__,
   };
   const hits = searchSettings(query, accounts.data ?? [], tags.data ?? []);

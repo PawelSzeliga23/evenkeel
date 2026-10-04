@@ -1,11 +1,11 @@
 import { request } from "./client";
 import type {
-  Account, AccountCreate, Analytics, AnalyticsPeriod, Holdings, HoldingsPeriod, IncomePeriod, IncomeReport, AccountUpdate, AccountUsage, CatalogGroup, CatalogItem, Review, ReviewListItem, Instrument, InstrumentUpdate, Scenario, ScenarioIn, ScenarioResult, BondDetail, BondIn, BondOut, Closed, EntryIn, EntryPatch, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Journal, JournalEntry, Limit, NoteHolding, NoteTargetIn, Position, PositionDetail, Preferences, PriceChartData, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, Tag, TagLinkIn, TagsReport, TokenOut, Transaction, TransactionIn, UserOut,
+  Account, AccountCreate, Analytics, BackupSummary, RefreshSchedule, AnalyticsPeriod, Holdings, HoldingsPeriod, IncomePeriod, IncomeReport, AccountUpdate, AccountUsage, CatalogGroup, CatalogItem, Review, ReviewListItem, Instrument, InstrumentUpdate, Scenario, ScenarioIn, ScenarioResult, BondDetail, BondIn, BondOut, Closed, EntryIn, EntryPatch, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Journal, JournalEntry, Limit, NoteHolding, NoteTargetIn, Position, PositionDetail, Preferences, PriceChartData, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, Tag, TagLinkIn, TagsReport, TokenOut, Transaction, TransactionIn, UserOut,
 } from "./types";
 
-function filesForm(files: File[]): FormData {
+function filesForm(files: File[], field = "files"): FormData {
   const form = new FormData();
-  for (const file of files) form.append("files", file, file.name);
+  for (const file of files) form.append(field, file, file.name);
   return form;
 }
 
@@ -64,6 +64,14 @@ export const api = {
   position: (accountId: number, instrumentId: number) =>
     request<PositionDetail>(`/api/positions/${accountId}/${instrumentId}`),
   previewImport: (files: File[]) => request<ImportResult>("/api/imports/preview", { method: "POST", form: filesForm(files) }),
+  backup: () => request<string>("/api/backup", { text: true }),
+  checkBackup: (file: File) => request<BackupSummary>("/api/backup/check", { method: "POST", form: filesForm([file], "file") }),
+  restoreBackup: (file: File, confirm: string) => {
+    const form = filesForm([file], "file");
+    form.append("confirm", confirm);
+    return request<BackupSummary>("/api/backup/restore", { method: "POST", form });
+  },
+  refreshSchedule: () => request<RefreshSchedule>("/api/market/schedule"),
   commitImport: (files: File[]) => request<ImportResult>("/api/imports", { method: "POST", form: filesForm(files) }),
   createAccount: (body: AccountCreate) => request<Account>("/api/accounts", { method: "POST", json: body }),
   addTransaction: (body: TransactionIn) => request<Transaction>("/api/transactions", { method: "POST", json: body }),

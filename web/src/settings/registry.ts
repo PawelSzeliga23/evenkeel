@@ -1,7 +1,7 @@
 /** Every Ustawienia row and the options inside its subpages (plan 8a): one list for the main screen and the search.
  * Later parts (8b–8d) add their rows here. */
-export type Group = "Konto" | "Portfel" | "Wygląd i prywatność" | "Domyślne widoki" | "O aplikacji";
-export const GROUPS: Group[] = ["Konto", "Portfel", "Wygląd i prywatność", "Domyślne widoki", "O aplikacji"];
+export type Group = "Konto" | "Portfel" | "Wygląd i prywatność" | "Domyślne widoki" | "Dane" | "O aplikacji";
+export const GROUPS: Group[] = ["Konto", "Portfel", "Wygląd i prywatność", "Domyślne widoki", "Dane", "O aplikacji"];
 
 export interface SettingItem {
   id: string;
@@ -31,6 +31,8 @@ export const SETTINGS: SettingItem[] = [
   { id: "value_range", group: "Domyślne widoki", title: "Zakres wykresu wartości", keywords: "wykres pulpit ekspozycja zakres", to: "/ustawienia/domyslne#wykres-wartosci", parent: "Domyślne widoki" },
   { id: "price_range", group: "Domyślne widoki", title: "Zakres wykresu ceny", keywords: "wykres cena zakres pozycja", to: "/ustawienia/domyslne#wykres-ceny", parent: "Domyślne widoki" },
   { id: "fixed_income", group: "Domyślne widoki", title: "Walory bez oszczędności i obligacji", keywords: "walory oszczędności obligacje", to: "/ustawienia/domyslne#bez-oszczednosci", parent: "Domyślne widoki" },
+  { id: "backup", group: "Dane", title: "Kopia portfela", keywords: "kopia eksport backup zapisz pobierz wczytaj przywróć plik przeprowadzka", to: "/ustawienia/kopia" },
+  { id: "refresh", group: "Dane", title: "Odświeżanie cen", keywords: "odświeżanie ceny kursy godziny harmonogram notowania", to: "/ustawienia/odswiezanie" },
   { id: "about", group: "O aplikacji", title: "O aplikacji", keywords: "Evenkeel wersja", to: "/ustawienia/o-aplikacji" },
 ];
 
