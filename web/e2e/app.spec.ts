@@ -305,3 +305,42 @@ test("sesje: wylogowanie drugiego urządzenia, potem usunięcie konta", async ({
   await page.goto("/");
   await expect(page.getByRole("button", { name: "Zaloguj się" })).toBeVisible({ timeout: 15_000 });
 });
+
+test("pulpit z kafelków: dodanie miary na telefonie, układ na komputerze", async ({ page, browser }) => {
+  const email = `e2e-tiles-${Date.now()}@portfolio.dev`;
+  await page.goto("/rejestracja");
+  await page.getByLabel("E-mail").fill(email);
+  await page.getByLabel("Hasło").fill("e2e-haslo-12345");
+  await page.getByRole("button", { name: "Załóż konto" }).click();
+  await page.getByRole("link", { name: "Wgraj pliki z XTB" }).click();
+  await page.getByLabel("Wybierz pliki").setInputFiles(EXPORT);
+  await page.getByRole("button", { name: "Zapisz import" }).click();
+  await page.getByRole("link", { name: "Zobacz pulpit" }).click();
+  await expect(page.getByText("Przeliczam wycenę…")).toBeHidden({ timeout: 45_000 });
+
+  await page.getByRole("button", { name: "Edytuj pulpit" }).click();
+  await page.getByRole("button", { name: "+ Dodaj kafelek" }).click();
+  await page.getByRole("button", { name: /^Jedna miara/ }).click();
+  await page.screenshot({ path: `${SCREENS}/pulpit-edycja.png`, fullPage: true });
+  await page.getByRole("button", { name: "Gotowe" }).click();
+  await expect(page.getByRole("button", { name: "Gotowe" })).toBeHidden();
+
+  await page.reload();
+  await expect(page.getByRole("region", { name: "XIRR" })).toBeVisible({ timeout: 45_000 });
+  await page.screenshot({ path: `${SCREENS}/pulpit-kafelki.png`, fullPage: true });
+
+  // The same layout on a computer: a browser of its own, as the phone emulation keeps a phone's viewport.
+  const computer = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "pl-PL" });
+  const desk = await computer.newPage();
+  await desk.goto("/logowanie");
+  await desk.getByLabel("E-mail").fill(email);
+  await desk.getByLabel("Hasło").fill("e2e-haslo-12345");
+  await desk.getByRole("button", { name: "Zaloguj się" }).click();
+  await expect(desk.getByRole("region", { name: "XIRR" })).toBeVisible({ timeout: 45_000 });
+  await expect(desk.getByRole("img", { name: /Wykres wartości portfela/ })).toBeVisible();
+  await desk.screenshot({ path: `${SCREENS}/pulpit-komputer.png`, fullPage: true });
+  await desk.getByRole("navigation", { name: "Główna" }).getByRole("link", { name: "Edytuj pulpit" }).click();
+  await expect(desk.getByRole("button", { name: "Gotowe" })).toBeVisible();
+  await desk.screenshot({ path: `${SCREENS}/pulpit-komputer-edycja.png`, fullPage: true });
+  await computer.close();
+});

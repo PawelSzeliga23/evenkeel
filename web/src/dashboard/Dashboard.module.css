@@ -14,8 +14,6 @@
 /* the parts of a tile */
 .tileSection { display: grid; gap: 12px; min-width: 0; }
 .tileHead { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; }
-.tileTitle { font-size: 15px; font-weight: 600; }
-.tileMore { color: var(--amber-text); font-size: 13px; text-decoration: none; }
 .tileProblem { display: grid; gap: 8px; justify-items: start; color: var(--dim); font-size: 14px; }
 .tileRetry {
   min-height: 36px; padding: 0 12px; border: 1px solid var(--rule); border-radius: var(--r-control);

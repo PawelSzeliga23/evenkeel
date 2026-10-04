@@ -10,6 +10,7 @@ import { formatDecimal, formatPercent, signOf } from "../format";
 import { Money } from "../ui/Amount";
 import { InfoTip } from "../ui/InfoTip";
 import { RECALC_POLL_MS } from "../screens/dashboard/model";
+import ui from "../ui/ui.module.css";
 import styles from "./Dashboard.module.css";
 import { METRICS, metricValue, type MetricKey } from "./metrics";
 
@@ -19,9 +20,9 @@ export function TileSection({ title, more, children }: {
   const id = useId();
   return (
     <section className={styles.tileSection} aria-labelledby={id}>
-      <div className={styles.tileHead}>
-        <h2 id={id} className={styles.tileTitle}>{title}</h2>
-        {more && <Link className={styles.tileMore} to={more.to} aria-label={more.label}>{more.text ?? "Szczegóły"}</Link>}
+      <div className={ui.sectionHead}>
+        <h2 id={id} className={ui.sectionTitle}>{title}</h2>
+        {more && <Link className={ui.sectionMore} to={more.to} aria-label={more.label}>{more.text ?? "Szczegóły"}</Link>}
       </div>
       {children}
     </section>
