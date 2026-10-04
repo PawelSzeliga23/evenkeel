@@ -22,38 +22,49 @@ plan wykonania (writing-plans) i wykonanie bez kolejnych zgód (waiver planu 9),
   kafelek dosuwa się pod niższego sąsiada; kolejność na telefonie się nie zmienia.
 - Treść, która się nie mieści, przewija się wewnątrz kafelka (nie powinno się zdarzać przy dobrze dobranych wariantach).
 
-## Proponowane warianty (szerokość · wysokość) — DO AKCEPTACJI
+## Warianty (szerokość · wysokość)
 
 | Kafelek | Warianty | Co pokazuje dany wariant |
 |---|---|---|
-| Wartość portfela | **S·2U** nowy · **M·4U** · **L·3U** | S: kwota i zmiana dziś; M: kwota, koszty wyjścia, dziś, 4 pola 2×2; L: kwota po lewej, 4 pola w jednym rzędzie |
+| Wartość portfela | **S·2U** nowy (bez pól) · **M** · **L** — wysokość z liczby pól (zasada niżej) | S: kwota i zmiana dziś; M: kwota, koszty wyjścia, dziś i pola po 2 w rzędzie; L: kwota po lewej, pola po 4 w rzędzie |
 | Jedna miara | **S·1U** nowy · **S·2U** | 1U: nazwa i liczba w jednym wierszu; 2U: jak dziś (nazwa, liczba, dopisek) |
 | Wykres wartości | **M·4U** · **L·4U** · **L·6U** | niski szeroki do pasa nad innymi; duży jak dziś |
 | Wykres ceny | **M·5U** · **L·6U** | jak dziś; M bez legendy i podpowiedzi |
 | Alokacja | **S·2U** · **M·4U** · **L·4U** | S: pasek + największa część; M: pasek + lista (do 5); L: pasek + lista w 2 kolumnach |
 | Analiza | **M** · **L** · **L + wykres** — wysokość rośnie z liczbą miar (zasada niżej) | M: miary po 2 w rzędzie; L: po 4 w rzędzie; L + wykres: miary po 4 w rzędzie i wykres obsunięcia |
 | Limity IKE/IKZE | **S·2U** nowy · **M·2U** | S: tylko % wykorzystania każdego limitu; M: jak dziś |
-| Dziś najbardziej | **M·4U** (3 poz.) · **M·5U** (5 poz.) · **L·5U** (5 poz. w 2 kolumnach) · **L·8U** (10 poz.) | liczba pozycji wynika z wariantu (znika ustawienie „Ile pozycji”) |
+| Dziś najbardziej | **M** · **L** (2 kolumny) — wysokość z liczby pozycji (zasada niżej) | ustawienie „Ile pozycji” zostaje (3, 5, 10) |
 | Walory | **M·3U** · **L·5U** nowy | mała / duża mapa cieplna |
 | Dochód i koszty | **S·2U** nowy · **M·2U** | S: sam bilans od pocz. roku; M: dochód i koszty jak dziś |
 | Tagi | **M·3U** | jak dziś (3 tagi) |
 | Symulator | **M·4U** | jak dziś (3 scenariusze) |
 | Przegląd AI | **M·4U** · **L·4U** | skrót „W skrócie”, przewijany w kafelku |
 
-### Zasada wysokości Analizy (prośba właściciela)
+### Zasada: wysokość rośnie z liczbą pól (prośba właściciela)
 
-Wysokość Analizy nie jest jednym wariantem, tylko wynika z liczby wybranych miar (1–6), żeby kafelek nie miał pustego
-miejsca ani przewijania: **1U na nagłówek (tytuł, okres) + 1U na każdy rząd miar**.
+Dotyczy **każdego kafelka, w którym właściciel sam wybiera liczbę pól albo pozycji** — kafelek nie ma pustego miejsca
+ani przewijania. Wysokość = **część stała** (nagłówek, kwota, wykres) **+ 1U na każdy rząd pól**. Pole miary (nazwa,
+liczba, dopisek „rocznie”) mieści się w 1U (72 px); wiersz listy (walor, operacja, konto) jest zwarty, 44 px, więc
+w 1U mieszczą się 2 wiersze (2 × 44 = 88 px = 1U z odstępem).
 
-| Wariant | Miar w rzędzie | Wysokość | Przykłady |
-|---|---|---|---|
-| M | 2 | 1U + ⌈n / 2⌉U | 1–2 miary → 2U, 3–4 → 3U, 5–6 → 4U |
-| L | 4 | 1U + ⌈n / 4⌉U | 1–4 → 2U, 5–6 → 3U |
-| L + wykres | 4 | 1U + ⌈n / 4⌉U + 3U | 1–4 → 5U, 5–6 → 6U |
+| Kafelek (co się liczy) | Wariant | Pól / wierszy w rzędzie 1U | Wysokość | Przykłady |
+|---|---|---|---|---|
+| Analiza (miary 1–6) | M | 2 miary | 1U + ⌈n/2⌉U | 2 → 2U, 4 → 3U, 6 → 4U |
+| | L | 4 miary | 1U + ⌈n/4⌉U | 4 → 2U, 6 → 3U |
+| | L + wykres obsunięcia | 4 miary | 1U + ⌈n/4⌉U + 3U | 4 → 5U, 6 → 6U |
+| Wartość portfela (pola 1–8; dotąd stałe 4) | M | 2 pola | 2U (kwota, dziś) + ⌈n/2⌉U | 4 → 4U, 6 → 5U, 8 → 6U |
+| | L | 4 pola | 2U + ⌈n/4⌉U | 4 → 3U, 8 → 4U |
+| Dziś najbardziej (3, 5, 10 pozycji) | M | 2 wiersze | 1U + ⌈n/2⌉U | 3 → 3U, 5 → 4U, 10 → 6U |
+| | L (2 kolumny) | 4 wiersze | 1U + ⌈n/4⌉U | 5 → 3U, 10 → 4U |
+| Ostatnie operacje (3, 5, 10) | M | 2 wiersze | 1U + ⌈n/2⌉U | 5 → 4U |
+| | L (2 kolumny) | 4 wiersze | 1U + ⌈n/4⌉U | 10 → 4U |
+| Najlepsze i najgorsze walory (po 2, 3, 5) | M (pod sobą: 2n wierszy) | 2 wiersze | 1U + nU | po 3 → 4U |
+| | L (obok siebie: n wierszy) | 2 wiersze | 1U + ⌈n/2⌉U | po 3 → 3U |
 
-Jedna miara (nazwa, liczba, dopisek „rocznie”) mieści się w 1U (72 px). Tę samą zasadę można później dać innym kafelkom
-z listą (np. „Dziś najbardziej”: 1U nagłówek + 1U na każdą pozycję), ale na razie zostają tam stałe warianty z tabeli.
-W ustawieniach Analizy przy wyborze miar widać, jak zmienia się wysokość („3 miary · M · 3U”).
+Kafelki, w których liczba wierszy wynika z danych, a nie z wyboru (Alokacja — liczba typów/kont, Limity — liczba
+limitów, Gotówka na kontach — liczba kont), mają **stałą wysokość z tabeli**, a nadmiar przewija się w kafelku.
+W ustawieniach kafelka przy wyborze liczby pól widać wynik („3 miary · M · 3U”), a na uchwycie w trybie edycji —
+aktualny wymiar.
 
 Układ domyślny (bez zapisanego): Wartość portfela M·4U + Wykres wartości… — do ustalenia po akceptacji tabeli; cel:
 dzisiejszy porządek bez przerw (np. Wartość portfela L·3U, Wykres wartości L·6U, Alokacja M·4U obok Analiza M·3U +
@@ -62,13 +73,13 @@ Limity… — dobrać tak, by sumy U w parach się zgadzały).
 ## Decyzje właściciela (2026-10-04)
 
 1. **1U = 72 px** — tak.
-2. **Warianty z tabeli** — tak (Analiza według zasady wyżej).
+2. **Warianty z tabeli** — tak; tam, gdzie wybiera się liczbę pól lub pozycji, wysokość rośnie z ich liczbą (zasada wyżej).
 3. **Nowe rodzaje kafelków** — tak, wszystkie cztery:
    - **Ekspozycja walutowa** — S·2U (udział największej waluty obcej w %), M·3U (pasek walut i lista); dane:
      `/api/portfolio/exposure` (dzisiejszy podział), link do `/ekspozycja`;
-   - **Ostatnie operacje** — M·4U (3 ostatnie), M·6U (5 ostatnich); dane: `/api/history` (pierwsza strona), link do
+   - **Ostatnie operacje** — M albo L, 3/5/10 operacji, wysokość z zasady wyżej; dane: `/api/history` (pierwsza strona), link do
      Historii;
-   - **Najlepsze i najgorsze walory** — M·4U (po 2 najlepsze i najgorsze), L·4U (po 3, w dwóch kolumnach); okres
+   - **Najlepsze i najgorsze walory** — M albo L, po 2/3/5 najlepszych i najgorszych, wysokość z zasady wyżej; okres
      (1 dzień … wszystko) w ustawieniach; dane: `/api/analytics/holdings`, link do Walorów;
    - **Gotówka na kontach** — S·2U (gotówka razem), M·3U (gotówka per konto); dane: `/api/positions` (pozycje
      `kind = "cash"`).
