@@ -89,8 +89,10 @@ function Mark({ kind, x, y, big }: { kind: ChartMark["kind"]; x: number; y: numb
 }
 
 /** The instrument's closes in its own currency with the position's operations on them (spec 7e). */
-export function PriceChart({ data, average, selected, onSelect, view: requested, onViewChange, onReset }: {
+export function PriceChart({ data, average, selected, onSelect, view: requested, onViewChange, onReset, maxHeight }: {
   data: PriceChartData;
+  /** A tile of the Pulpit (plan 9b) caps the drawing to fit its height. */
+  maxHeight?: number;
   /** The average purchase price (quote currency); null draws no line. */
   average: Money | null;
   selected: number | null;
@@ -105,7 +107,7 @@ export function PriceChart({ data, average, selected, onSelect, view: requested,
   const [figure, setFigure] = useState<HTMLElement | null>(null);
   const width = useWidth(figure, FRAME.width);
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
-  const frame: Frame = frameFor(width);
+  const frame: Frame = frameFor(width, maxHeight);
   const count = dates.length;
   const view = clampWindow(requested ?? fullWindow(count), count);
   const shownY = useRef<YRange>({ min: 0, max: 1 });

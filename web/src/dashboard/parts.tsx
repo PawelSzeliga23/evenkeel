@@ -78,3 +78,31 @@ export function useTileAnalytics(period: AnalyticsPeriod, needed: boolean) {
 }
 
 export const needsAnalytics = (metrics: readonly MetricKey[]) => metrics.some((m) => METRICS[m].source === "analytics");
+
+/** A small tile (plan 9b): the one thing that matters, its name leading to the details. */
+export function TileBrief({ title, to, value, note, children }: {
+  title: string; to?: string; value: ReactNode; note?: ReactNode; children?: ReactNode;
+}) {
+  const id = useId();
+  return (
+    <section className={styles.tileBrief} aria-labelledby={id}>
+      <h2 id={id} className={styles.tileBriefTitle}>{to ? <Link to={to}>{title}</Link> : title}</h2>
+      <div className={styles.tileBriefValue}>{value}</div>
+      {note && <small className={styles.tileBriefNote}>{note}</small>}
+      {children}
+    </section>
+  );
+}
+
+/** A line of values without axes, for small tiles (plan 9b). */
+export function Sparkline({ values, label }: { values: number[]; label: string }) {
+  if (values.length < 2) return null;
+  const min = Math.min(...values);
+  const span = Math.max(...values) - min || 1;
+  const path = values.map((v, i) => `${i ? "L" : "M"}${((i / (values.length - 1)) * 100).toFixed(2)} ${(30 - ((v - min) / span) * 28).toFixed(2)}`).join(" ");
+  return (
+    <svg className={styles.sparkline} viewBox="0 0 100 32" preserveAspectRatio="none" role="img" aria-label={label}>
+      <path d={path} />
+    </svg>
+  );
+}

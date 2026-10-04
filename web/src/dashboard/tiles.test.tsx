@@ -27,7 +27,7 @@ const layout = (...tiles: DashboardLayout["tiles"]): DashboardLayout => ({ versi
 
 describe("Pulpit from tiles", () => {
   it("shows the chosen fields under the value: Sharpe in place of TWR", async () => {
-    mockFetch(routes(layout({ id: "s", kind: "summary", size: "L",
+    mockFetch(routes(layout({ id: "s", kind: "summary", variant: "L",
       settings: { fields: ["total_gain", "sharpe", "invested", "income"] } })));
     renderApp("/");
 
@@ -37,24 +37,24 @@ describe("Pulpit from tiles", () => {
     expect(within(tile).queryByText("Stopa zwrotu (TWR)")).not.toBeInTheDocument();
   });
 
-  it("asks the analytics once for several metric tiles and lays them out by size", async () => {
+  it("asks the analytics once for several metric tiles and lays them out by width", async () => {
     const fetchMock = mockFetch(routes(layout(
-      { id: "a", kind: "metric", size: "S", settings: { metric: "xirr" } },
-      { id: "b", kind: "metric", size: "S", settings: { metric: "volatility" } },
+      { id: "a", kind: "metric", variant: "S2", settings: { metric: "xirr" } },
+      { id: "b", kind: "metric", variant: "S2", settings: { metric: "volatility" } },
     )));
     renderApp("/");
 
     const xirr = await screen.findByRole("region", { name: "XIRR" });
     expect(await within(xirr).findByText(`+6,4${T}%`)).toBeInTheDocument();
     expect(within(xirr).getByText("za okres")).toBeInTheDocument();
-    expect(xirr.closest("[data-size]")).toHaveAttribute("data-size", "S");
+    expect(xirr.closest("[data-width]")).toHaveAttribute("data-width", "S");
     expect(screen.getByRole("region", { name: "Zmienność" })).toBeInTheDocument();
     const analytics = fetchMock.mock.calls.filter(([u]) => String(u).startsWith("/api/analytics"));
     expect(analytics).toHaveLength(1);
   });
 
   it("draws a price chart of the chosen holding with a link to its details", async () => {
-    mockFetch(routes(layout({ id: "p", kind: "price_chart", size: "L",
+    mockFetch(routes(layout({ id: "p", kind: "price_chart", variant: "L6",
       settings: { account_id: 2, instrument_id: 12, range: "max" } })));
     renderApp("/");
 
@@ -64,7 +64,7 @@ describe("Pulpit from tiles", () => {
   });
 
   it("asks to pick another holding when the chosen one is gone", async () => {
-    mockFetch(routes(layout({ id: "p", kind: "price_chart", size: "M",
+    mockFetch(routes(layout({ id: "p", kind: "price_chart", variant: "M5",
       settings: { account_id: 9, instrument_id: 99, range: "buy" } })));
     renderApp("/");
 
@@ -73,8 +73,8 @@ describe("Pulpit from tiles", () => {
 
   it("keeps the rest of the Pulpit when one tile cannot load", async () => {
     mockFetch(routes(layout(
-      { id: "m", kind: "metric", size: "S", settings: { metric: "sharpe" } },
-      { id: "l", kind: "limits", size: "M", settings: {} },
+      { id: "m", kind: "metric", variant: "S2", settings: { metric: "sharpe" } },
+      { id: "l", kind: "limits", variant: "M2", settings: {} },
     ), { analytics: () => json(500, { code: "internal_error", message: "Błąd.", details: {} }) }));
     const { user } = renderApp("/");
 
@@ -86,7 +86,7 @@ describe("Pulpit from tiles", () => {
   });
 
   it("shows the analysis tile's chosen metrics for its period", async () => {
-    const fetchMock = mockFetch(routes(layout({ id: "a", kind: "analysis", size: "M",
+    const fetchMock = mockFetch(routes(layout({ id: "a", kind: "analysis", variant: "M",
       settings: { metrics: ["sharpe", "best_day"], period: "1y" } })));
     renderApp("/");
 
@@ -98,7 +98,7 @@ describe("Pulpit from tiles", () => {
   });
 
   it("shows a small allocation as a bar with the largest part", async () => {
-    mockFetch(routes(layout({ id: "al", kind: "allocation", size: "S", settings: { by: "account" } })));
+    mockFetch(routes(layout({ id: "al", kind: "allocation", variant: "S2", settings: { by: "account" } })));
     renderApp("/");
 
     const tile = await screen.findByRole("region", { name: "Alokacja" });
@@ -122,7 +122,7 @@ describe("Pulpit from tiles", () => {
 describe("one metric twice under the value", () => {
   it("shows both, each with its own key", async () => {
     const errors = vi.spyOn(console, "error").mockImplementation(() => {});
-    mockFetch(routes(layout({ id: "s", kind: "summary", size: "L",
+    mockFetch(routes(layout({ id: "s", kind: "summary", variant: "L",
       settings: { fields: ["xirr", "invested", "xirr"] } })));
     renderApp("/");
 

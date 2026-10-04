@@ -86,7 +86,9 @@ function Legend({ average, notes }: { average: boolean; notes: boolean }) {
   );
 }
 
-function Chart({ data, average, sinceBuy }: { data: PriceChartData; average: Money | null; sinceBuy: boolean }) {
+function Chart({ data, average, sinceBuy, compact, maxHeight }: {
+  data: PriceChartData; average: Money | null; sinceBuy: boolean; compact: boolean; maxHeight: number | undefined;
+}) {
   const [zoom, setZoom] = useState<ChartWindow | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const count = data.points.length;
@@ -110,8 +112,8 @@ function Chart({ data, average, sinceBuy }: { data: PriceChartData; average: Mon
         {moved !== null && <span className={`num ${tone(moved)}`}>{`${formatPercent(moved)} ${fromBuy ? "od 1. zakupu" : "w zakresie"}`}</span>}
       </p>
       <PriceChart data={data} average={average} selected={selected} onSelect={setSelected}
-        view={view} onViewChange={setZoom} onReset={() => setZoom(null)} />
-      <Legend average={average !== null} notes={data.notes.length > 0} />
+        view={view} onViewChange={setZoom} onReset={() => setZoom(null)} maxHeight={maxHeight} />
+      {!compact && <Legend average={average !== null} notes={data.notes.length > 0} />}
       {marker?.kind === "note" && (
         <>
           <NoteDay mark={marker} />
@@ -121,7 +123,7 @@ function Chart({ data, average, sinceBuy }: { data: PriceChartData; average: Mon
         </>
       )}
       {marker && marker.kind !== "note" && <Operation marker={marker} last={last} currency={data.currency} />}
-      <p className={styles.hint}>Szczypnij lub przesuń, żeby zmienić zakres; dotknij znacznika, żeby zobaczyć operację.</p>
+      {!compact && <p className={styles.hint}>Szczypnij lub przesuń, żeby zmienić zakres; dotknij znacznika, żeby zobaczyć operację.</p>}
     </>
   );
 }
@@ -143,8 +145,10 @@ export function PriceSection({ accountId, instrumentId, average, firstBuy }: {
 }
 
 /** The range buttons and the chart, without a heading: the price chart section and the Pulpit's tile (plan 9). */
-export function PriceChartBody({ accountId, instrumentId, average, firstBuy, initialRange }: {
+export function PriceChartBody({ accountId, instrumentId, average, firstBuy, initialRange, compact = false, maxHeight }: {
   accountId: number; instrumentId: number; average: Money | null; firstBuy: IsoDate | null; initialRange: PriceRange;
+  /** A tile of the Pulpit (plan 9b): without the legend and the hint, the drawing capped to fit. */
+  compact?: boolean; maxHeight?: number;
 }) {
   const [range, setRange] = useState<PriceRange>(initialRange);
   // One request per range: the API keeps every day of a short range and thins only a long one to ≤ 800 points.
@@ -159,7 +163,7 @@ export function PriceChartBody({ accountId, instrumentId, average, firstBuy, ini
       <Segmented label="Zakres wykresu ceny" options={PRICE_RANGES} value={range} onChange={setRange} />
       {prices.isPending ? <Skeleton rows={3} />
         : prices.isError ? <ErrorState error={prices.error} onRetry={() => void prices.refetch()} />
-          : <Chart data={prices.data} average={average} sinceBuy={range === "buy"} />}
+          : <Chart data={prices.data} average={average} sinceBuy={range === "buy"} compact={compact} maxHeight={maxHeight} />}
     </>
   );
 }

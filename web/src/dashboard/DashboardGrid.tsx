@@ -4,15 +4,18 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, rectSortingStrategy, sortableKeyboardCoordinates, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { Summary } from "../api/types";
 import { CloseIcon, SettingsIcon } from "../shell/icons";
 import styles from "./Dashboard.module.css";
-import { KINDS, moveTile, removeTile, updateTile, type DashboardLayout, type Tile } from "./layout";
+import { KINDS, dimensionOf, heightOf, moveTile, removeTile, updateTile, widthOf, type DashboardLayout, type Tile } from "./layout";
 import { TileSettings } from "./TileSettings";
 import { AllocationTile, MoversTile, PriceChartTile, ValueChartTile } from "./tiles/ChartTiles";
 import { HoldingsTile, IncomeTile, LimitsTile, ReviewTile, SimulatorTile, TagsTile } from "./tiles/CardTiles";
 import { AnalysisTile, MetricTile, SummaryTile } from "./tiles/FigureTiles";
+import {
+  BondsTile, CashTile, ExposureTile, ExtremesTile, JournalTile, OperationsTile, SavingsTile,
+} from "./tiles/ListTiles";
 
 export function TileView({ tile, summary }: { tile: Tile; summary: Summary }): ReactNode {
   switch (tile.kind) {
@@ -22,21 +25,34 @@ export function TileView({ tile, summary }: { tile: Tile; summary: Summary }): R
     case "price_chart": return <PriceChartTile tile={tile} />;
     case "allocation": return <AllocationTile tile={tile} summary={summary} />;
     case "analysis": return <AnalysisTile tile={tile} summary={summary} />;
-    case "limits": return <LimitsTile />;
+    case "limits": return <LimitsTile tile={tile} />;
     case "movers": return <MoversTile tile={tile} summary={summary} />;
-    case "holdings": return <HoldingsTile />;
-    case "income": return <IncomeTile />;
-    case "tags": return <TagsTile />;
-    case "simulator": return <SimulatorTile />;
-    case "review": return <ReviewTile />;
+    case "holdings": return <HoldingsTile tile={tile} />;
+    case "income": return <IncomeTile tile={tile} />;
+    case "tags": return <TagsTile tile={tile} />;
+    case "simulator": return <SimulatorTile tile={tile} />;
+    case "review": return <ReviewTile tile={tile} />;
+    case "exposure": return <ExposureTile tile={tile} summary={summary} />;
+    case "operations": return <OperationsTile tile={tile} />;
+    case "extremes": return <ExtremesTile tile={tile} />;
+    case "cash": return <CashTile tile={tile} summary={summary} />;
+    case "bonds": return <BondsTile tile={tile} />;
+    case "savings": return <SavingsTile tile={tile} summary={summary} />;
+    case "journal": return <JournalTile tile={tile} />;
   }
+}
+
+/** Where a tile sits: its width, its variant and, on a computer, its height in U (rows of the grid). */
+function boxProps(tile: Tile) {
+  return { "data-kind": tile.kind, "data-width": widthOf(tile.variant), "data-variant": tile.variant,
+    style: { "--u": heightOf(tile) } as CSSProperties };
 }
 
 export function DashboardGrid({ layout, summary }: { layout: DashboardLayout; summary: Summary }) {
   return (
     <div className={styles.tileGrid}>
       {layout.tiles.map((tile) => (
-        <div key={tile.id} className={styles.tileBox} data-kind={tile.kind} data-size={tile.size}>
+        <div key={tile.id} className={styles.tileBox} {...boxProps(tile)}>
           <TileView tile={tile} summary={summary} />
         </div>
       ))}
@@ -50,15 +66,18 @@ function EditableTile({ tile, index, count, summary, configuring, onConfigure, l
 }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: tile.id });
   const name = KINDS[tile.kind].name;
+  const box = boxProps(tile);
   return (
-    <div ref={setNodeRef} className={styles.tileBox} data-kind={tile.kind} data-size={tile.size} data-editing
+    <div ref={setNodeRef} className={styles.tileBox} {...box} data-editing
       data-dragging={isDragging || undefined} data-configuring={configuring || undefined} role="group" aria-label={`Kafelek ${name}`}
-      style={{ transform: CSS.Translate.toString(transform), transition }} {...(configuring ? {} : listeners)}>
+      style={{ ...box.style, transform: CSS.Translate.toString(transform), transition }} {...(configuring ? {} : listeners)}>
       <div className={styles.tileTools}>
         <button type="button" className={styles.tileTool} aria-label={`Usuń kafelek ${name}`}
           onClick={() => onChange(removeTile(layout, tile.id))}><CloseIcon /></button>
         <button ref={setActivatorNodeRef} type="button" className={styles.tileHandle} {...attributes}
-          aria-label={`Przeciągnij kafelek ${name}`}>⠿</button>
+          aria-label={`Przeciągnij kafelek ${name}`}>
+          ⠿<span className={styles.tileDimension} aria-hidden="true">{dimensionOf(tile)}</span>
+        </button>
         <button type="button" className={styles.tileTool} aria-label={`Ustaw kafelek ${name}`} aria-expanded={configuring}
           onClick={() => onConfigure(configuring ? null : tile.id)}><SettingsIcon /></button>
       </div>
@@ -94,7 +113,7 @@ export function EditableGrid({ layout, summary, onChange, configuring, onConfigu
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
       <SortableContext items={layout.tiles.map((t) => t.id)} strategy={rectSortingStrategy}>
-        <div className={styles.tileGrid} data-editing>
+        <div className={styles.tileGrid} data-editing data-configuring={configuring !== null || undefined}>
           {layout.tiles.map((tile, index) => (
             <EditableTile key={tile.id} tile={tile} index={index} count={layout.tiles.length} summary={summary}
               configuring={configuring === tile.id} onConfigure={onConfigure} layout={layout} onChange={onChange} />

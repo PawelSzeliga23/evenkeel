@@ -4,11 +4,11 @@ import { useId } from "react";
 import { useAccountSelection } from "../accounts/AccountSelection";
 import { api } from "../api/endpoints";
 import { keys } from "../api/queryKeys";
-import type { AnalyticsPeriod } from "../api/types";
+import type { AnalyticsPeriod, HoldingsPeriod } from "../api/types";
 import styles from "./Dashboard.module.css";
 import {
-  ANALYSIS_PERIODS, KINDS, PRICE_RANGES, VALUE_RANGES, type AllocationBy, type PriceRange, type Tile, type TileSize,
-  type ValueRange,
+  ANALYSIS_PERIODS, ANALYSIS_SMALL_METRICS, EXTREME_COUNTS, HOLDINGS_PERIODS, KINDS, MAX_SUMMARY_FIELDS, PRICE_RANGES,
+  ROW_COUNTS, VALUE_RANGES, dimensionOf, type AllocationBy, type PriceRange, type Tile, type TileVariant, type ValueRange,
 } from "./layout";
 import { METRIC_OPTIONS, type MetricKey } from "./metrics";
 
@@ -20,7 +20,10 @@ const PERIOD_NAMES: Record<AnalyticsPeriod, string> = {
   "1m": "1 miesiąc", "3m": "3 miesiące", "1y": "1 rok", ytd: "Od początku roku", all: "Cały okres",
 };
 const BY_NAMES: Record<AllocationBy, string> = { kind: "Typ", account: "Konto", currency: "Waluta" };
-const SIZE_NAMES: Record<TileSize, string> = { S: "mały", M: "średni", L: "duży" };
+const HOLDINGS_PERIOD_NAMES: Record<HoldingsPeriod, string> = {
+  "1d": "1 dzień", "1w": "1 tydzień", "1m": "1 miesiąc", "1y": "1 rok", ytd: "Od początku roku", all: "Cały okres",
+};
+const counts = <N extends number>(list: readonly N[]) => list.map((value) => ({ value, label: String(value) }));
 
 function Select<T extends string | number>({ label, value, options, onChange }: {
   label: string; value: T; options: readonly { value: T; label: string }[]; onChange: (value: T) => void;
@@ -85,15 +88,30 @@ function MetricChoice({ chosen, max, onChange }: { chosen: MetricKey[]; max: num
 
 function KindFields({ tile, onSettings }: { tile: Tile; onSettings: (settings: Tile["settings"]) => void }) {
   switch (tile.kind) {
-    case "summary":
+    case "summary": {
+      const fields = tile.settings.fields;
+      if (tile.variant === "S2") return <p className="dim">Mały kafelek pokazuje kwotę i zmianę dziś.</p>;
       return (
         <>
-          {tile.settings.fields.map((field, index) => (
-            <Select key={index} label={`Pole ${index + 1}`} value={field} options={METRIC_OPTIONS}
-              onChange={(next) => onSettings({ fields: tile.settings.fields.map((f, i) => (i === index ? next : f)) })} />
+          {fields.map((field, index) => (
+            <div key={index} className={styles.tileFieldRow}>
+              <Select label={`Pole ${index + 1}`} value={field} options={METRIC_OPTIONS}
+                onChange={(next) => onSettings({ fields: fields.map((f, i) => (i === index ? next : f)) })} />
+              <button type="button" className={styles.tileRetry} disabled={fields.length === 1}
+                aria-label={`Usuń pole ${index + 1}`} onClick={() => onSettings({ fields: fields.filter((_, i) => i !== index) })}>
+                Usuń
+              </button>
+            </div>
           ))}
+          {fields.length < MAX_SUMMARY_FIELDS && (
+            <button type="button" className={styles.tileRetry}
+              onClick={() => onSettings({ fields: [...fields, METRIC_OPTIONS.find((o) => !fields.includes(o.value))?.value ?? "xirr"] })}>
+              + Dodaj pole
+            </button>
+          )}
         </>
       );
+    }
     case "metric":
       return <Select label="Miara" value={tile.settings.metric} options={METRIC_OPTIONS} onChange={(metric) => onSettings({ metric })} />;
     case "value_chart":
@@ -109,12 +127,27 @@ function KindFields({ tile, onSettings }: { tile: Tile; onSettings: (settings: T
         <>
           <Select label="Okres" value={tile.settings.period} options={entries(PERIOD_NAMES, ANALYSIS_PERIODS)}
             onChange={(period) => onSettings({ ...tile.settings, period })} />
-          <MetricChoice chosen={tile.settings.metrics} max={6} onChange={(metrics) => onSettings({ ...tile.settings, metrics })} />
+          <MetricChoice chosen={tile.settings.metrics} max={tile.variant === "S" ? ANALYSIS_SMALL_METRICS : 6}
+            onChange={(metrics) => onSettings({ ...tile.settings, metrics })} />
         </>
       );
     case "movers":
-      return <Select label="Ile pozycji" value={tile.settings.count}
-        options={[3, 5, 10].map((n) => ({ value: n as 3 | 5 | 10, label: String(n) }))} onChange={(count) => onSettings({ count })} />;
+      if (tile.variant === "S2") return <p className="dim">Mały kafelek pokazuje największy wzrost i spadek.</p>;
+      return <Select label="Ile pozycji" value={tile.settings.count} options={counts(ROW_COUNTS)} onChange={(count) => onSettings({ count })} />;
+    case "operations":
+      if (tile.variant === "S2") return <p className="dim">Mały kafelek pokazuje ostatnią operację.</p>;
+      return <Select label="Ile operacji" value={tile.settings.count} options={counts(ROW_COUNTS)} onChange={(count) => onSettings({ count })} />;
+    case "extremes":
+      return (
+        <>
+          <Select label="Okres" value={tile.settings.period} options={entries(HOLDINGS_PERIOD_NAMES, HOLDINGS_PERIODS)}
+            onChange={(period) => onSettings({ ...tile.settings, period })} />
+          {tile.variant !== "S2" && (
+            <Select label="Ile z każdej strony" value={tile.settings.count} options={counts(EXTREME_COUNTS)}
+              onChange={(count) => onSettings({ ...tile.settings, count })} />
+          )}
+        </>
+      );
     default:
       return <p className="dim">Ten kafelek nie ma ustawień.</p>;
   }
@@ -122,22 +155,28 @@ function KindFields({ tile, onSettings }: { tile: Tile; onSettings: (settings: T
 
 export function TileSettings({ tile, isFirst, isLast, onChange, onMove, onClose }: {
   tile: Tile; isFirst: boolean; isLast: boolean;
-  onChange: (patch: { size?: TileSize; settings?: Tile["settings"] }) => void;
+  onChange: (patch: { variant?: TileVariant; settings?: Tile["settings"] }) => void;
   onMove: (step: -1 | 1) => void; onClose: () => void;
 }) {
-  const sizes = KINDS[tile.kind].sizes;
-  const sizeName = useId();
+  const variants = KINDS[tile.kind].variants;
+  const groupName = useId();
+  function choose(variant: TileVariant) {
+    // a small Analiza shows three metrics at most
+    if (tile.kind === "analysis" && variant === "S" && tile.settings.metrics.length > ANALYSIS_SMALL_METRICS) {
+      onChange({ variant, settings: { ...tile.settings, metrics: tile.settings.metrics.slice(0, ANALYSIS_SMALL_METRICS) } });
+    } else onChange({ variant });
+  }
   return (
     <div className={styles.tileSettings}>
       <b>{KINDS[tile.kind].name}</b>
-      {sizes.length > 1 && (
+      {variants.length > 1 && (
         <fieldset className={styles.tileChoices} data-inline>
-          <legend>Rozmiar (na komputerze)</legend>
-          {sizes.map((size) => (
-            <label key={size} title={SIZE_NAMES[size]}>
-              <input type="radio" name={sizeName} value={size} checked={tile.size === size}
-                onChange={() => onChange({ size })} />
-              {size}
+          <legend>Wariant (szerokość · wysokość na komputerze)</legend>
+          {variants.map((variant) => (
+            <label key={variant}>
+              <input type="radio" name={groupName} value={variant} checked={tile.variant === variant}
+                onChange={() => choose(variant)} />
+              {dimensionOf({ ...tile, variant } as Tile)}
             </label>
           ))}
         </fieldset>

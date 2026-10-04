@@ -176,9 +176,9 @@ export function DashboardScreen() {
         {full && <p className="dim">{`Pulpit ma już ${MAX_TILES} kafelków.`}</p>}
         {save.isError && <p role="alert" className={styles.refreshError}>Nie udało się zapisać układu. Spróbuj ponownie.</p>}
         {adding && (
-          <AddTileSheet onClose={() => setAdding(false)} onAdd={(kind) => {
+          <AddTileSheet onClose={() => setAdding(false)} onAdd={(kind, variant) => {
             const id = newTileId();
-            setDraft(addTile(shown, kind, id));
+            setDraft(addTile(shown, kind, variant, id));
             setAdding(false);
             // a price chart needs its holding first; other kinds start with their defaults
             setConfiguring(kind === "price_chart" ? id : null);

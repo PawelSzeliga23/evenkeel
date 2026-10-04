@@ -5,8 +5,8 @@ import { USER, mockFetch, renderApp, type MockRoute } from "../test/render";
 import type { DashboardLayout } from "./layout";
 
 const SAVED: DashboardLayout = { version: 1, tiles: [
-  { id: "lim", kind: "limits", size: "M", settings: {} },
-  { id: "xirr", kind: "metric", size: "S", settings: { metric: "xirr" } },
+  { id: "lim", kind: "limits", variant: "M2", settings: {} },
+  { id: "xirr", kind: "metric", variant: "S2", settings: { metric: "xirr" } },
 ] };
 
 function routes(layout: DashboardLayout | null, extra: Record<string, unknown> = {}): MockRoute[] {
@@ -45,7 +45,7 @@ describe("editing the Pulpit", () => {
     await startEditing(user);
 
     await user.click(screen.getByRole("button", { name: "+ Dodaj kafelek" }));
-    await user.click(screen.getByRole("button", { name: /^Jedna miara/ }));
+    await user.click(screen.getByRole("button", { name: "Jedna miara S · 1U" }));
     const first = screen.getAllByRole("group", { name: /^Kafelek / })[0]!;
     expect(first).toHaveAccessibleName("Kafelek Jedna miara");
     await user.click(within(first).getByRole("button", { name: "Ustaw kafelek Jedna miara" }));
@@ -56,7 +56,7 @@ describe("editing the Pulpit", () => {
     await waitFor(() => expect(sentLayouts(fetchMock)).toHaveLength(1));
     const sent = sentLayouts(fetchMock)[0]!;
     expect(sent.tiles.map((t) => t.kind)).toEqual(["metric", "limits", "metric"]);
-    expect(sent.tiles[0]!.settings).toEqual({ metric: "sharpe" });
+    expect(sent.tiles[0]).toMatchObject({ variant: "S1", settings: { metric: "sharpe" } });
     await waitFor(() => expect(screen.queryByRole("button", { name: "Gotowe" })).not.toBeInTheDocument());
   });
 
@@ -92,12 +92,57 @@ describe("editing the Pulpit", () => {
     await startEditing(user);
 
     await user.click(screen.getByRole("button", { name: "+ Dodaj kafelek" }));
-    await user.click(screen.getByRole("button", { name: /^Wykres ceny/ }));
+    await user.click(screen.getByRole("button", { name: "Wykres ceny L · 6U" }));
 
     const tile = screen.getAllByRole("group", { name: /^Kafelek / })[0]!;
     const holding = within(tile).getByRole("combobox", { name: "Walor" });
     expect(within(holding).getByRole("option", { name: "CD Projekt · XTB" })).toBeInTheDocument();
-    expect(within(tile).getByRole("radio", { name: "L" })).toBeChecked();
+    expect(within(tile).getByRole("radio", { name: "L · 6U" })).toBeChecked();
+  });
+
+  it("changes a tile's variant and grows the value with its fields", async () => {
+    const fetchMock = mockFetch(routes(SAVED));
+    const { user } = renderApp("/");
+    await startEditing(user);
+
+    await user.click(screen.getByRole("button", { name: "+ Dodaj kafelek" }));
+    await user.click(screen.getByRole("button", { name: "Wartość portfela M · 4U" }));
+    const value = screen.getAllByRole("group", { name: /^Kafelek / })[0]!;
+    expect(within(value).getByRole("button", { name: /Przeciągnij kafelek Wartość portfela/ })).toHaveTextContent("M · 4U");
+    await user.click(within(value).getByRole("button", { name: "Ustaw kafelek Wartość portfela" }));
+    await user.click(within(value).getByRole("button", { name: "+ Dodaj pole" }));
+    expect(within(value).getByRole("radio", { name: "M · 5U" })).toBeChecked();
+    expect(within(value).getByRole("radio", { name: "L · 4U" })).not.toBeChecked();
+    await user.click(within(value).getByRole("button", { name: "Usuń pole 1" }));
+    await user.click(within(value).getByRole("button", { name: "Zamknij ustawienia" }));
+
+    const limits = screen.getByRole("group", { name: "Kafelek Limity IKE/IKZE" });
+    await user.click(within(limits).getByRole("button", { name: "Ustaw kafelek Limity IKE/IKZE" }));
+    await user.click(within(limits).getByRole("radio", { name: "S · 2U" }));
+    await user.click(screen.getByRole("button", { name: "Gotowe" }));
+
+    await waitFor(() => expect(sentLayouts(fetchMock)).toHaveLength(1));
+    const [summary, lim] = sentLayouts(fetchMock)[0]!.tiles;
+    expect(summary).toMatchObject({ kind: "summary", variant: "M" });
+    expect((summary!.settings as { fields: string[] }).fields).toHaveLength(4);
+    expect(lim).toMatchObject({ id: "lim", variant: "S2" });
+  });
+
+  it("keeps three metrics when a small Analiza is chosen", async () => {
+    mockFetch(routes({ version: 1, tiles: [
+      { id: "an", kind: "analysis", variant: "M", settings: { metrics: ["xirr", "twr", "sharpe", "volatility"], period: "all" } },
+    ] }));
+    const { user } = renderApp("/");
+    await screen.findByRole("region", { name: "Analiza" });
+    await user.click(screen.getByRole("button", { name: "Edytuj pulpit" }));
+
+    const tile = await screen.findByRole("group", { name: "Kafelek Analiza" });
+    await user.click(within(tile).getByRole("button", { name: "Ustaw kafelek Analiza" }));
+    expect(within(tile).getByRole("radio", { name: "M · 3U" })).toBeChecked();
+    await user.click(within(tile).getByRole("radio", { name: "S · 4U" }));
+
+    expect(within(tile).getAllByRole("checkbox", { checked: true })).toHaveLength(3);
+    expect(within(tile).getByRole("checkbox", { name: "Zmienność" })).toBeDisabled();
   });
 
   it("saves no layout when it is back to the default one", async () => {

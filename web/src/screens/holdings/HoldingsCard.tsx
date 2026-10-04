@@ -11,7 +11,7 @@ import { HeatMap } from "./HeatMap";
 export const HOLDINGS_PATH = "/analiza/walory";
 
 /** A small day map on Analiza; hidden until there is a valuation (or when the request fails). */
-export function HoldingsCard() {
+export function HoldingsCard({ height = 140, labels = true }: { height?: number; labels?: boolean } = {}) {
   const titleId = useId(); // a tile of the Pulpit can show the card twice (plan 9)
   const [accountIds, , ready] = useAccountSelection();
   const navigate = useNavigate();
@@ -27,7 +27,7 @@ export function HoldingsCard() {
         <h2 id={titleId} className={ui.sectionTitle}>Walory</h2>
         <Link className={ui.sectionMore} to={HOLDINGS_PATH}>Walory</Link>
       </div>
-      <HeatMap items={data.items} period="1d" onSelect={() => navigate(HOLDINGS_PATH)} height={140} />
+      <HeatMap items={data.items} period="1d" onSelect={() => navigate(HOLDINGS_PATH)} height={height} labels={labels} />
     </section>
   );
 }
