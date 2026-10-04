@@ -36,7 +36,9 @@ export function SummaryTile({ tile, summary }: { tile: Tile<"summary">; summary:
         </p>
       )}
       <dl className={styles.tileMetrics}>
-        {fields.map((metric) => <MetricFigure key={metric} metric={metric} summary={summary} analytics={analytics.data} />)}
+        {fields.map((metric, index) => (
+          <MetricFigure key={index} metric={metric} summary={summary} analytics={analytics.data} />
+        ))}
       </dl>
       {approximate > 0 && (
         <p className="flag">

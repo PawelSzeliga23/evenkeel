@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   ACCOUNTS, ANALYTICS, EXPOSURE, HISTORY, LIMITS, POSITIONS, PRICE_CHART, SUMMARY,
 } from "../test/fixtures";
@@ -116,5 +116,18 @@ describe("Pulpit from tiles", () => {
 
     expect(await screen.findByRole("region", { name: "Limity IKE/IKZE" })).toBeInTheDocument();
     expect(screen.queryByText("Wartość portfela")).not.toBeInTheDocument();
+  });
+});
+
+describe("one metric twice under the value", () => {
+  it("shows both, each with its own key", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockFetch(routes(layout({ id: "s", kind: "summary", size: "L",
+      settings: { fields: ["xirr", "invested", "xirr"] } })));
+    renderApp("/");
+
+    const tile = await screen.findByRole("region", { name: "Wartość portfela" });
+    await waitFor(() => expect(within(tile).getAllByText(`+6,4${T}%`)).toHaveLength(2));
+    expect(errors.mock.calls.flat().join(" ")).not.toMatch(/same key/);
   });
 });

@@ -22,9 +22,14 @@ import { RECALC_POLL_MS } from "./model";
 import { usePreferences, useSavePreferences } from "../../settings/preferences";
 import type { Preferences } from "../../api/types";
 
-/** The saved layout; without one, today's Pulpit with the default chart range from Ustawienia (plan 8a). */
+/** The saved layout; without one, the default. */
 export function layoutOf(prefs: Preferences): DashboardLayout {
   if (prefs.dashboard !== null && prefs.dashboard !== undefined) return normalize(prefs.dashboard);
+  return defaultLayoutOf(prefs);
+}
+
+/** Today's Pulpit with the owner's default chart range from Ustawienia (plan 8a). */
+export function defaultLayoutOf(prefs: Preferences): DashboardLayout {
   return {
     ...DEFAULT_LAYOUT,
     tiles: DEFAULT_LAYOUT.tiles.map((t) => (t.kind === "value_chart" ? { ...t, settings: { range: prefs.value_range } } : t)),
@@ -46,6 +51,14 @@ export function DashboardScreen() {
   const [configuring, setConfiguring] = useState<string | null>(null);
   const save = useSavePreferences();
   const shown = editing ? (draft ?? layout) : layout;
+  const defaults = useMemo(() => defaultLayoutOf(prefs), [prefs]);
+  // Leaving the editing any way (also the browser's Back) drops what was not saved.
+  useEffect(() => {
+    if (editing) return;
+    setDraft(null);
+    setAdding(false);
+    setConfiguring(null);
+  }, [editing]);
   function stopEditing() {
     setDraft(null);
     setAdding(false);
@@ -54,7 +67,7 @@ export function DashboardScreen() {
   }
   function done() {
     // the default layout is saved as none, so a later change of the default reaches this owner too
-    save.mutate({ dashboard: sameLayout(shown, DEFAULT_LAYOUT) ? null : shown }, { onSuccess: stopEditing });
+    save.mutate({ dashboard: sameLayout(shown, defaults) ? null : shown }, { onSuccess: stopEditing });
   }
 
   const accounts = useQuery({ queryKey: keys.accounts, queryFn: api.accounts });
@@ -149,7 +162,7 @@ export function DashboardScreen() {
       <div className={ui.page}>
         <div className={tiles.tileEditBar} role="toolbar" aria-label="Edycja pulpitu">
           <button type="button" className={ui.primaryButton} disabled={full} onClick={() => setAdding(true)}>+ Dodaj kafelek</button>
-          <button type="button" className={ui.secondary} onClick={() => { setDraft(DEFAULT_LAYOUT); setConfiguring(null); }}>
+          <button type="button" className={ui.secondary} onClick={() => { setDraft(defaults); setConfiguring(null); }}>
             Przywróć domyślny
           </button>
           <span className={tiles.tileEditEnd}>

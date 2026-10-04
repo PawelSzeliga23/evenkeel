@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ACCOUNTS, ANALYTICS, EXPOSURE, HISTORY, LIMITS, POSITIONS, SUMMARY } from "../test/fixtures";
 import { USER, mockFetch, renderApp, type MockRoute } from "../test/render";
@@ -9,10 +9,10 @@ const SAVED: DashboardLayout = { version: 1, tiles: [
   { id: "xirr", kind: "metric", size: "S", settings: { metric: "xirr" } },
 ] };
 
-function routes(layout: DashboardLayout | null): MockRoute[] {
+function routes(layout: DashboardLayout | null, extra: Record<string, unknown> = {}): MockRoute[] {
   return [
     { method: "POST", path: "/api/auth/refresh", respond: () => ({ access_token: "token", token_type: "bearer" }) },
-    { path: "/api/auth/me", respond: () => ({ ...USER, preferences: { dashboard: layout } }) },
+    { path: "/api/auth/me", respond: () => ({ ...USER, preferences: { dashboard: layout, ...extra } }) },
     { method: "PATCH", path: "/api/me/preferences", respond: async (_url, init) => ({
       dashboard: (JSON.parse(String(init?.body)) as { dashboard: unknown }).dashboard,
     }) },
@@ -120,5 +120,64 @@ describe("editing the Pulpit", () => {
     const nav = screen.getByRole("navigation", { name: "Główna" });
     const links = within(nav).getAllByRole("link", { hidden: true }).map((l) => l.getAttribute("href"));
     expect(links.slice(-2)).toEqual(["/?edycja", "/ustawienia"]);
+  });
+});
+
+describe("the default layout with the owner's chart range", () => {
+  async function editDefault(user: ReturnType<typeof renderApp>["user"]) {
+    await screen.findByRole("region", { name: "Limity IKE/IKZE" });
+    await user.click(screen.getByRole("button", { name: "Edytuj pulpit" }));
+    await screen.findByRole("button", { name: "Gotowe" });
+  }
+
+  it("saves nothing when the default layout keeps the range from Ustawienia", async () => {
+    const fetchMock = mockFetch(routes(null, { value_range: "3M" }));
+    const { user } = renderApp("/");
+    await editDefault(user);
+
+    await user.click(screen.getByRole("button", { name: "Gotowe" }));
+
+    await waitFor(() => expect(sentLayouts(fetchMock)).toEqual([null]));
+  });
+
+  it("saves the layout when the chart range differs from Ustawienia", async () => {
+    const fetchMock = mockFetch(routes(null, { value_range: "3M" }));
+    const { user } = renderApp("/");
+    await editDefault(user);
+
+    const chart = screen.getByRole("group", { name: "Kafelek Wykres wartości" });
+    await user.click(within(chart).getByRole("button", { name: "Ustaw kafelek Wykres wartości" }));
+    expect(within(chart).getByRole("combobox", { name: "Zakres" })).toHaveValue("3M");
+    await user.selectOptions(within(chart).getByRole("combobox", { name: "Zakres" }), "1R");
+    await user.click(screen.getByRole("button", { name: "Gotowe" }));
+
+    await waitFor(() => expect(sentLayouts(fetchMock)[0]?.tiles[1]?.settings).toEqual({ range: "1R" }));
+  });
+
+  it("restores the default with the owner's range", async () => {
+    mockFetch(routes(SAVED, { value_range: "3M" }));
+    const { user } = renderApp("/");
+    await startEditing(user);
+
+    await user.click(screen.getByRole("button", { name: "Przywróć domyślny" }));
+    const chart = screen.getByRole("group", { name: "Kafelek Wykres wartości" });
+    await user.click(within(chart).getByRole("button", { name: "Ustaw kafelek Wykres wartości" }));
+
+    expect(within(chart).getByRole("combobox", { name: "Zakres" })).toHaveValue("3M");
+  });
+});
+
+describe("leaving the editing with the browser's Back", () => {
+  it("drops the unsaved changes", async () => {
+    mockFetch(routes(SAVED));
+    const { user, router } = renderApp("/");
+    await startEditing(user);
+    await user.click(screen.getByRole("button", { name: "Usuń kafelek Limity IKE/IKZE" }));
+
+    await act(() => router.navigate(-1));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Gotowe" })).not.toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "Edytuj pulpit" }));
+
+    expect(await screen.findByRole("group", { name: "Kafelek Limity IKE/IKZE" })).toBeInTheDocument();
   });
 });
