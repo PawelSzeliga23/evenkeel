@@ -26,7 +26,7 @@
   .shell { display: grid; grid-template-columns: 220px 1fr; }
   .nav {
     position: sticky; top: 0; order: -1; height: 100dvh;
-    grid-template-columns: none; grid-auto-rows: min-content; align-content: start; gap: 4px;
+    display: flex; flex-direction: column; gap: 4px;
     padding: 28px 16px; border-top: 0; border-right: 1px solid var(--rule); background: var(--night);
   }
   .item {
@@ -38,6 +38,7 @@
   .plus { width: 30px; height: 26px; }
   .sidebarBrand { display: block; padding: 0 10px 20px; }
   .main { padding-top: 32px; padding-bottom: 48px; }
+  .pinned { margin-top: auto; }
 }
 
 /* Ustawienia live in the sidebar on a desktop and behind the gear on Pulpit on a phone. */

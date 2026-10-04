@@ -4,7 +4,7 @@ export type IsoDate = string; // "2026-09-26"
 export type IsoDateTime = string; // "2026-03-02T09:30:00"
 
 export interface TokenOut { access_token: string; token_type: string }
-export interface UserOut { id: number; email: string; base_currency: string }
+export interface UserOut { id: number; email: string; base_currency: string; preferences?: Partial<Preferences> }
 export interface RegisterIn { email: string; password: string; invite_code?: string }
 
 export interface Account {
@@ -528,3 +528,17 @@ export interface NoteTargetIn { instrument_id?: number; bond_series?: string; ac
 export interface EntryIn extends NoteTargetIn { entry_date?: IsoDate; body: string }
 export interface EntryPatch extends NoteTargetIn { entry_date?: IsoDate; body?: string; portfolio?: boolean }
 export interface PriceNote { date: IsoDate; entries: { id: number; entry_date: IsoDate; body: string }[] }
+
+/** Plan 8a: the owner's start screen and default views (stored on the server). */
+export type StartScreen = "dashboard" | "positions" | "history" | "analysis";
+export type AccountsStart = "last" | "all" | "fixed";
+export interface Preferences {
+  start_screen: StartScreen;
+  accounts_start: AccountsStart;
+  accounts_fixed: number[];
+  analysis_period: AnalyticsPeriod;
+  holdings_period: HoldingsPeriod;
+  value_range: "1M" | "3M" | "1R" | "ALL";
+  price_range: "buy" | "6m" | "1y" | "5y" | "max";
+  holdings_without_fixed_income: boolean;
+}
