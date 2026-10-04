@@ -5,7 +5,8 @@ SECTIONS = (
     "Propozycje", "Pytania do przemyślenia", "Źródła",
 )
 
-_HEADINGS = "\n".join(f"## {section}" for section in SECTIONS)
+# List items, not live headings: a package pasted back by mistake must not look like a whole answer.
+_HEADINGS = "\n".join(f"- `## {section}`" for section in SECTIONS)
 
 INSTRUCTIONS = f"""# Przegląd portfela — polecenie dla Claude
 

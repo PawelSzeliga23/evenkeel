@@ -200,7 +200,9 @@ def test_holdings_carry_their_tags_once(client: TestClient, tagged: dict, engine
     assert sxr8_row.endswith("| core |")  # once, and not the plain account's „spekulacja”
     bonds = _section(body, "## Obligacje")
     assert "| Konto | Tagi |" in bonds and "| emerytura |" in bonds
-    assert "| poduszka |" in _section(body, "## Konta oszczędnościowe")
+    savings = _section(body, "## Konta oszczędnościowe")
+    assert "| poduszka |" in savings
+    assert any(word in savings for word in ("| codzienna |", "| miesięczna |", "| kwartalna |"))
 
 
 def test_a_holding_without_tags_shows_a_dash(client: TestClient, world: dict) -> None:
@@ -312,7 +314,7 @@ def test_the_instructions_ask_for_w_skrocie_and_read_tags_and_notes() -> None:
     from app.reviews.prompt import INSTRUCTIONS
 
     assert SECTIONS[0] == "W skrócie" and len(SECTIONS) == 10
-    assert INSTRUCTIONS.index("## W skrócie") < INSTRUCTIONS.index("## Ocena ogólna")
+    assert INSTRUCTIONS.index("`## W skrócie`") < INSTRUCTIONS.index("`## Ocena ogólna`")
     assert "Wywnioskuj z nich, do czego zmierzam — nie pytaj mnie o to." in INSTRUCTIONS
     assert "Potem od 1 do 5" in INSTRUCTIONS
     assert "rozwiń propozycje z „W skrócie”" in INSTRUCTIONS

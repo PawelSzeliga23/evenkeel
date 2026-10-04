@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { isValidElement, type ReactNode } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import styles from "./Markdown.module.css";
@@ -13,6 +13,7 @@ const SECTION_COLOURS: [string, string][] = [
 function textOf(node: ReactNode): string {
   if (typeof node === "string" || typeof node === "number") return String(node);
   if (Array.isArray(node)) return node.map(textOf).join("");
+  if (isValidElement<{ children?: ReactNode }>(node)) return textOf(node.props.children);
   return "";
 }
 
@@ -32,6 +33,12 @@ const COMPONENTS: Components = {
     );
   },
   a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer">{children}</a>,
+  // A remote image would load (and tell its server the review was opened) as soon as the review is shown: a link.
+  img: ({ src, alt }) => (
+    <a href={typeof src === "string" ? src : undefined} target="_blank" rel="noopener noreferrer">
+      {alt ? `Obraz: ${alt}` : "Obraz"}
+    </a>
+  ),
   table: ({ children }) => <div className={styles.tableScroll} data-scroll="x"><table>{children}</table></div>,
 };
 

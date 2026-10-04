@@ -30,6 +30,7 @@ from app.valuation.service import load_fixed_income, load_inputs
 WRAPPERS = {"regular": "zwykłe", "ike": "IKE", "ikze": "IKZE"}
 KINDS = {"broker": "maklerskie", "bonds": "obligacje", "savings": "oszczędnościowe", "cash": "gotówka"}
 BASES = {"portfolio": "Mój portfel", "deposits": "Moje wpłaty"}
+CAPITALIZATION = {"daily": "codzienna", "monthly": "miesięczna", "quarterly": "kwartalna"}
 
 
 def _allocation(items: list[AllocationOut]) -> list[list[str]]:
@@ -96,7 +97,8 @@ def _savings(scope: UserScope, items: list[PositionOut], today: dt.date, lookup:
         rate = scope.db.scalar(select(SavingsRate.annual_rate).where(
             SavingsRate.savings_account_id == p.savings_account_id, SavingsRate.valid_from <= today,
         ).order_by(SavingsRate.valid_from.desc()))
-        rows.append([p.account_name, money(p.payout_pln), pct(rate), account.capitalization if account else NONE,
+        capitalization = CAPITALIZATION.get(account.capitalization, account.capitalization) if account else NONE
+        rows.append([p.account_name, money(p.payout_pln), pct(rate), capitalization,
                      money(p.unrealized_pln), tag_names(lookup, "s:", p.account_id)])
     return table(["Konto", "Saldo", "Oprocentowanie roczne", "Kapitalizacja", "Odsetki od wpłat", "Tagi"], rows)
 
