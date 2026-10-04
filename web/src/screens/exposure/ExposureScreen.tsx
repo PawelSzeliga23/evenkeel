@@ -13,6 +13,7 @@ import { Segmented } from "../../ui/Segmented";
 import { EmptyState, ErrorState, Skeleton } from "../../ui/States";
 import ui from "../../ui/ui.module.css";
 import { rangeFrom, type Range } from "../dashboard/model";
+import { usePreferences } from "../../settings/preferences";
 
 const RANGES: { value: Range; label: string }[] = [
   { value: "3M", label: "3M" }, { value: "1R", label: "1R" }, { value: "ALL", label: "Wszystko" },
@@ -20,7 +21,8 @@ const RANGES: { value: Range; label: string }[] = [
 
 export function ExposureScreen() {
   const [accountIds, setAccountIds, ready] = useAccountSelection();
-  const [range, setRange] = useState<Range>("1R");
+  const prefs = usePreferences();
+  const [range, setRange] = useState<Range>(prefs.value_range);
   const from = rangeFrom(range, todayIso());
   const accounts = useQuery({ queryKey: keys.accounts, queryFn: api.accounts });
   const exposure = useQuery({

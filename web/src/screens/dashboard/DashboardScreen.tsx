@@ -27,6 +27,7 @@ import styles from "./Dashboard.module.css";
 import {
   ALLOCATION_MODES, RANGES, RECALC_POLL_MS, allocationRows, dayMovers, rangeFrom, type AllocationMode, type Range,
 } from "./model";
+import { usePreferences } from "../../settings/preferences";
 
 const tone = (value: string | null) => (signOf(value) > 0 ? "up" : signOf(value) < 0 ? "down" : "");
 
@@ -34,7 +35,8 @@ export function DashboardScreen() {
   const queryClient = useQueryClient();
   const [accountIds, setAccountIds, ready] = useAccountSelection();
   const [hidden, setHidden] = usePrivacy();
-  const [range, setRange] = useState<Range>("1R");
+  const prefs = usePreferences();
+  const [range, setRange] = useState<Range>(prefs.value_range);
   const [mode, setMode] = useState<AllocationMode>("kind");
   const [zoom, setZoom] = useState<ChartWindow | null>(null);
   const [yRange, setYRange] = useState<YRange | null>(null);

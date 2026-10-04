@@ -11,6 +11,7 @@ import { Segmented } from "../../ui/Segmented";
 import ui from "../../ui/ui.module.css";
 import { PRICE_RANGES, chartMarks, formatPrice, rangeFrom, type NoteMark, type PriceRange } from "./priceModel";
 import styles from "./Positions.module.css";
+import { usePreferences } from "../../settings/preferences";
 
 const TITLE_ID = "section-Wykres-ceny";
 const KIND_NAMES: Record<PriceMarker["kind"], string> = { buy: "Zakup", sell: "Sprzedaż", dividend: "Dywidenda" };
@@ -129,7 +130,8 @@ export function PriceSection({ accountId, instrumentId, average, firstBuy }: {
   /** The position's first purchase (from its details), where „Od zakupu” starts. */
   firstBuy: IsoDate | null;
 }) {
-  const [range, setRange] = useState<PriceRange>("buy");
+  const prefs = usePreferences();
+  const [range, setRange] = useState<PriceRange>(prefs.price_range);
   // One request per range: the API keeps every day of a short range and thins only a long one to ≤ 800 points.
   const from = rangeFrom(range, firstBuy, todayIso());
   const prices = useQuery({

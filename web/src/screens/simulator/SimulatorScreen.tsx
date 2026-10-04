@@ -19,6 +19,7 @@ import { chartData, type ShownResult } from "./chart";
 import { Measures, type Column } from "./Measures";
 import { BASES, MAX_LINES, PORTFOLIO_COLOR, SLOTS, defaultShown, difference, toggleShown, type Shown } from "./model";
 import styles from "./Simulator.module.css";
+import { usePreferences } from "../../settings/preferences";
 
 export const NEW_PATH = "/analiza/symulator/nowy";
 const baseLabel = (scenario: Scenario) => BASES.find((base) => base.value === scenario.base)!.label;
@@ -57,7 +58,8 @@ export function ScenarioRow({ scenario, result }: { scenario: Scenario; result: 
 
 export function SimulatorScreen() {
   const [accountIds, setAccountIds] = useAccountSelection();
-  const [period, setPeriod] = useState<AnalyticsPeriod>("all");
+  const prefs = usePreferences();
+  const [period, setPeriod] = useState<AnalyticsPeriod>(prefs.analysis_period);
   const accounts = useQuery({ queryKey: keys.accounts, queryFn: api.accounts });
   const scenarios = useQuery({ queryKey: keys.scenarios, queryFn: api.scenarios });
   const list = scenarios.data ?? [];

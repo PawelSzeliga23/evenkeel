@@ -22,6 +22,7 @@ import { ReviewCard } from "../review/ReviewCard";
 import { HoldingsCard } from "../holdings/HoldingsCard";
 import { IncomeCard } from "../income/IncomeCard";
 import { TagsCard } from "../tags/TagsCard";
+import { usePreferences } from "../../settings/preferences";
 
 const tone = (value: string | null) => (signOf(value) > 0 ? "up" : signOf(value) < 0 ? "down" : "");
 const TOO_LITTLE = "za mało danych";
@@ -78,7 +79,8 @@ function Tiles({ data }: { data: Analytics }) {
 
 export function AnalysisScreen() {
   const [accountIds, setAccountIds, ready] = useAccountSelection();
-  const [period, setPeriod] = useState<AnalyticsPeriod>("all");
+  const prefs = usePreferences();
+  const [period, setPeriod] = useState<AnalyticsPeriod>(prefs.analysis_period);
   const accounts = useQuery({ queryKey: keys.accounts, queryFn: api.accounts });
   const analytics = useQuery({
     queryKey: keys.analytics(accountIds, period),
