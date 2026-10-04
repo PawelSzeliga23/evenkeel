@@ -38,7 +38,8 @@ export function RequireAuth() {
   if (state.status === "offline") return <Offline />;
   if (state.status === "serverError") return <ServerProblem />;
   if (state.status === "anonymous") {
-    return <Navigate to="/logowanie" replace state={{ from: location.pathname, expired: state.expired, offlineLogout: state.offlineLogout === true }} />;
+    return <Navigate to="/logowanie" replace state={state.deleted ? { deleted: true }
+      : { from: location.pathname, expired: state.expired, offlineLogout: state.offlineLogout === true }} />;
   }
   return (
     <AccountSelectionProvider key={state.user.id} userId={state.user.id} start={prefs.accounts_start}

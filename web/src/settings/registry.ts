@@ -16,6 +16,8 @@ export interface SettingItem {
 export const SETTINGS: SettingItem[] = [
   { id: "profile", group: "Konto", title: "Profil", keywords: "e-mail email użytkownik", to: "/ustawienia/profil" },
   { id: "password", group: "Konto", title: "Zmień hasło", keywords: "hasło", to: "/ustawienia/haslo", parent: "Profil" },
+  { id: "sessions", group: "Konto", title: "Sesje i urządzenia", keywords: "sesje urządzenia wyloguj telefon komputer przeglądarka", to: "/ustawienia/sesje", parent: "Profil" },
+  { id: "delete_account", group: "Konto", title: "Usuń konto", keywords: "usuń skasuj konto dane zamknij", to: "/ustawienia/usun-konto", parent: "Profil" },
   { id: "logout", group: "Konto", title: "Wyloguj", keywords: "wyjdź", to: "/ustawienia/profil#wyloguj", parent: "Profil" },
   { id: "accounts", group: "Portfel", title: "Konta", keywords: "rachunki IKE IKZE XTB obligacje oszczędnościowe", to: "/ustawienia/konta" },
   { id: "sources", group: "Portfel", title: "Źródła cen", keywords: "ceny notowania symbol Yahoo spread", to: "/ustawienia/zrodla-cen" },

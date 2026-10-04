@@ -5,7 +5,7 @@ import { BackLink } from "../../ui/BackLink";
 import ui from "../../ui/ui.module.css";
 import styles from "./Settings.module.css";
 
-/** Ustawienia → Profil: the e-mail, the password and signing out. */
+/** Ustawienia → Profil: the e-mail, the password, the sessions, signing out and deleting the account. */
 export function ProfileScreen() {
   const { state, signOut } = useSession();
   useHashScroll();
@@ -17,10 +17,14 @@ export function ProfileScreen() {
         <p>{state.status === "signedIn" ? state.user.email : ""}</p>
         <div className={styles.actions}>
           <Link className={ui.secondary} to="/ustawienia/haslo">Zmień hasło</Link>
+          <Link className={ui.secondary} to="/ustawienia/sesje">Sesje i urządzenia</Link>
           <button id="wyloguj" type="button" className={ui.secondary} onClick={() => { signOut().catch(() => {}); }}>
             Wyloguj
           </button>
         </div>
+      </section>
+      <section className={ui.section} aria-label="Usuwanie konta">
+        <Link className={styles.dangerLink} to="/ustawienia/usun-konto">Usuń konto</Link>
       </section>
     </div>
   );

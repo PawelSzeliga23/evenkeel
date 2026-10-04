@@ -8,7 +8,7 @@ export type SessionState =
   | { status: "loading" }
   | { status: "offline" }
   | { status: "serverError" }
-  | { status: "anonymous"; expired: boolean; offlineLogout?: boolean }
+  | { status: "anonymous"; expired: boolean; offlineLogout?: boolean; deleted?: boolean }
   | { status: "signedIn"; user: UserOut };
 
 interface Session {
@@ -16,6 +16,8 @@ interface Session {
   signIn(email: string, password: string): Promise<void>;
   register(body: RegisterIn): Promise<void>;
   signOut(): Promise<void>;
+  /** the account was deleted on the server (plan 8d): forget the session here too */
+  accountDeleted(): void;
   /** runs the startup restore again after it failed (no connection or a server error) */
   retry(): void;
   /** the saved preferences, at once in the signed-in user */
@@ -132,13 +134,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setState({ status: "anonymous", expired: false, offlineLogout: offline });
   }, [queryClient]);
 
+  const accountDeleted = useCallback(() => {
+    setAccessToken(null);
+    queryClient.clear();
+    announceSignOut();
+    setState({ status: "anonymous", expired: false, deleted: true });
+  }, [queryClient]);
+
   const setPreferences = useCallback((preferences: Preferences) => {
     setState((current) => (current.status === "signedIn" ? { ...current, user: { ...current.user, preferences } } : current));
   }, []);
 
   const value = useMemo(
-    () => ({ state, signIn, register, signOut, retry, setPreferences }),
-    [state, signIn, register, signOut, retry, setPreferences],
+    () => ({ state, signIn, register, signOut, accountDeleted, retry, setPreferences }),
+    [state, signIn, register, signOut, accountDeleted, retry, setPreferences],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

@@ -30,6 +30,8 @@ import { DefaultsScreen } from "./screens/settings/DefaultsScreen";
 import { AppearanceScreen } from "./screens/settings/AppearanceScreen";
 import { AboutScreen } from "./screens/settings/AboutScreen";
 import { BackupScreen } from "./screens/settings/BackupScreen";
+import { DeleteAccountScreen } from "./screens/settings/DeleteAccountScreen";
+import { SessionsScreen } from "./screens/settings/SessionsScreen";
 import { RefreshScreen } from "./screens/settings/RefreshScreen";
 import { AccountsScreen } from "./screens/settings/AccountsScreen";
 import { ProfileScreen } from "./screens/settings/ProfileScreen";
@@ -85,6 +87,8 @@ export const appRoutes: RouteObject[] = [
           { path: "/ustawienia/tagi", element: <TagsSettingsScreen /> },
           { path: "/ustawienia/dziennik", element: <JournalScreen /> },
           { path: "/ustawienia/kopia", element: <BackupScreen /> },
+          { path: "/ustawienia/sesje", element: <SessionsScreen /> },
+          { path: "/ustawienia/usun-konto", element: <DeleteAccountScreen /> },
           { path: "/ustawienia/odswiezanie", element: <RefreshScreen /> },
           { path: "/ustawienia/konta/:accountId", element: <AccountScreen /> },
           { path: "/wiecej", element: <Navigate to="/ustawienia" replace /> },

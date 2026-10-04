@@ -10,6 +10,7 @@ export function LoginScreen() {
   const location = useLocation();
   const expired = (location.state as { expired?: boolean } | null)?.expired === true;
   const offlineLogout = (location.state as { offlineLogout?: boolean } | null)?.offlineLogout === true;
+  const deleted = (location.state as { deleted?: boolean } | null)?.deleted === true;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +34,7 @@ export function LoginScreen() {
         <h1 className={styles.title}><Logo layout="stacked" /></h1>
         <p className={styles.lead}>Zaloguj się, żeby zobaczyć swój portfel.</p>
         {expired && <p className={styles.notice} role="status">Sesja wygasła, zaloguj się ponownie.</p>}
+        {deleted && <p className={styles.notice} role="status">Konto zostało usunięte.</p>}
         {offlineLogout && (
           <p className={styles.notice} role="status">
             Wylogowano na tym urządzeniu. Serwer był niedostępny, więc sesja na serwerze wygaśnie sama.
