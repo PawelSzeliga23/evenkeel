@@ -28,7 +28,7 @@
   border: 0;
   border-radius: var(--r-control);
   background: var(--amber);
-  color: var(--night);
+  color: var(--on-amber);
   font-weight: 600;
   font-size: 16px;
   cursor: pointer;

@@ -20,6 +20,8 @@
   --shadow: rgba(0, 0, 0, .45);
   /* text on a coloured chart marker */
   --on-accent: #0B1220;
+  /* text on an amber button */
+  --on-amber: #0E1116;
 
   /* the Evenkeel mark, the same in both themes */
   --brand-tile-from: #1C2129;
@@ -53,4 +55,5 @@
   --nav-bg: rgba(246, 243, 236, .92);
   --shadow: rgba(60, 45, 20, .16);
   --on-accent: #FFFFFF;
+  --on-amber: #1D2127;
 }

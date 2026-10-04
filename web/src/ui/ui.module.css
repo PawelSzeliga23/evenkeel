@@ -73,7 +73,7 @@ a.row:hover b { color: var(--amber-text); }
   border-radius: var(--r-control); cursor: pointer; font-weight: 500;
 }
 .secondary { background: var(--slab); border: 1px solid var(--rule); color: var(--ink); }
-.primaryButton { background: var(--amber); border: 0; color: var(--night); font-weight: 600; }
+.primaryButton { background: var(--amber); border: 0; color: var(--on-amber); font-weight: 600; }
 .primaryButton:disabled { opacity: .5; cursor: default; }
 .recalculating { color: var(--dim); font-size: 13px; }
 .back { display: inline-flex; align-items: center; gap: 6px; color: var(--dim); font-size: 14px; min-height: 44px; justify-self: start; }
