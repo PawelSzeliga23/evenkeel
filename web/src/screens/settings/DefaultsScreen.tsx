@@ -1,11 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api/endpoints";
+import { errorMessage } from "../../api/messages";
 import { keys } from "../../api/queryKeys";
 import type { AccountsStart, Preferences } from "../../api/types";
 import { usePreferences, useSavePreferences } from "../../settings/preferences";
 import { useHashScroll } from "../../settings/useHashScroll";
 import { BackLink } from "../../ui/BackLink";
-import { Field } from "../../ui/forms";
+import { Field, FormError } from "../../ui/forms";
 import ui from "../../ui/ui.module.css";
 import { PERIODS as ANALYSIS_PERIODS } from "../analysis/model";
 import { RANGES } from "../dashboard/model";
@@ -39,7 +40,10 @@ export function DefaultsScreen() {
     </section>
   );
   const toggleFixed = (id: number, on: boolean) => {
-    const next = on ? [...prefs.accounts_fixed, id] : prefs.accounts_fixed.filter((v) => v !== id);
+    // only accounts that still exist: a deleted one would make the server refuse the whole list
+    const known = new Set((accounts.data ?? []).map((a) => a.id));
+    const kept = prefs.accounts_fixed.filter((v) => known.has(v));
+    const next = on ? [...kept, id] : kept.filter((v) => v !== id);
     save.mutate({ accounts_fixed: next });
   };
 
@@ -54,7 +58,7 @@ export function DefaultsScreen() {
           <legend className="dim">Konta na starcie</legend>
           {accounts.data.map((account) => (
             <label key={account.id} className={ui.toggle}>
-              <input type="checkbox" checked={prefs.accounts_fixed.includes(account.id)}
+              <input type="checkbox" checked={prefs.accounts_fixed.includes(account.id)} disabled={save.isPending}
                 onChange={(e) => toggleFixed(account.id, e.target.checked)} />
               <span>{account.name}</span>
             </label>
@@ -73,6 +77,7 @@ export function DefaultsScreen() {
         </label>
       </section>
       {save.isSuccess && <p className={ui.notice} role="status">Zapisano.</p>}
+      <FormError message={save.isError ? errorMessage(save.error) : null} />
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router";
 import { START_SCREENS } from "../screens/settings/appearance";
 import { usePreferences } from "../settings/preferences";
-import { PrivacyProvider, usePrivacy } from "../settings/privacy";
+import { PrivacyProvider, takeRefocus, usePrivacy } from "../settings/privacy";
 import { Nav } from "./Nav";
 import styles from "./shell.module.css";
 
@@ -25,6 +25,10 @@ function useStartScreen() {
 function Shell() {
   const [hidden] = usePrivacy();
   useStartScreen();
+  useEffect(() => {
+    const id = takeRefocus();
+    if (id) document.getElementById(id)?.focus();
+  }, [hidden]);
   return (
     <div className={styles.shell}>
       {/* a new key re-renders the screen with the amounts shown or hidden */}

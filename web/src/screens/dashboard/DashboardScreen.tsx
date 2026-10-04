@@ -102,7 +102,7 @@ export function DashboardScreen() {
               </button>
             </>
           ) : asOf && <span className="dim">{formatDayLong(asOf)}</span>}
-          <button type="button" className={styles.refresh} aria-label={hidden ? "Pokaż kwoty" : "Ukryj kwoty"}
+          <button id="privacy-eye" type="button" className={styles.refresh} aria-label={hidden ? "Pokaż kwoty" : "Ukryj kwoty"}
             aria-pressed={hidden} onClick={() => setHidden(!hidden)}>
             {hidden ? <EyeOffIcon /> : <EyeIcon />}
           </button>

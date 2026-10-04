@@ -73,3 +73,13 @@ describe("hidden amounts in forms", () => {
     expect(amount).toHaveValue("1234,56");
   });
 });
+
+describe("focus after hiding amounts", () => {
+  it("stays on the eye and on the switch", async () => {
+    dashboard();
+    const { user } = renderApp("/");
+
+    await user.click(await screen.findByRole("button", { name: "Ukryj kwoty" }));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "Pokaż kwoty" })));
+  });
+});

@@ -67,3 +67,33 @@ describe("fixed accounts on start", () => {
       && String(u).includes(`account_id=${ACCOUNTS[1]!.id}`))).toBe(true));
   });
 });
+
+describe("saving default views", () => {
+  it("says when saving failed", async () => {
+    signedInWith({}, [{ method: "PATCH", path: "/api/me/preferences",
+      respond: () => new Response(JSON.stringify({ code: "server_error", message: "Serwer ma problem.", details: {} }), { status: 500 }) }]);
+    const { user } = renderApp("/ustawienia/domyslne");
+
+    await user.selectOptions(await screen.findByLabelText("Okres w Analizie i Symulatorze"), "ytd");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Serwer ma problem.");
+  });
+
+  it("leaves a deleted account out of the fixed accounts it sends", async () => {
+    const calls: unknown[] = [];
+    signedInWith({ accounts_start: "fixed", accounts_fixed: [ACCOUNTS[0]!.id, 999] }, [{ method: "PATCH", path: "/api/me/preferences",
+      respond: (_u, init) => { const body = JSON.parse(String(init.body)); calls.push(body); return { accounts_start: "fixed", ...body }; } }]);
+    const { user } = renderApp("/ustawienia/domyslne");
+
+    await user.click(await screen.findByRole("checkbox", { name: ACCOUNTS[1]!.name }));
+    await waitFor(() => expect(calls).toContainEqual({ accounts_fixed: [ACCOUNTS[0]!.id, ACCOUNTS[1]!.id] }));
+  });
+
+  it("does not take another tick while one is being saved", async () => {
+    signedInWith({ accounts_start: "fixed", accounts_fixed: [] }, [{ method: "PATCH", path: "/api/me/preferences",
+      respond: () => new Promise<Response>(() => {}) }]);
+    const { user } = renderApp("/ustawienia/domyslne");
+
+    await user.click(await screen.findByRole("checkbox", { name: ACCOUNTS[0]!.name }));
+    expect(screen.getByRole("checkbox", { name: ACCOUNTS[1]!.name })).toBeDisabled();
+  });
+});

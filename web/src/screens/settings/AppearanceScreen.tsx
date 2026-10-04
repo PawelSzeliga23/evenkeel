@@ -1,5 +1,6 @@
+import { errorMessage } from "../../api/messages";
 import { BackLink } from "../../ui/BackLink";
-import { Field } from "../../ui/forms";
+import { Field, FormError } from "../../ui/forms";
 import ui from "../../ui/ui.module.css";
 import type { StartScreen } from "../../api/types";
 import { usePreferences, useSavePreferences } from "../../settings/preferences";
@@ -18,7 +19,7 @@ export function AppearanceScreen() {
       <h1 className={ui.pageTitle}>Wygląd i prywatność</h1>
       <section className={ui.section} aria-label="Ukrywanie kwot">
         <label className={ui.toggle}>
-          <input type="checkbox" role="switch" checked={hidden} aria-describedby="hide-hint"
+          <input id="privacy-switch" type="checkbox" role="switch" checked={hidden} aria-describedby="hide-hint"
             onChange={(e) => setHidden(e.target.checked)} />
           <span>Ukrywaj kwoty</span>
         </label>
@@ -33,6 +34,7 @@ export function AppearanceScreen() {
         </Field>
       </section>
       {save.isSuccess && <p className={ui.notice} role="status">Zapisano.</p>}
+      <FormError message={save.isError ? errorMessage(save.error) : null} />
     </div>
   );
 }

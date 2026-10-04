@@ -26,18 +26,23 @@ function signFor(negative: boolean, isZero: boolean, withPlus: boolean): Sign {
   return withPlus && !isZero ? "+" : "";
 }
 
-export function moneyParts(value: string, { sign = false }: { sign?: boolean } = {}) {
-  if (hidden) return { sign: "" as Sign, whole: HIDDEN, grosze: "••" };
+function rawParts(value: string, sign: boolean) {
   const { negative, whole, fraction } = split(value, 2);
   const isZero = !/[1-9]/.test(whole + fraction);
   return { sign: signFor(negative, isZero, sign), whole: group(whole), grosze: fraction };
 }
 
+export function moneyParts(value: string, { sign = false }: { sign?: boolean } = {}) {
+  if (hidden) return { sign: "" as Sign, whole: HIDDEN, grosze: "••" };
+  return rawParts(value, sign);
+}
+
 export function formatMoney(
-  value: string, { sign = false, currency = "zł" }: { sign?: boolean; currency?: string | null } = {},
+  value: string,
+  { sign = false, currency = "zł", visible = false }: { sign?: boolean; currency?: string | null; visible?: boolean } = {},
 ): string {
-  if (hidden) return currency === null ? HIDDEN : `${HIDDEN}${NBSP}${currency}`;
-  const parts = moneyParts(value, { sign });
+  if (hidden && !visible) return currency === null ? HIDDEN : `${HIDDEN}${NBSP}${currency}`;
+  const parts = rawParts(value, sign);
   const amount = `${parts.sign}${parts.whole},${parts.grosze}`;
   return currency === null ? amount : `${amount}${NBSP}${currency}`;
 }
