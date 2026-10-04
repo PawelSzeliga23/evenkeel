@@ -36,7 +36,7 @@ describe("Więcej → Tagi", () => {
     routes();
     renderApp("/ustawienia");
 
-    expect(await screen.findByRole("link", { name: "Tagi" })).toHaveAttribute("href", "/ustawienia/tagi");
+    expect(await screen.findByRole("link", { name: /Tagi walorów/ })).toHaveAttribute("href", "/ustawienia/tagi");
   });
 
   it("lists the tags with how many holdings each is on", async () => {

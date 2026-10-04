@@ -26,6 +26,9 @@ import { AccountScreen } from "./screens/settings/AccountScreen";
 import { PasswordScreen } from "./screens/settings/PasswordScreen";
 import { PriceSourcesScreen } from "./screens/settings/PriceSourcesScreen";
 import { TagsSettingsScreen } from "./screens/settings/TagsSettingsScreen";
+import { AboutScreen } from "./screens/settings/AboutScreen";
+import { AccountsScreen } from "./screens/settings/AccountsScreen";
+import { ProfileScreen } from "./screens/settings/ProfileScreen";
 import { JournalScreen } from "./screens/journal/JournalScreen";
 import { SettingsScreen } from "./screens/settings/SettingsScreen";
 import { SavingsDetailScreen } from "./screens/savings/SavingsDetailScreen";
@@ -69,6 +72,9 @@ export const appRoutes: RouteObject[] = [
           { path: "/dodaj/konto-oszczednosciowe", element: <SavingsForm /> },
           { path: "/ustawienia", element: <SettingsScreen /> },
           { path: "/ustawienia/haslo", element: <PasswordScreen /> },
+          { path: "/ustawienia/profil", element: <ProfileScreen /> },
+          { path: "/ustawienia/konta", element: <AccountsScreen /> },
+          { path: "/ustawienia/o-aplikacji", element: <AboutScreen /> },
           { path: "/ustawienia/zrodla-cen", element: <PriceSourcesScreen /> },
           { path: "/ustawienia/tagi", element: <TagsSettingsScreen /> },
           { path: "/ustawienia/dziennik", element: <JournalScreen /> },
