@@ -9,7 +9,7 @@ from app.models import Account, User
 LoginAs = Callable[[str], dict[str, str]]
 DEFAULTS = {"start_screen": "dashboard", "accounts_start": "last", "accounts_fixed": [], "analysis_period": "all",
             "holdings_period": "all", "value_range": "1R", "price_range": "buy",
-            "holdings_without_fixed_income": False}
+            "holdings_without_fixed_income": False, "dashboard": None}
 
 
 def _account(engine: Engine, email: str, name: str) -> int:
@@ -67,3 +67,57 @@ def test_fixed_accounts_must_be_the_users_and_deleted_ones_drop_out(
 
 def test_preferences_need_a_session(client: TestClient) -> None:
     assert client.patch("/api/me/preferences", json={"start_screen": "analysis"}).status_code == 401
+
+
+LAYOUT = {"version": 1, "tiles": [
+    {"id": "a1", "kind": "summary", "size": "L", "settings": {"fields": ["total_gain", "sharpe", "invested", "income"]}},
+    {"id": "b2", "kind": "metric", "size": "S", "settings": {"metric": "xirr"}},
+    {"id": "c3", "kind": "price_chart", "size": "M", "settings": {"account_id": 5, "instrument_id": 7, "range": "1y"}},
+    {"id": "d4", "kind": "holdings", "size": "M", "settings": {}},
+]}
+
+
+def test_a_dashboard_layout_is_saved_and_reset(client: TestClient, login_as: LoginAs) -> None:
+    anna = login_as("anna@portfolio.dev")
+
+    saved = client.patch("/api/me/preferences", json={"dashboard": LAYOUT}, headers=anna)
+
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["dashboard"] == LAYOUT
+    assert client.get("/api/auth/me", headers=anna).json()["preferences"]["dashboard"] == LAYOUT
+    other = client.patch("/api/me/preferences", json={"value_range": "3M"}, headers=anna).json()
+    assert other["dashboard"] == LAYOUT  # saving another key keeps the layout
+    assert client.patch("/api/me/preferences", json={"dashboard": None}, headers=anna).json()["dashboard"] is None
+
+
+def test_a_bad_layout_is_refused(client: TestClient, login_as: LoginAs) -> None:
+    anna = login_as("anna@portfolio.dev")
+    tile = LAYOUT["tiles"][1]
+    bad = [
+        {**LAYOUT, "version": 2},
+        {"version": 1, "tiles": [{**tile, "kind": "weather"}]},
+        {"version": 1, "tiles": [{**tile, "size": "L"}]},  # a single metric is S only
+        {"version": 1, "tiles": [{**tile, "settings": {"metric": "luck"}}]},
+        {"version": 1, "tiles": [{**tile, "settings": {"metric": "xirr", "x": 1}}]},
+        {"version": 1, "tiles": [{**tile, "id": "bad id!"}]},
+        {"version": 1, "tiles": [tile, tile]},  # the same id twice
+        {"version": 1, "tiles": [{**tile, "id": f"t{i}"} for i in range(41)]},
+    ]
+
+    for layout in bad:
+        response = client.patch("/api/me/preferences", json={"dashboard": layout}, headers=anna)
+        assert response.status_code == 422, layout
+
+
+def test_a_stored_layout_that_no_longer_validates_reads_as_the_default(
+    client: TestClient, login_as: LoginAs, engine: Engine,
+) -> None:
+    anna = login_as("anna@portfolio.dev")
+    with Session(engine) as db:
+        user = db.scalar(select(User).where(User.email == "anna@portfolio.dev"))
+        user.preferences = {"value_range": "3M", "dashboard": {"version": 1, "tiles": [{"kind": "gone"}]}}
+        db.commit()
+
+    prefs = client.get("/api/auth/me", headers=anna).json()["preferences"]
+
+    assert (prefs["dashboard"], prefs["value_range"]) == (None, "3M")

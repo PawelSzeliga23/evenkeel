@@ -147,9 +147,9 @@ def login(
 
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> UserOut:
-    out = UserOut.model_validate(user)
-    out.preferences = preferences_of(UserScope(db, user))
-    return out
+    # Not model_validate(user): the stored preferences may hold a layout that no longer validates (plan 9).
+    return UserOut(id=user.id, email=user.email, base_currency=user.base_currency,
+                   preferences=preferences_of(UserScope(db, user)))
 
 
 @router.post("/password", status_code=204)
