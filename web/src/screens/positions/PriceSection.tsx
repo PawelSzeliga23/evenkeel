@@ -23,17 +23,19 @@ function change(last: number, base: number | null): string | null {
 
 const tone = (value: string | null) => (value === null ? "" : signOf(value) > 0 ? "up" : signOf(value) < 0 ? "down" : "");
 
+const NO_RATE = "kwota w zł po pobraniu kursu NBP";
+
 function Operation({ marker, last, currency }: { marker: PriceMarker; last: number; currency: string | null }) {
   const head = `${KIND_NAMES[marker.kind]}, ${formatDate(marker.date)}`;
   if (marker.kind === "dividend") {
     return (
       <div className={styles.operation} role="status">
         <b>{head}</b>
-        <span className="num up">{formatMoney(marker.amount_pln, { sign: true })}</span>
+        <span className="num up">{marker.amount_pln === null ? NO_RATE : formatMoney(marker.amount_pln, { sign: true })}</span>
       </div>
     );
   }
-  const amount = formatMoney(marker.amount_pln.replace(/^-/, ""));
+  const amount = marker.amount_pln === null ? NO_RATE : formatMoney(marker.amount_pln.replace(/^-/, ""));
   const lines = [
     [
       marker.quantity === null ? "" : `${formatDecimal(marker.quantity, 8)} szt.`,

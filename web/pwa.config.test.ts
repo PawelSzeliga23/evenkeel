@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pwaOptions } from "./pwa.config";
+import { pwaOptions } from "./pwa.config.ts";
 
 describe("PWA", () => {
   const manifest = pwaOptions.manifest as Record<string, unknown> & { icons: { sizes: string; purpose?: string }[] };

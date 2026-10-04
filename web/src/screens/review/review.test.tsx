@@ -157,6 +157,18 @@ describe("Reading a review", () => {
     expect(document.querySelector("article script, article b")).toBeNull();
   });
 
+  it("marks a bold heading, shows a remote image as a link and drops a javascript: link", async () => {
+    const content = "## **Ryzyka**\n\n![wykres](https://example.com/w.png)\n\n[kliknij](javascript:alert(1))";
+    viewRoutes({ ...SAVED, id: 5, content });
+    renderApp("/analiza/przeglad/5");
+
+    const risks = await screen.findByRole("heading", { name: "Ryzyka", level: 2 });
+    expect(risks).toHaveAttribute("data-section", "Ryzyka");
+    expect(document.querySelector("article img")).toBeNull();
+    expect(screen.getByRole("link", { name: "Obraz: wykres" })).toHaveAttribute("href", "https://example.com/w.png");
+    expect(screen.getByText("kliknij").closest("a")?.getAttribute("href") ?? "").not.toMatch(/javascript/i);
+  });
+
   it("warns when no section was recognised", async () => {
     viewRoutes({ ...SAVED, id: 5, sections: 0, content: "zwykły tekst" });
     renderApp("/analiza/przeglad/5");

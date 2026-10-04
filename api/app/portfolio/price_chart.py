@@ -53,8 +53,9 @@ def price_chart(scope: UserScope, account: Account, instrument: Instrument, star
     markers = []
     for t in sorted(transactions, key=lambda t: (t.occurred_at, t.id)):
         day = local_day(t.occurred_at)
+        known = fx_on(db, t.currency, day) is not None
         exact = amount_pln(db, t)
-        amount = exact.quantize(PRICE, rounding=ROUND_HALF_UP)
+        amount = exact.quantize(PRICE, rounding=ROUND_HALF_UP) if known else None
         if t.type == "dividend":
             markers.append(PriceMarkerOut(date=day, kind="dividend", price=None, price_with_fx=None, quantity=None,
                                           amount_pln=amount))
@@ -63,7 +64,7 @@ def price_chart(scope: UserScope, account: Account, instrument: Instrument, star
         quantity = _trim(abs(t.quantity) * factor) if t.quantity else None
         price = _trim(t.price / factor) if t.price is not None else _close_on(closes, day)
         with_fx = None
-        if foreign and quantity:
+        if foreign and quantity and known:
             rate = fx_on(db, instrument.currency, day)
             with_fx = (abs(exact) / quantity / rate).quantize(FX_PRICE, rounding=ROUND_HALF_UP) if rate else None
         markers.append(PriceMarkerOut(date=day, kind=t.type, price=price, price_with_fx=with_fx, quantity=quantity,

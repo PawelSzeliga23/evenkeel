@@ -3,13 +3,14 @@ import re
 
 from app.reviews.prompt import SECTIONS
 
-_OPEN = re.compile(r"^(`{3,4})(?:markdown|md)?[ \t]*$", re.IGNORECASE | re.MULTILINE)
+_OPEN = re.compile(r"^(`{3,4}|~{3,4})(?:markdown|md)?[ \t]*$", re.IGNORECASE | re.MULTILINE)
 _KNOWN = {section.lower() for section in SECTIONS}
 
 
 def clean(text: str) -> str:
-    """The text inside the first fence of three or four backticks (prose around it dropped), else the text trimmed.
-    The closing fence is the last line of the same backticks, so shorter code blocks inside stay whole."""
+    """The text inside the first fence of three or four backticks or tildes (prose around it dropped), else the text
+    trimmed. The closing fence is the last line of the same fence, so shorter code blocks inside stay whole."""
+    text = text.replace("\r\n", "\n")
     opening = _OPEN.search(text)
     heading = re.search(r"^## ", text, re.MULTILINE)
     # A fence after the first heading is a code block inside an answer copied without its wrapper: keep it all.

@@ -108,3 +108,15 @@ def test_the_list_carries_the_summary(client: TestClient, anna: dict) -> None:
 def test_a_numbered_heading_is_still_its_section() -> None:
     assert summary("## 1. W skrócie\n\nKrótko.\n\n## 2. Ocena ogólna\n\nDalej.") == "Krótko."
     assert count_sections("## 1. W skrócie\n\n## 2) Ryzyka") == 2
+
+
+def test_clean_strips_a_tilde_fence_and_windows_line_ends() -> None:
+    assert clean(f"~~~markdown\r\n{ANSWER}\r\n~~~\r\n") == ANSWER
+    assert clean(ANSWER.replace("\n", "\r\n")) == ANSWER
+
+
+def test_bold_headings_are_sections_and_a_pasted_package_is_not_an_answer() -> None:
+    from app.reviews.prompt import INSTRUCTIONS
+
+    assert count_sections("## **Ryzyka**\n\n## __Rynek__") == 2
+    assert count_sections(INSTRUCTIONS) == 0

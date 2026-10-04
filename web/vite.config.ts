@@ -2,8 +2,8 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
-import pkg from "./package.json";
-import { pwaOptions } from "./pwa.config";
+import pkg from "./package.json" with { type: "json" };
+import { pwaOptions } from "./pwa.config.ts";
 
 // The API runs in docker on :8000 (e2e: its own instance, API_TARGET=http://localhost:8001). Proxying /api keeps the
 // browser on one origin, so the httpOnly refresh cookie works without CORS.

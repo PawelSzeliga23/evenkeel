@@ -241,3 +241,11 @@ def test_a_reimport_that_only_fixes_stored_operations_can_be_saved(
     assert saved["reclassified_transactions"] == 1
     with Session(engine) as db:
         assert db.scalar(select(func.count()).select_from(Transaction).where(Transaction.type == "unknown")) == 0
+
+
+def test_more_than_50_files_at_once_are_refused(client: TestClient, login_as: LoginAs) -> None:
+    anna = login_as("anna@portfolio.dev")
+
+    response = client.post("/api/imports/preview", files=_files(*[(f"x{i}.txt", b"x") for i in range(51)]), headers=anna)
+
+    assert (response.status_code, response.json()["code"]) == (413, "too_many_files")

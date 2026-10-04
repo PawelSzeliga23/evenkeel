@@ -11,6 +11,7 @@ from sqlalchemy import ColumnElement, Select, select
 from app.models import (
     Account,
     AiReview,
+    CatalogAddition,
     BondHolding,
     CorporateAction,
     ImportRecord,
@@ -75,6 +76,7 @@ TABLES: tuple[TableSpec, ...] = (
     TableSpec("journal_entries", JournalEntry, HOLDING, owner_column="user_id"),
     TableSpec("scenarios", Scenario, owner_column="user_id"),
     TableSpec("ai_reviews", AiReview, owner_column="user_id"),
+    TableSpec("catalog_additions", CatalogAddition, INSTRUMENT, owner_column="user_id"),
     TableSpec("corporate_actions", CorporateAction, {**INSTRUMENT, "target_instrument_id": "instruments"},
               owner_column="user_id", only=CorporateAction.source == "manual"),
 )

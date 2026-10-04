@@ -12,7 +12,7 @@ import { Logo } from "../../brand/Logo";
 import { EyeIcon, EyeOffIcon, RefreshIcon, SettingsIcon } from "../../shell/icons";
 import { usePrivacy } from "../../settings/privacy";
 import shell from "../../shell/shell.module.css";
-import { AccountSelect } from "../../ui/AccountPicker";
+import { AccountSelect, AccountsFailed } from "../../ui/AccountPicker";
 import { HeroAmount, Money } from "../../ui/Amount";
 import { AnalyticsCard } from "../analysis/AnalyticsCard";
 import { LimitsCard } from "../limits/LimitsCard";
@@ -92,7 +92,8 @@ export function DashboardScreen() {
         <Link className={shell.gear} to="/ustawienia" aria-label="Ustawienia"><SettingsIcon /></Link>
       </div>
       <div className={styles.bar}>
-        {accounts.data ? <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} /> : <span />}
+        {accounts.data ? <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} />
+          : accounts.isError ? <AccountsFailed onRetry={() => void accounts.refetch()} /> : <span />}
         <span className={styles.refreshed}>
           {refreshedAt ? (
             <>

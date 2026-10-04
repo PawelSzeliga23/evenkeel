@@ -10,7 +10,7 @@ from app.models.fixed_income import (
     SavingsFlow,
     SavingsRate,
 )
-from app.models.instrument import Instrument
+from app.models.instrument import CatalogAddition, Instrument
 from app.models.ledger import (
     SNAPSHOT_KINDS,
     TRANSACTION_TYPES,
@@ -37,7 +37,7 @@ from app.models.valuation import (
 __all__ = [
     "ACCOUNT_KINDS", "AiReview", "BOND_TYPES", "CAPITALIZATIONS", "CORPORATE_ACTION_SOURCES", "CORPORATE_ACTION_TYPES",
     "SCENARIO_BASES", "SNAPSHOT_KINDS", "TRANSACTION_TYPES", "WRAPPER_LIMIT_KINDS", "WRAPPERS", "Account", "Base", "BondHolding",
-    "BondSeries", "CorporateAction", "Cpi", "DailyValuation", "FxRate", "ImportRecord", "Instrument", "JournalEntry",
+    "BondSeries", "CatalogAddition", "CorporateAction", "Cpi", "DailyValuation", "FxRate", "ImportRecord", "Instrument", "JournalEntry",
     "NbpRefRate",
     "PositionLot", "Price", "RefreshToken", "SavingsAccount", "SavingsBalance", "SavingsFlow", "SavingsRate", "Scenario", "Tag",
     "TagLink", "Thesis", "Transaction",

@@ -4,12 +4,13 @@ from collections.abc import Callable
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, select
+from sqlalchemy import Engine, select, text
 from sqlalchemy.orm import Session
 
 from app.market.deps import get_market_providers
 from app.market.types import ProviderError
 from app.models import Account, Instrument, PositionLot, User
+from app.portfolio.router import REFRESH_LOCK_NAMESPACE
 from tests.market_fakes import SXR8, FakePrices, fake_providers
 from tests.valuation_seed import AT_BUY, seed_holdings, seed_market, valuate
 
@@ -87,3 +88,18 @@ def test_a_provider_failure_is_reported_on_the_instrument_not_as_an_error(
 
 def test_refresh_needs_a_signed_in_user(client: TestClient, world: dict) -> None:
     assert client.post(URL).status_code == 401
+
+
+def test_a_refresh_running_for_the_user_makes_another_fetch_nothing(
+    client: TestClient, world: dict, engine: Engine,
+) -> None:
+    with Session(engine) as db:
+        anna = db.scalar(select(User.id).where(User.email == "anna@portfolio.dev"))
+        db.execute(text("SELECT pg_advisory_xact_lock(CAST(:key AS bigint))"),
+                   {"key": (REFRESH_LOCK_NAMESPACE << 32) | anna})  # the first refresh is still fetching
+        body = client.post(URL, headers=world["anna"]).json()
+        bartek = client.post(URL, headers=world["bartek"]).json()
+
+    assert body["fetched"] is False
+    assert bartek["fetched"] is True
+    assert [symbol for symbol, _ in world["prices"].calls] == ["EIMI.L"]

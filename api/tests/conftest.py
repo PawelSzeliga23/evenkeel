@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.config import Settings, get_settings
+from app.config import Settings
 from app.db import get_db, get_session_factory
 from app.main import create_app
 
@@ -76,7 +76,6 @@ def make_app(engine: Engine, clean_db: None) -> Callable[..., FastAPI]:
 
         app.dependency_overrides[get_db] = _get_db
         app.dependency_overrides[get_session_factory] = lambda: test_sessionmaker
-        app.dependency_overrides[get_settings] = lambda: app_settings
         return app
 
     return _make

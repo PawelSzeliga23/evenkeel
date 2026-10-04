@@ -17,7 +17,7 @@ from app.auth.security import (
     new_refresh_token,
     verify_password,
 )
-from app.config import Settings, get_settings
+from app.config import Settings, app_settings
 from app.db import get_db
 from app.errors import ApiError
 from app.models import RefreshToken, User
@@ -36,6 +36,10 @@ _DUMMY_HASH = hash_password("dummy-password-used-to-equalise-timing")
 
 
 def _client_key(request: Request) -> str:
+    header = request.app.state.settings.client_ip_header
+    forwarded = request.headers.get(header) if header else None
+    if forwarded:
+        return forwarded.strip()
     return request.client.host if request.client else "unknown"
 
 
@@ -94,7 +98,7 @@ def register(
     body: RegisterIn,
     request: Request,
     db: Session = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    settings: Settings = Depends(app_settings),
 ) -> User:
     if not request.app.state.register_limiter.hit(_client_key(request)):
         raise _rate_limited()
@@ -122,15 +126,20 @@ def login(
     request: Request,
     response: Response,
     db: Session = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    settings: Settings = Depends(app_settings),
 ) -> TokenOut:
-    if not request.app.state.login_limiter.hit(_client_key(request)):
+    email = body.email.lower()
+    failures = request.app.state.email_limiter
+    # Per IP, and wrong passwords per e-mail so that guessing one password from many IPs is slowed down too.
+    if not request.app.state.login_limiter.hit(_client_key(request)) or failures.full(email):
         raise _rate_limited()
-    user = db.scalar(select(User).where(User.email == body.email.lower()))
+    user = db.scalar(select(User).where(User.email == email))
     if user is None:
         verify_password(_DUMMY_HASH, body.password)
+        failures.hit(email)
         raise _invalid_credentials()
     if not verify_password(user.password_hash, body.password):
+        failures.hit(email)
         raise _invalid_credentials()
     now = datetime.now(UTC)
     return _issue_tokens(db, user, response, settings, _new_session(request, now), now)
@@ -185,7 +194,7 @@ def refresh(
     request: Request,
     response: Response,
     db: Session = Depends(get_db),
-    settings: Settings = Depends(get_settings),
+    settings: Settings = Depends(app_settings),
 ) -> TokenOut:
     raw = request.cookies.get(REFRESH_COOKIE)
     if not raw:

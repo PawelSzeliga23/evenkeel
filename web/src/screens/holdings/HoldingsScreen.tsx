@@ -5,7 +5,7 @@ import { api } from "../../api/endpoints";
 import { keys } from "../../api/queryKeys";
 import type { GroupGain, HoldingsPeriod } from "../../api/types";
 import { formatDate, formatMoney, formatPercent, signOf } from "../../format";
-import { AccountSelect } from "../../ui/AccountPicker";
+import { AccountSelect, AccountsFailed } from "../../ui/AccountPicker";
 import { Money } from "../../ui/Amount";
 import { BackLink } from "../../ui/BackLink";
 import { Segmented } from "../../ui/Segmented";
@@ -82,7 +82,8 @@ export function HoldingsScreen() {
     <div className={ui.page}>
       <BackLink to="/analiza" label="Analiza" />
       <h1 className={ui.pageTitle}>Walory</h1>
-      {accounts.data && <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} />}
+      {accounts.data ? <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} />
+        : accounts.isError ? <AccountsFailed onRetry={() => void accounts.refetch()} /> : null}
       <Segmented label="Okres" options={PERIODS} value={period} className={styles.periods}
         onChange={(value) => { setPeriod(value); setSelected(null); }} />
       <label className={styles.check}>

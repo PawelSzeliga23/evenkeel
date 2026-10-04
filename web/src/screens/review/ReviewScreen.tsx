@@ -8,7 +8,7 @@ import { errorMessage } from "../../api/messages";
 import { keys } from "../../api/queryKeys";
 import type { ReviewListItem } from "../../api/types";
 import { formatRefreshed, todayIso } from "../../format";
-import { AccountSelect } from "../../ui/AccountPicker";
+import { AccountSelect, AccountsFailed } from "../../ui/AccountPicker";
 import { BackLink } from "../../ui/BackLink";
 import { FormError } from "../../ui/forms";
 import { ListRow } from "../../ui/ListRow";
@@ -103,7 +103,8 @@ export function ReviewScreen() {
     <div className={ui.page}>
       <BackLink to="/analiza" label="Analiza" />
       <h1 className={ui.pageTitle}>Przegląd portfela</h1>
-      {accounts.data && <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} />}
+      {accounts.data ? <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} />
+        : accounts.isError ? <AccountsFailed onRetry={() => void accounts.refetch()} /> : null}
       <div className={styles.steps}>
         <section className={styles.step} aria-labelledby="step-1">
           <h2 id="step-1">1. Przygotuj pakiet dla Claude</h2>

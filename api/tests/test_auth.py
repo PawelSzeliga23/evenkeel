@@ -125,3 +125,50 @@ def test_register_is_rate_limited(make_app: Callable[..., FastAPI]) -> None:
 
     assert statuses == [201, 201, 429]
     assert register(client, email="kolejna@portfolio.dev").json()["code"] == "rate_limited"
+
+
+def test_behind_a_proxy_the_limit_counts_the_client_ip_from_its_header(make_app: Callable[..., FastAPI]) -> None:
+    client = TestClient(make_app(login_rate_limit_per_minute=1, client_ip_header="CF-Connecting-IP"))
+
+    def attempt(ip: str, email: str) -> int:
+        return client.post("/api/auth/login", headers={"CF-Connecting-IP": ip},
+                           json={"email": email, "password": "zle-haslo-123"}).status_code
+
+    assert [attempt("1.1.1.1", "a@portfolio.dev"), attempt("1.1.1.1", "b@portfolio.dev"),
+            attempt("2.2.2.2", "c@portfolio.dev")] == [401, 429, 401]
+
+
+def test_without_a_proxy_setting_the_header_is_ignored(make_app: Callable[..., FastAPI]) -> None:
+    client = TestClient(make_app(login_rate_limit_per_minute=1))
+
+    statuses = [client.post("/api/auth/login", headers={"CF-Connecting-IP": ip},
+                            json={"email": f"{ip}@portfolio.dev", "password": "zle-haslo-123"}).status_code
+                for ip in ("1.1.1.1", "2.2.2.2")]
+
+    assert statuses == [401, 429]
+
+
+def test_wrong_passwords_for_one_e_mail_are_limited_across_ips(make_app: Callable[..., FastAPI]) -> None:
+    client = TestClient(make_app(login_failures_per_email_per_minute=2, client_ip_header="CF-Connecting-IP"))
+
+    statuses = [client.post("/api/auth/login", headers={"CF-Connecting-IP": f"9.9.9.{i}"},
+                            json={"email": "Anna@portfolio.dev", "password": "zle-haslo-123"}).status_code
+                for i in range(3)]
+
+    assert statuses == [401, 401, 429]
+
+
+def test_registration_needs_an_invite_unless_opened_on_purpose() -> None:
+    from app.config import Settings
+
+    assert Settings.model_fields["registration_mode"].default == "invite"  # the container sets it explicitly
+
+
+def test_right_passwords_do_not_use_up_the_e_mail_limit(make_app: Callable[..., FastAPI]) -> None:
+    client = TestClient(make_app(login_failures_per_email_per_minute=1, client_ip_header="CF-Connecting-IP"))
+    register(client)
+
+    statuses = [client.post("/api/auth/login", headers={"CF-Connecting-IP": f"8.8.8.{i}"},
+                            json={"email": "anna@portfolio.dev", "password": PASSWORD}).status_code for i in range(3)]
+
+    assert statuses == [200, 200, 200]

@@ -1,6 +1,7 @@
 """Reading and restoring a backup: the whole file is checked first, then the user's data is replaced in one go."""
 import datetime as dt
 import json
+import re
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -10,12 +11,16 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.backup import json_ids
+from app.catalog.seed import ADDED_GROUP
+from app.catalog.service import curated_row
 from app.backup.tables import FORMAT, SHARED_KEYS, SHARED_VOLATILE, TABLES, VERSION
 from app.errors import ApiError
+from app.instruments.schemas import SYMBOL_PATTERN
 from app.models import (
     Account,
     AiReview,
     BondSeries,
+    CatalogAddition,
     CorporateAction,
     Instrument,
     JournalEntry,
@@ -134,6 +139,11 @@ def read_backup(content: bytes) -> Backup:
     }
     for spec in TABLES:
         tables[spec.name] = _rows(data, spec.name, spec.model, {spec.owner_column} if spec.owner_column else set())
+    if "catalog_additions" not in data:  # a backup from before 0018: the added tickers in the catalog were the user's
+        tables["catalog_additions"] = [
+            {"id": number, "instrument_id": row["id"]}
+            for number, row in enumerate(tables["instruments"], start=1)
+            if row.get("in_catalog") and row.get("catalog_group") == ADDED_GROUP]
 
     ids: dict[str, set[Any]] = {}
     for name, rows in tables.items():
@@ -142,6 +152,9 @@ def read_backup(content: bytes) -> Backup:
         if len(set(values)) != len(values):
             raise _corrupt(f"powtórzony numer w tabeli {name}")
         ids[name] = set(values)
+    for row in tables["instruments"]:  # a symbol the API would not accept could point the worker anywhere
+        if row.get("price_symbol") is not None and not re.fullmatch(SYMBOL_PATTERN, row["price_symbol"]):
+            raise _corrupt(f"zły symbol cen {row['price_symbol']}")
     tickers = [row["xtb_ticker"] for row in tables["instruments"]]
     if len(set(tickers)) != len(tickers):
         raise _corrupt("powtórzony instrument")
@@ -180,7 +193,7 @@ def counts(backup: Backup) -> dict[str, int]:
 
 def _wipe(db: Session, user_id: int) -> None:
     """Everything of the user; rows hanging on the accounts go by the database's cascade."""
-    for model in (Tag, Thesis, JournalEntry, Scenario, AiReview):
+    for model in (Tag, Thesis, JournalEntry, Scenario, AiReview, CatalogAddition):
         db.execute(delete(model).where(model.user_id == user_id))
     db.execute(delete(CorporateAction).where(CorporateAction.user_id == user_id))
     db.execute(delete(Account).where(Account.user_id == user_id))
@@ -189,14 +202,23 @@ def _wipe(db: Session, user_id: int) -> None:
 def _shared(db: Session, backup: Backup) -> dict[str, dict[Any, Any]]:
     """File numbers of instruments → this server's ids; missing instruments and series are added, never changed."""
     instruments: dict[Any, Any] = {}
+    added = {row["instrument_id"] for row in backup.tables["catalog_additions"]}
     for row in backup.tables["instruments"]:
         found = db.scalar(select(Instrument.id).where(Instrument.xtb_ticker == row["xtb_ticker"]))
         if found is None:
-            instrument = Instrument(**{k: v for k, v in row.items() if k != "id"})
+            # The starter list is this server's, never the file's: a new instrument is in the catalog only as one
+            # this user added.
+            catalog = {"in_catalog": row["id"] in added, "catalog_group": ADDED_GROUP if row["id"] in added else None,
+                       "catalog_seeded": False}
+            instrument = Instrument(**{**{k: v for k, v in row.items() if k != "id"}, **catalog})
             db.add(instrument)
             db.flush()
             found = instrument.id
         instruments[row["id"]] = found
+    for number in added:  # an instrument known here but outside the catalog: the worker must keep its prices fresh
+        instrument = db.get(Instrument, instruments[number])
+        if instrument is not None and not curated_row(instrument):
+            instrument.in_catalog, instrument.catalog_group = True, ADDED_GROUP
     for row in backup.tables["bond_series"]:
         if db.get(BondSeries, row["series"]) is None:
             db.add(BondSeries(**row))

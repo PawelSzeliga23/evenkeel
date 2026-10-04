@@ -2,7 +2,8 @@
 
 Income (gross): interest accrued on savings accounts and bonds (the day's change of the cached value less its flows;
 the value is after the 19 % tax on regular accounts, so gross = net ÷ 0.81), XTB free-funds interest and dividends.
-Costs: XTB's 0.5 % currency conversion inside purchases and sales, taxes (interest, withholding) and fees.
+Costs: XTB's 0.5 % currency conversion inside purchases and sales, taxes (interest, withholding) and fees, among them
+a bond's early redemption fee (its day keeps the day's interest; the fee lowers the tax on the interest it takes).
 """
 import datetime as dt
 from collections import defaultdict
@@ -19,7 +20,8 @@ from app.portfolio.service import amount_pln
 from app.scoping import UserScope
 from app.valuation.engine import ONE_DAY, ZERO, money
 from app.valuation.exit_costs import XTB_FX_FEE
-from app.valuation.service import local_day, local_today
+from app.valuation.fixed_income import EarlyRedemption, early_redemption
+from app.valuation.service import load_fixed_income, local_day, local_today
 
 IncomePeriod = Literal["12m", "ytd", "all"]
 CENT = Decimal("0.01")
@@ -84,6 +86,13 @@ def _totals(income: Decimal, costs: Decimal) -> dict[str, Decimal]:
     return {"income_pln": money(income), "costs_pln": money(costs), "balance_pln": money(income - costs)}
 
 
+def _early_redemptions(scope: UserScope) -> dict[int, EarlyRedemption]:
+    fixed = load_fixed_income(scope)
+    found = {holding.id: early_redemption(holding, fixed.cpi) for holding in fixed.holdings
+             if holding.redeemed_at is not None}
+    return {key: value for key, value in found.items() if value is not None}
+
+
 def income(scope: UserScope, account_ids: frozenset[int] | None, period: IncomePeriod) -> IncomeOut:
     db = scope.db
     today = local_today()
@@ -111,6 +120,8 @@ def income(scope: UserScope, account_ids: frozenset[int] | None, period: IncomeP
         return sources.setdefault(key, _Source(kind, name, taxed))
 
     series = dict(db.execute(scope.bond_holdings().with_only_columns(BondHolding.id, BondHolding.series)).all())
+    any_redeemed = scope.bond_holdings().with_only_columns(BondHolding.id).where(BondHolding.redeemed_at.is_not(None))
+    redeemed = _early_redemptions(scope) if db.scalar(any_redeemed.limit(1)) else {}
     previous: dict[tuple[int | None, int | None], tuple[dt.date, Decimal]] = {}
     for row in db.execute(fixed.with_only_columns(
         DailyValuation.date, DailyValuation.account_id, DailyValuation.bond_holding_id,
@@ -125,7 +136,10 @@ def income(scope: UserScope, account_ids: frozenset[int] | None, period: IncomeP
             continue
         before = last[1] if last is not None and last[0] == row.date - ONE_DAY else ZERO
         net = row.value_pln - before - row.net_flow_pln
-        if not net:
+        early = redeemed.get(row.bond_holding_id) if row.bond_holding_id is not None else None
+        if early is not None and early.day == row.date:
+            net += early.value_drop  # the day's interest as usual; the fee goes to the costs below
+        if not net and early is None:
             continue
         taxed = accounts[row.account_id].wrapper == "regular"
         gross = net / NET_SHARE if taxed else net
@@ -141,6 +155,14 @@ def income(scope: UserScope, account_ids: frozenset[int] | None, period: IncomeP
             item = source(f"s:{row.savings_account_id}", "savings", accounts[row.account_id].name, taxed)
         item.gross += gross
         item.tax += gross - net
+        if early is not None and early.day == row.date and early.fee:
+            saved = early.fee - early.value_drop  # the tax not paid on the interest the fee took
+            month.taxes -= saved
+            costs["interest_tax"][0] -= saved
+            item.tax -= saved
+            month.fees += early.fee
+            costs["fees"][0] += early.fee
+            costs["fees"][1] += 1
 
     instruments = {i.id: i for i in db.scalars(select(Instrument).where(
         Instrument.id.in_({t.instrument_id for t in transactions if t.instrument_id is not None})))}

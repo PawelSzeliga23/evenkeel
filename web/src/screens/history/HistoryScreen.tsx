@@ -5,7 +5,7 @@ import { api } from "../../api/endpoints";
 import { keys } from "../../api/queryKeys";
 import type { HistoryFilters, HistoryItem } from "../../api/types";
 import { formatDate, formatDayLong, formatDecimal, formatMoney } from "../../format";
-import { AccountSelect } from "../../ui/AccountPicker";
+import { AccountSelect, AccountsFailed } from "../../ui/AccountPicker";
 import { Money } from "../../ui/Amount";
 import { Confirm, Field, FormError, formErrors, useInvalidateAfterSave } from "../../ui/forms";
 import forms from "../../ui/forms.module.css";
@@ -82,7 +82,8 @@ export function HistoryScreen() {
     <div className={ui.page}>
       <h1 className={ui.pageTitle}>Historia</h1>
       <div className={styles.filters}>
-        {(accounts.data?.length ?? 0) > 0 && <AccountSelect accounts={accounts.data!} value={accountIds} onChange={setAccountIds} />}
+        {(accounts.data?.length ?? 0) > 0 ? <AccountSelect accounts={accounts.data!} value={accountIds} onChange={setAccountIds} />
+          : accounts.isError ? <AccountsFailed onRetry={() => void accounts.refetch()} /> : null}
         <div className={`${styles.filterRow} ${forms.form}`}>
           <Field id="history-type" label="Rodzaj">
             <select id="history-type" value={type} onChange={(e) => setType(e.target.value)}>

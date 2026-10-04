@@ -47,6 +47,26 @@ def payout_per_bond(holding: Holding, schedule: Sequence[edo.Period]) -> Decimal
     return edo.net_value(gross, holding.taxed)
 
 
+@dataclass(frozen=True)
+class EarlyRedemption:
+    day: dt.date
+    fee: Decimal  # the fee charged on all the bonds
+    value_drop: Decimal  # how much less the payout is than the value that day without the fee (fee less its tax)
+
+
+def early_redemption(holding: Holding, cpi: Mapping[dt.date, Decimal]) -> EarlyRedemption | None:
+    """The fee of a purchase redeemed before maturity; None for one held to maturity or still held."""
+    schedule = edo.periods(holding.purchase_date, holding.series, cpi)
+    day = payout_day(holding, schedule)
+    if day >= schedule[-1].end:
+        return None
+    gross = edo.value(schedule, day)
+    charged = min(holding.series.early_redemption_fee, max(gross - edo.NOMINAL, ZERO))
+    quantity = Decimal(holding.quantity)
+    drop = quantity * (edo.net_value(gross, holding.taxed) - payout_per_bond(holding, schedule))
+    return EarlyRedemption(day, quantity * charged, drop)
+
+
 def bond_rows(holdings: Iterable[Holding], cpi: Mapping[dt.date, Decimal], start: dt.date, end: dt.date) -> list[Row]:
     """Each purchase from its day: net value (the purchase is a deposit of 100 zł a bond); on the payout day the
     payout; the next day nothing, the payout leaving the account (a withdrawal at the start of that day, so a

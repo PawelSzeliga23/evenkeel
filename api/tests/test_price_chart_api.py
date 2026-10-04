@@ -115,3 +115,13 @@ def test_a_short_range_keeps_every_day_of_a_long_history(client: TestClient, wor
     points = _get(client, world, **{"from": "2026-02-01"})["points"]
 
     assert [p["date"] for p in points][:3] == ["2026-02-01", "2026-02-02", "2026-02-03"]
+
+
+def test_a_missing_nbp_rate_gives_no_amount_instead_of_zero(client: TestClient, world: dict, engine: Engine) -> None:
+    with Session(engine) as db:  # an operation in a currency whose NBP rate is not fetched yet
+        db.execute(Transaction.__table__.update().where(Transaction.external_id == "2").values(currency="CHF"))
+        db.commit()
+
+    buy = _get(client, world)["markers"][0]
+
+    assert (buy["amount_pln"], buy["price_with_fx"], buy["price"]) == (None, None, "500.5")

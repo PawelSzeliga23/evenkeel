@@ -480,7 +480,7 @@ export interface PriceMarker {
   price: Money | null;
   price_with_fx: Money | null;
   quantity: Money | null;
-  amount_pln: Money;
+  amount_pln: Money | null; // null while the NBP rate of its day is still missing
 }
 export interface PriceChartData {
   currency: string | null;

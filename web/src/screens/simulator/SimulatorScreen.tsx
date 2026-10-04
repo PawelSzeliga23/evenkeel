@@ -6,7 +6,7 @@ import { api } from "../../api/endpoints";
 import { keys } from "../../api/queryKeys";
 import type { AnalyticsPeriod, Scenario, ScenarioResult } from "../../api/types";
 import { ComparisonChart, swatchStyle } from "../../charts/ComparisonChart";
-import { AccountSelect } from "../../ui/AccountPicker";
+import { AccountSelect, AccountsFailed } from "../../ui/AccountPicker";
 import { BackLink } from "../../ui/BackLink";
 import { ListRow } from "../../ui/ListRow";
 import { Segmented } from "../../ui/Segmented";
@@ -95,7 +95,8 @@ export function SimulatorScreen() {
         <h1 className={ui.pageTitle}>Symulator</h1>
         <Link className={ui.primaryButton} to={NEW_PATH}>Nowy scenariusz</Link>
       </div>
-      {accounts.data && <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} />}
+      {accounts.data ? <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} />
+        : accounts.isError ? <AccountsFailed onRetry={() => void accounts.refetch()} /> : null}
       <Segmented label="Okres" options={PERIODS} value={period} onChange={setPeriod} className={analysis.periods} />
       {scenarios.isPending ? <Skeleton rows={4} chart />
         : scenarios.isError ? <ErrorState error={scenarios.error} onRetry={() => void scenarios.refetch()} />

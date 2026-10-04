@@ -117,7 +117,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       // The account exists now: a retry of the form would only hit "email taken", so send the person to sign in.
       const status = error instanceof ApiError ? error.status : 0;
-      throw new ApiError(status, REGISTERED_SIGN_IN_FAILED, "Konto zostało założone, ale nie udało się zalogować. Zaloguj się.");
+      const why = status === 429 ? " Za dużo prób logowania — poczekaj minutę."
+        : status === 0 ? " Brak połączenia z serwerem." : "";
+      throw new ApiError(status, REGISTERED_SIGN_IN_FAILED,
+        `Konto zostało założone, ale nie udało się zalogować.${why} Zaloguj się.`);
     }
   }, [signIn]);
 

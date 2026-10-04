@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, DateTime, Numeric, String, false, func, true
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Numeric, String, UniqueConstraint, false, func, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -35,3 +35,15 @@ class Instrument(Base):
     catalog_group: Mapped[str | None] = mapped_column(String(40))
     accumulating: Mapped[bool | None] = mapped_column()  # an accumulating ETF: dividends stay in the price
     catalog_seeded: Mapped[bool] = mapped_column(server_default=false())  # inserted by migration 0010
+
+
+class CatalogAddition(Base):
+    """A ticker a user added to the simulator's catalog: shown under „Dodane przez Ciebie” to that user only."""
+
+    __tablename__ = "catalog_additions"
+    __table_args__ = (UniqueConstraint("user_id", "instrument_id", name="uq_catalog_additions_user_instrument"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    instrument_id: Mapped[int] = mapped_column(ForeignKey("instruments.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

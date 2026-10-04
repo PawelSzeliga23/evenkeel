@@ -4,7 +4,7 @@ import datetime as dt
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from app.config import Settings, get_settings
+from app.config import Settings, app_settings
 from app.portfolio.service import prices_refreshed_at
 from app.scoping import UserScope, get_scope
 
@@ -21,7 +21,7 @@ class ScheduleOut(BaseModel):
 
 
 @router.get("/schedule", response_model=ScheduleOut)
-def schedule(scope: UserScope = Depends(get_scope), settings: Settings = Depends(get_settings)) -> ScheduleOut:
+def schedule(scope: UserScope = Depends(get_scope), settings: Settings = Depends(app_settings)) -> ScheduleOut:
     return ScheduleOut(
         intraday_every_minutes=settings.market_intraday_minutes, intraday_from=settings.market_intraday_from,
         intraday_to=settings.market_intraday_to, daily_at=settings.market_daily_at, timezone=settings.market_timezone,

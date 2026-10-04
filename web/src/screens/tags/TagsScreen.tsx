@@ -6,7 +6,7 @@ import { keys } from "../../api/queryKeys";
 import type { HoldingsPeriod, TagsReport } from "../../api/types";
 import { ComparisonChart, swatchStyle } from "../../charts/ComparisonChart";
 import { formatPercent, signOf } from "../../format";
-import { AccountSelect } from "../../ui/AccountPicker";
+import { AccountSelect, AccountsFailed } from "../../ui/AccountPicker";
 import { HeroAmount, Money } from "../../ui/Amount";
 import { BackLink } from "../../ui/BackLink";
 import { Segmented } from "../../ui/Segmented";
@@ -116,7 +116,8 @@ export function TagsScreen() {
     <div className={ui.page}>
       <BackLink to="/analiza" label="Analiza" />
       <h1 className={ui.pageTitle}>Tagi</h1>
-      {accounts.data && <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} />}
+      {accounts.data ? <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} />
+        : accounts.isError ? <AccountsFailed onRetry={() => void accounts.refetch()} /> : null}
       <Segmented label="Okres" options={PERIODS} value={period} className={holdingsStyles.periods} onChange={setPeriod} />
       {report.isPending || (data?.tags.length === 0 && tags.isPending) ? <Skeleton rows={4} />
         : report.isError ? <ErrorState error={report.error} onRetry={() => void report.refetch()} />
