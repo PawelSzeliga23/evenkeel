@@ -29,3 +29,8 @@ export const EyeOffIcon = () => (
     <path {...line} d="M4 4l16 16" />
   </svg>
 );
+/** A grid of four tiles: editing the Pulpit (plan 9). */
+export const EditTilesIcon = () => (
+  <svg {...box}><path {...line} d="M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z" /></svg>
+);
+export const CloseIcon = () => <svg {...box} width={16} height={16}><path {...line} strokeWidth={2} d="M6 6l12 12M18 6L6 18" /></svg>;

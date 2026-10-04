@@ -15,8 +15,10 @@ const PCT_H = 44;
 export const holdingLabel = (item: Holding) => (item.ticker ? shortTicker(item.ticker) : item.name);
 
 /** Holdings as tiles: size by value, colour by the period's gain %. */
-export function HeatMap({ items, period, selected, onSelect, height = 220 }: {
+export function HeatMap({ items, period, selected, onSelect, height = 220, labels = true }: {
   items: Holding[]; period: HoldingsPeriod; /** Omitted where a tile is a link, not a toggle. */ selected?: string | null; onSelect: (key: string) => void; height?: number;
+  /** A small tile of the Pulpit (plan 9b) draws the colours only. */
+  labels?: boolean;
 }) {
   const [box, setBox] = useState<HTMLElement | null>(null);
   const width = useWidth(box, DEFAULT_W);
@@ -32,7 +34,7 @@ export function HeatMap({ items, period, selected, onSelect, height = 220 }: {
           <button key={item.key} type="button" className={styles.tile} aria-pressed={selected === undefined ? undefined : item.key === selected}
             aria-label={`${label}, ${pct}`} onClick={() => onSelect(item.key)}
             style={{ left: r.x, top: r.y, width: r.w, height: r.h, background: heatColor(item.gain_pct, period) }}>
-            {r.w >= LABEL_W && r.h >= LABEL_H && (
+            {labels && r.w >= LABEL_W && r.h >= LABEL_H && (
               <span aria-hidden="true">
                 <b>{label}</b>
                 {r.h >= PCT_H && <small>{pct}</small>}

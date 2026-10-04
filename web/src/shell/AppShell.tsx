@@ -24,6 +24,7 @@ function useStartScreen() {
 
 function Shell() {
   const [hidden] = usePrivacy();
+  const wide = useLocation().pathname === "/"; // the Pulpit's tiles use the width of a computer (plan 9)
   useStartScreen();
   useEffect(() => {
     const id = takeRefocus();
@@ -32,7 +33,7 @@ function Shell() {
   return (
     <div className={styles.shell}>
       {/* a new key re-renders the screen with the amounts shown or hidden */}
-      <main key={String(hidden)} className={styles.main}><Outlet /></main>
+      <main key={String(hidden)} className={styles.main} data-wide={wide || undefined}><Outlet /></main>
       <Nav />
     </div>
   );

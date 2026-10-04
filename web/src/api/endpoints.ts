@@ -10,6 +10,7 @@ function filesForm(files: File[], field = "files"): FormData {
 }
 
 export const api = {
+  bonds: () => request<BondOut[]>("/api/bonds"),
   bond: (id: number) => request<BondDetail>(`/api/bonds/${id}`),
   redeemBond: (id: number, redeemedAt: IsoDate | null) =>
     request<BondOut>(`/api/bonds/${id}`, { method: "PATCH", json: { redeemed_at: redeemedAt } }),

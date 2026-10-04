@@ -12,6 +12,7 @@ import { NotesSection } from "../../notes/NotesSection";
 import { TagsSection } from "../../tags/TagsSection";
 import { PriceSection } from "./PriceSection";
 import { transactionLabel } from "./model";
+import { firstBuy } from "./priceModel";
 import styles from "./Positions.module.css";
 
 function Back() {
@@ -62,11 +63,6 @@ function reconciliationText(r: Reconciliation): { title: string; subtitle: strin
 }
 
 /** The day of the position's first purchase; a day off near midnight only moves „Od zakupu” by a day of its 14. */
-function firstBuy(detail: PositionDetail): string | null {
-  const days = detail.transactions.filter((t) => t.type === "buy").map((t) => t.occurred_at.slice(0, 10)).sort();
-  return days[0] ?? null;
-}
-
 function Detail({ detail, accountId, instrumentId }: { detail: PositionDetail; accountId: number; instrumentId: number }) {
   const p = detail.position;
   const check = reconciliationText(detail.reconciliation);

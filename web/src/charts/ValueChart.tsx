@@ -11,8 +11,10 @@ import { useWidth } from "./useWidth";
 import { clampWindow, drawnRange, fullWindow, type ChartWindow, type YRange } from "./viewport";
 import styles from "./ValueChart.module.css";
 
-export function ValueChart({ points, view: requested, yRange = null, onViewChange, onYRangeChange, onReset }: {
+export function ValueChart({ points, view: requested, yRange = null, onViewChange, onYRangeChange, onReset, maxHeight }: {
   points: HistoryPoint[];
+  /** A tile of the Pulpit (plan 9b) caps the drawing to fit its height. */
+  maxHeight?: number;
   view?: ChartWindow;
   /** Amounts set by hand by dragging the Y axis; null follows the visible data. */
   yRange?: YRange | null;
@@ -26,7 +28,7 @@ export function ValueChart({ points, view: requested, yRange = null, onViewChang
   const [figure, setFigure] = useState<HTMLElement | null>(null);
   const width = useWidth(figure, FRAME.width);
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
-  const frame = frameFor(width);
+  const frame = frameFor(width, maxHeight);
   const view = clampWindow(requested ?? fullWindow(data.length), data.length);
   const shownY = useRef<YRange>({ min: 0, max: 1 });
   const gestures = useChartGestures({

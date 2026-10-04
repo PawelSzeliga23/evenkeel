@@ -6,7 +6,7 @@ import { useSession } from "../auth/session";
 
 export const DEFAULT_PREFERENCES: Preferences = {
   start_screen: "dashboard", accounts_start: "last", accounts_fixed: [], analysis_period: "all",
-  holdings_period: "all", value_range: "1R", price_range: "buy", holdings_without_fixed_income: false,
+  holdings_period: "all", value_range: "1R", price_range: "buy", holdings_without_fixed_income: false, dashboard: null,
 };
 
 /** The signed-in owner's preferences over the defaults; the defaults before sign-in. */

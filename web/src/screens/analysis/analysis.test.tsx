@@ -168,8 +168,8 @@ describe("Pulpit card", () => {
     const fetchMock = dashboard(() => ANALYTICS);
     const { user } = renderApp("/");
 
-    const card = await screen.findByRole("region", { name: "Analiza" });
-    expect(within(card).getByText("+6,4 %")).toBeInTheDocument();
+    await screen.findByText("+6,4 %");
+    const card = screen.getByRole("region", { name: "Analiza" });
     expect(within(card).getByText("za okres")).toBeInTheDocument();
     expect(within(card).getByText("−8,2 %")).toBeInTheDocument();
     expect(fetchMock.mock.calls.map(([url]) => String(url)).some((u) => u.includes("/api/analytics?period=all"))).toBe(true);
@@ -179,12 +179,12 @@ describe("Pulpit card", () => {
     expect(await screen.findByRole("heading", { name: "Analiza" })).toBeInTheDocument();
   });
 
-  it("stays hidden without valuations", async () => {
+  it("says there is no valuation in the period instead of figures", async () => {
     dashboard(() => ANALYTICS_EMPTY);
     renderApp("/");
 
-    await screen.findByRole("img", { name: /Wykres wartości portfela/ });
-    expect(screen.queryByRole("region", { name: "Analiza" })).not.toBeInTheDocument();
+    expect(await screen.findByText("Brak wyceny w tym okresie.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Co to jest: XIRR" })).not.toBeInTheDocument();
   });
 });
 

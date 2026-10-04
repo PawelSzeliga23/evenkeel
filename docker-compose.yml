@@ -97,6 +97,9 @@ services:
       JWT_SECRET: e2e-secret-that-is-at-least-32-bytes-long
       COOKIE_SECURE: "false"
       REGISTRATION_MODE: open
+      # every e2e test signs up (and in) as a new account, all from one IP
+      REGISTER_RATE_LIMIT_PER_MINUTE: "100"
+      LOGIN_RATE_LIMIT_PER_MINUTE: "100"
       PYTHONPATH: /app
     ports:
       - "8001:8000"

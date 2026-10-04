@@ -4,6 +4,7 @@
   max-width: 720px;
   margin: 0 auto;
 }
+.main[data-wide] { max-width: 1240px; width: 100%; box-sizing: border-box; }
 .nav {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
   display: grid; grid-template-columns: repeat(5, 1fr);
@@ -39,6 +40,7 @@
   .sidebarBrand { display: block; padding: 0 10px 20px; }
   .main { padding-top: 32px; padding-bottom: 48px; }
   .pinned { margin-top: auto; }
+  .afterPinned { margin-top: 0; }
 }
 
 /* Ustawienia live in the sidebar on a desktop and behind the gear on Pulpit on a phone. */

@@ -20,9 +20,11 @@ export const keys = {
   position: (accountId: number, instrumentId: number) => ["portfolio", "position", accountId, instrumentId] as const,
   positionPrices: (accountId: number, instrumentId: number, from: string | null) =>
     ["portfolio", "position-prices", accountId, instrumentId, from] as const,
+  bonds: ["portfolio", "bonds"] as const,
   bond: (id: number) => ["portfolio", "bond", id] as const,
   savings: (accountId: number) => ["portfolio", "savings", accountId] as const,
   entries: (filters: object) => ["portfolio", "entries", filters] as const,
+  latestEntries: (ids: readonly number[]) => ["portfolio", "latest-entries", ids] as const,
   catalog: ["catalog"] as const,
   reviews: ["reviews"] as const,
   review: (id: number) => ["reviews", id] as const,
