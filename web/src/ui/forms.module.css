@@ -5,7 +5,9 @@
   min-height: 46px; padding: 0 14px; background: var(--slab); border: 1px solid var(--rule);
   border-radius: var(--r-control); color: var(--ink); font-size: 16px; width: 100%;
 }
-.field input[type="date"] { height: 46px; }
+/* iOS Safari keeps its own width for a native date field and ignores width: 100%; without its look it fits the row */
+.field input[type="date"] { height: 46px; display: block; -webkit-appearance: none; appearance: none; }
+.field input[type="date"]::-webkit-date-and-time-value { text-align: left; }
 .field input[aria-invalid="true"] { border-color: var(--loss); }
 .hint { font-size: 12.5px; }
 .error { color: var(--loss); font-size: 13.5px; }
