@@ -5,7 +5,7 @@
 .marker { width: 4px; height: 18px; border-radius: 2px; flex: none; }
 .markdown h3 { font-size: 15.5px; font-weight: 600; margin-top: 6px !important; }
 .markdown ul, .markdown ol { padding-left: 20px; display: grid; gap: 4px; }
-.markdown a { color: var(--amber); }
+.markdown a { color: var(--amber-text); }
 .markdown code { font: 13px ui-monospace, Consolas, monospace; background: var(--slab); padding: 1px 5px; border-radius: 4px; }
 .markdown blockquote { border-left: 3px solid var(--rule); padding-left: 12px; color: var(--dim); }
 /* A wide table scrolls in its own box; the page never scrolls sideways. */

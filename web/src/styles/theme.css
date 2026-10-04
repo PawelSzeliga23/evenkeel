@@ -1,0 +1,56 @@
+/* Colours of the app (plan 8b). Dark is the default (the accepted mockup of plan 6a); light („Ciepły papier”) is
+ * switched on by html[data-theme="light"]. Chart colours live in chart-colors.css. No other file names a colour. */
+:root {
+  color-scheme: dark;
+  --night: #0E1116;
+  --slab: #161A21;
+  --rule: #242A33;
+  --ink: #E7E9EC;
+  --dim: #8B94A1;
+  --amber: #F0A43A;
+  /* amber as a text colour; on a light page the line amber is too pale to read */
+  --amber-text: #F0A43A;
+  --amber-soft: rgba(240, 164, 58, .14);
+  --amber-line: rgba(240, 164, 58, .45);
+  --gain: #5DB98A;
+  --loss: #E0676E;
+  --loss-soft: rgba(224, 103, 110, .14);
+  --info: #7FB6E6;
+  --nav-bg: rgba(14, 17, 22, .92);
+  --shadow: rgba(0, 0, 0, .45);
+  /* text on a coloured chart marker */
+  --on-accent: #0B1220;
+
+  /* the Evenkeel mark, the same in both themes */
+  --brand-tile-from: #1C2129;
+  --brand-tile-to: #0E1116;
+  --brand-tile-border: #242A33;
+  --brand-bar-from: #8A5A1C;
+  --brand-bar-to: #FFC266;
+  --brand-base: #3A424E;
+
+  --font: "Instrument Sans Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --r-control: 10px;
+  --r-sheet: 14px;
+  --nav-h: 64px;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --night: #F6F3EC;
+  --slab: #FFFDF8;
+  --rule: #E4DED1;
+  --ink: #1D2127;
+  --dim: #6B7280;
+  --amber: #D98A1C;
+  --amber-text: #A9620A;
+  --amber-soft: rgba(217, 138, 28, .14);
+  --amber-line: rgba(217, 138, 28, .55);
+  --gain: #1F8556;
+  --loss: #C2414A;
+  --loss-soft: rgba(194, 65, 74, .12);
+  --info: #2F72B8;
+  --nav-bg: rgba(246, 243, 236, .92);
+  --shadow: rgba(60, 45, 20, .16);
+  --on-accent: #FFFFFF;
+}

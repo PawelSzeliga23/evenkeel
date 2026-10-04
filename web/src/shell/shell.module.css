@@ -15,7 +15,7 @@
   display: grid; justify-items: center; align-content: center; gap: 3px; min-height: 48px;
   color: var(--dim); font-size: 11px; font-weight: 500;
 }
-.item[aria-current="page"] { color: var(--amber); }
+.item[aria-current="page"] { color: var(--amber-text); }
 .sidebarBrand { display: none; }
 .plus {
   width: 42px; height: 30px; border-radius: 10px; background: var(--amber); color: var(--night);
@@ -51,4 +51,4 @@
 /* Pulpit's top row on a phone: the logo and the gear. */
 .topRow { justify-content: space-between; align-items: center; margin: -6px -10px 0 0; }
 .gear { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 999px; color: var(--dim); }
-.gear:hover { color: var(--amber); }
+.gear:hover { color: var(--amber-text); }

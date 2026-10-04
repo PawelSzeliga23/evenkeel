@@ -21,7 +21,7 @@
   font-size: 16px;
 }
 .hint { font-size: 12.5px; }
-.notice { color: var(--amber); font-size: 14px; }
+.notice { color: var(--amber-text); font-size: 14px; }
 .error { color: var(--loss); font-size: 14px; }
 .primary {
   height: 48px;
@@ -35,4 +35,4 @@
 }
 .primary:disabled { opacity: .6; cursor: default; }
 .switch { color: var(--dim); font-size: 14px; }
-.switch a { color: var(--amber); display: inline-flex; align-items: center; min-height: 44px; padding-inline: 4px; }
+.switch a { color: var(--amber-text); display: inline-flex; align-items: center; min-height: 44px; padding-inline: 4px; }

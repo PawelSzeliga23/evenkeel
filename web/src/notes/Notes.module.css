@@ -26,5 +26,5 @@
   text-align: left; background: none; border: 0; padding: 0; color: var(--ink); font: inherit; line-height: 1.4;
   white-space: pre-wrap; cursor: pointer; min-height: 24px;
 }
-.entryBody:hover { color: var(--amber); }
+.entryBody:hover { color: var(--amber-text); }
 .count { font-size: 12px; color: var(--dim); }

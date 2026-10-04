@@ -21,9 +21,9 @@
   display: grid; place-items: center; width: 44px; height: 44px; margin-right: -12px;
   background: none; border: 0; border-radius: 999px; color: var(--dim); cursor: pointer;
 }
-.refresh:hover { color: var(--amber); }
+.refresh:hover { color: var(--amber-text); }
 .refresh:disabled { cursor: default; }
-.refresh[data-spinning="true"] svg { animation: spin 1s linear infinite; color: var(--amber); }
+.refresh[data-spinning="true"] svg { animation: spin 1s linear infinite; color: var(--amber-text); }
 .refreshError { color: var(--loss); font-size: 13px; margin-top: -8px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .refresh[data-spinning="true"] svg { animation: none; } }

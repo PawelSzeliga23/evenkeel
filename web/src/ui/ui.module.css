@@ -22,7 +22,7 @@
   min-height: 44px; background: none; border: 0; color: var(--dim);
   font-weight: 500; font-size: 13.5px; border-radius: 7px; cursor: pointer;
 }
-.segmented button[aria-pressed="true"] { background: var(--amber-soft); color: var(--amber); }
+.segmented button[aria-pressed="true"] { background: var(--amber-soft); color: var(--amber-text); }
 
 .select { position: relative; display: inline-flex; max-width: 100%; min-width: 0; }
 .selectButton {
@@ -50,7 +50,7 @@
   padding: 11px 0; border-top: 1px solid var(--rule); min-height: 60px;
 }
 .row:first-child { border-top: 0; }
-a.row:hover b { color: var(--amber); }
+a.row:hover b { color: var(--amber-text); }
 .lead {
   font-size: 12px; font-weight: 600; color: var(--dim); background: var(--slab); border: 1px solid var(--rule);
   border-radius: 8px; width: 40px; height: 40px; display: grid; place-items: center; letter-spacing: -.02em; overflow: hidden;

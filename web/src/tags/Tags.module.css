@@ -19,7 +19,7 @@
   justify-self: start; min-height: 44px; padding: 0 14px; background: none; border: 1px dashed var(--rule);
   border-radius: 999px; color: var(--dim); font: inherit; font-size: 13.5px; cursor: pointer;
 }
-.add[aria-expanded="true"] { border-color: var(--amber); color: var(--amber); }
+.add[aria-expanded="true"] { border-color: var(--amber); color: var(--amber-text); }
 .panel { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--rule); border-radius: var(--r-sheet); }
 .pick {
   display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px;
