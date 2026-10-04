@@ -224,3 +224,46 @@ test("ustawienia: zmiana hasła, logowanie nowym hasłem, zamknięte inwestycje 
   await page.goto("/limity");
   await expect(page.getByText("Nie masz konta IKE ani IKZE.")).toBeVisible();
 });
+
+test("kopia portfela: pobranie i wczytanie na nowym koncie daje ten sam Pulpit", async ({ page, browser }) => {
+  const heroValue = async (p: typeof page) => {
+    await expect(p.getByRole("img", { name: /Wykres wartości portfela/ })).toBeVisible({ timeout: 45_000 });
+    await expect(p.getByText("Przeliczam wycenę…", { exact: true })).toBeHidden({ timeout: 45_000 });
+    return (await p.locator("body").innerText()).match(/Wartość portfela\s*\n([^\n]+)/)![1];
+  };
+  await page.goto("/rejestracja");
+  await page.getByLabel("E-mail").fill(`e2e-backup-${Date.now()}@portfolio.dev`);
+  await page.getByLabel("Hasło").fill("e2e-haslo-12345");
+  await page.getByRole("button", { name: "Załóż konto" }).click();
+  await page.getByRole("link", { name: "Wgraj pliki z XTB" }).click();
+  await page.getByLabel("Wybierz pliki").setInputFiles(EXPORT);
+  await page.getByRole("button", { name: "Zapisz import" }).click();
+  await page.getByRole("link", { name: "Zobacz pulpit" }).click();
+  const original = await heroValue(page);
+
+  await page.goto("/ustawienia/kopia");
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Pobierz kopię" }).click();
+  const download = await downloading;
+  expect(download.suggestedFilename()).toMatch(/^evenkeel-kopia-\d{4}-\d{2}-\d{2}\.json$/);
+  const backup = await download.path();
+
+  const other = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  if (LIGHT) await other.addInitScript(() => localStorage.setItem("evenkeel.theme", "light"));
+  await other.goto("/rejestracja");
+  await other.getByLabel("E-mail").fill(`e2e-restore-${Date.now()}@portfolio.dev`);
+  await other.getByLabel("Hasło").fill("e2e-haslo-12345");
+  await other.getByRole("button", { name: "Załóż konto" }).click();
+  await expect(other.getByText("Wgraj eksport z XTB, żeby zobaczyć swój portfel.")).toBeVisible();
+  await other.goto("/ustawienia/kopia");
+  await other.getByLabel("Plik kopii").setInputFiles(backup);
+  await expect(other.getByRole("group", { name: "Zawartość kopii" })).toContainText("1 konto");
+  await expect(other.getByRole("status", { name: "Wczytuję Evenkeel" })).toHaveCount(0, { timeout: 10_000 }); // the startup splash after goto
+  await other.screenshot({ path: `${SCREENS}/kopia.png`, fullPage: true });
+  await other.getByLabel("Wpisz ZASTĄP").fill("ZASTĄP");
+  await other.getByRole("button", { name: "Wczytaj" }).click();
+
+  await expect(other.getByText("Wczytano kopię. Przeliczam wycenę…")).toBeVisible();
+  expect(await heroValue(other)).toBe(original);
+  await other.close();
+});
