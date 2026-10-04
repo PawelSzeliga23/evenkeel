@@ -4,6 +4,7 @@ from app.accounts.router import router as accounts_router
 from app.analytics.router import router as analytics_router
 from app.auth.rate_limit import RateLimiter
 from app.auth.router import router as auth_router
+from app.backup.router import router as backup_router
 from app.bonds.router import router as bonds_router
 from app.catalog.router import router as catalog_router
 from app.config import Settings, get_settings
@@ -50,6 +51,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(tags_router)
     app.include_router(notes_router)
     app.include_router(preferences_router)
+    app.include_router(backup_router)
     return app
 
 
