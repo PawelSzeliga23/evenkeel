@@ -9,7 +9,7 @@ from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
 from app.bonds import edo
-from app.models import BondSeries, Instrument, Price, User
+from app.models import BondSeries, CatalogAddition, Instrument, Price, User
 from tests.valuation_seed import SAT, seed_holdings, seed_market, valuate
 
 LoginAs = Callable[[str], dict[str, str]]
@@ -141,6 +141,8 @@ def test_unknown_dividend_policy_gets_the_note(client: TestClient, world: dict, 
     with Session(engine) as db:
         nasdaq = db.get(Instrument, world["nasdaq"])
         nasdaq.accumulating, nasdaq.catalog_group = None, "Dodane przez Ciebie"
+        anna = db.scalar(select(User.id).where(User.email == "anna@portfolio.dev"))
+        db.add(CatalogAddition(user_id=anna, instrument_id=nasdaq.id))
         db.commit()
     step = {"kind": "replace", "from_instrument_id": world["sxr8"], "to_instrument_id": world["nasdaq"]}
 

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.market.deps import get_market_providers
 from app.market.types import PriceBar, PriceHistory, ProviderError
-from app.models import Instrument, Price, User
+from app.models import CatalogAddition, Instrument, Price, User
 from tests.market_fakes import FakePrices, fake_providers
 from tests.valuation_seed import seed_holdings, seed_market
 
@@ -132,15 +132,42 @@ def test_catalog_needs_a_session(client: TestClient) -> None:
     assert client.post("/api/catalog", json={"ticker": "VWCE.DE"}).status_code == 401
 
 
-def test_the_catalog_takes_at_most_50_added_instruments(client: TestClient, anna: dict, prices: FakePrices,
-                                                         engine: Engine) -> None:
-    _catalog(engine, *(Instrument(xtb_ticker=f"X{i}.DE", name=f"X{i}", in_catalog=True, catalog_group="Dodane przez Ciebie")
-                       for i in range(50)))
+def _added_by(engine: Engine, email: str, count: int) -> None:
+    with Session(engine) as db:
+        user_id = db.scalar(select(User.id).where(User.email == email))
+        for i in range(count):
+            instrument = Instrument(xtb_ticker=f"X{i}.DE", name=f"X{i}", in_catalog=True,
+                                    catalog_group="Dodane przez Ciebie")
+            db.add(instrument)
+            db.flush()
+            db.add(CatalogAddition(user_id=user_id, instrument_id=instrument.id))
+        db.commit()
+
+
+def test_a_user_adds_at_most_50_instruments(client: TestClient, anna: dict, prices: FakePrices,
+                                            engine: Engine, login_as: LoginAs) -> None:
+    bartek = login_as("bartek@portfolio.dev")
+    _added_by(engine, "anna@portfolio.dev", 50)
 
     response = client.post("/api/catalog", json={"ticker": "VWCE.DE"}, headers=anna)
 
     assert (response.status_code, response.json()["code"]) == (422, "catalog_full")
     assert prices.calls == []
+    assert client.post("/api/catalog", json={"ticker": "VWCE.DE"}, headers=bartek).status_code == 201
+
+
+def test_added_tickers_are_shown_only_to_who_added_them(client: TestClient, anna: dict, prices: FakePrices,
+                                                         login_as: LoginAs) -> None:
+    bartek = login_as("bartek@portfolio.dev")
+    client.post("/api/catalog", json={"ticker": "VWCE.DE"}, headers=anna)
+
+    def added(headers: dict) -> list[str]:
+        groups = {g["group"]: [i["ticker"] for i in g["items"]] for g in client.get("/api/catalog", headers=headers).json()}
+        return groups.get("Dodane przez Ciebie", [])
+
+    assert (added(anna), added(bartek)) == (["VWCE.DE"], [])
+    again = client.post("/api/catalog", json={"ticker": "VWCE.DE"}, headers=bartek)  # known: no second fetch
+    assert (again.status_code, added(bartek), len(prices.calls)) == (200, ["VWCE.DE"], 1)
 
 
 def test_adding_is_rate_limited_per_user(make_app: Callable, login_as: LoginAs) -> None:

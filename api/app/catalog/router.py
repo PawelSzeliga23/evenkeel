@@ -24,7 +24,7 @@ def post_catalog(
 ) -> CatalogItemOut:
     if not request.app.state.catalog_limiter.hit(str(scope.user.id)):
         raise ApiError(429, "rate_limited", "Zbyt wiele prób. Spróbuj ponownie za minutę.")
-    item, created = add_ticker(scope.db, providers.prices, body.ticker, dt.datetime.now(dt.UTC))
+    item, created = add_ticker(scope.db, providers.prices, scope.user.id, body.ticker, dt.datetime.now(dt.UTC))
     if not created:
         response.status_code = 200
     return item

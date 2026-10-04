@@ -10,6 +10,7 @@ from app.analytics.metrics import Day, Period, Rate, analyze, period_start
 from app.analytics.service import measure_fields, nbp_rates
 from app.bonds.edo import Series as BondTerms
 from app.catalog.seed import ADDED_GROUP
+from app.catalog.service import added_by, curated
 from app.errors import ApiError
 from app.models import BondSeries, Cpi, Instrument, User
 from app.portfolio.service import daily_totals
@@ -56,7 +57,8 @@ def check_instruments(scope: UserScope, body: ScenarioIn) -> None:
         return
     held = set(scope.db.scalars(scope.instruments().with_only_columns(Instrument.id)))
     listed = set(scope.db.scalars(
-        select(Instrument.id).where(Instrument.id.in_(wanted), Instrument.in_catalog.is_(True))))
+        select(Instrument.id).where(Instrument.id.in_(wanted),
+                                    curated() | Instrument.id.in_(added_by(scope.user.id)))))
     if not wanted <= held | listed:
         raise ApiError(422, "unknown_instrument", "Nie ma takiego instrumentu w katalogu ani w portfelu.")
 

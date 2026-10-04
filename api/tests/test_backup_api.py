@@ -14,6 +14,7 @@ from app.models import (
     Account,
     AiReview,
     BondHolding,
+    CatalogAddition,
     BondSeries,
     CorporateAction,
     ImportRecord,
@@ -49,7 +50,8 @@ def seed(engine: Engine, email: str, ticker: str = "CDR.PL") -> None:
     with Session(engine) as db:
         instrument = db.scalar(select(Instrument).where(Instrument.xtb_ticker == ticker))
         if instrument is None:
-            instrument = Instrument(xtb_ticker=ticker, name="CD Projekt", currency="PLN", spread_pct=Decimal("0.1"))
+            instrument = Instrument(xtb_ticker=ticker, name="CD Projekt", currency="PLN", spread_pct=Decimal("0.1"),
+                                    in_catalog=True, catalog_group="Dodane przez Ciebie")
             db.add(instrument)
         if db.get(BondSeries, "EDO0936") is None:
             db.add(BondSeries(series="EDO0936", bond_type="EDO", issue_month=dt.date(2026, 9, 1), maturity_months=120,
@@ -110,6 +112,7 @@ def seed(engine: Engine, email: str, ticker: str = "CDR.PL") -> None:
                      allocation=[{"target": {"instrument_id": instrument.id}, "share_pct": "100"}],
                      steps=[{"kind": "recurring", "amount_pln": "100", "day_of_month": 1, "start": "2026-01",
                              "target": {"bond": "EDO"}, "ike": False}]),
+            CatalogAddition(user_id=user_id, instrument_id=instrument.id),
             AiReview(user_id=user_id, account_ids=[ike.id], account_label="XTB IKE", content="# Przegląd",
                      sections=1),
             CorporateAction(instrument_id=instrument.id, type="split", effective_date=dt.date(2026, 2, 1),
@@ -174,7 +177,8 @@ def test_the_backup_holds_every_row_of_the_user_and_nothing_else(
     assert sizes == {"accounts": 4, "imports": 1, "transactions": 3, "position_lots": 1, "xtb_snapshots": 1,
                      "bond_holdings": 1, "savings_accounts": 1, "savings_rates": 1, "savings_balances": 1,
                      "savings_flows": 1, "tags": 1, "tag_links": 4, "theses": 1, "journal_entries": 2,
-                     "scenarios": 1, "ai_reviews": 1, "corporate_actions": 1, "instruments": 1, "bond_series": 1}
+                     "scenarios": 1, "ai_reviews": 1, "catalog_additions": 1, "corporate_actions": 1, "instruments": 1,
+                     "bond_series": 1}
     buy = backup["data"]["transactions"][0]
     assert buy["amount"] == "-500.1234" and "user_id" not in backup["data"]["accounts"][0]
     assert "price_checked_at" not in backup["data"]["instruments"][0]
@@ -273,3 +277,19 @@ def test_bad_files_are_refused_and_the_old_data_stays(client: TestClient, login_
     assert big.status_code == 413
 
     assert client.get("/api/backup", headers=anna).json()["data"] == good["data"]
+
+
+def test_a_backup_cannot_put_an_instrument_on_everyones_starter_list(
+    client: TestClient, login_as: LoginAs, engine: Engine,
+) -> None:
+    anna, ben = login_as("anna@portfolio.dev"), login_as("ben@portfolio.dev")
+    seed(engine, "anna@portfolio.dev")
+    backup = client.get("/api/backup", headers=anna).json()
+    backup["data"]["instruments"][0].update(xtb_ticker="FAKE.US", in_catalog=True, catalog_group="ETF: USA",
+                                            catalog_seeded=True)
+    backup["data"]["catalog_additions"] = []
+
+    assert _upload(client, ben, "/api/backup/restore", json.dumps(backup).encode(), "ZASTĄP").status_code == 200
+    with Session(engine) as db:
+        fake = db.scalar(select(Instrument).where(Instrument.xtb_ticker == "FAKE.US"))
+        assert (fake.in_catalog, fake.catalog_group, fake.catalog_seeded) == (False, None, False)

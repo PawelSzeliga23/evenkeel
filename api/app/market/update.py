@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy import exists, func, or_, select
 from sqlalchemy.orm import Session
 
+from app.catalog.seed import ADDED_GROUP
 from app.market.store import (
     BASE_CURRENCY,
     delete_prices,
@@ -28,7 +29,7 @@ from app.market.types import (
     RefRateProvider,
     SymbolNotFound,
 )
-from app.models import CorporateAction, Instrument, PositionLot, Transaction
+from app.models import CatalogAddition, CorporateAction, Instrument, PositionLot, Transaction
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +68,8 @@ def _referenced() -> object:
     """Instruments are shared across users; the worker only touches ones held, traded, converted into, or in
     the simulator's catalog (plan 7b)."""
     return or_(
-        Instrument.in_catalog.is_(True),
+        Instrument.in_catalog.is_(True) & (Instrument.catalog_group.is_distinct_from(ADDED_GROUP)
+                                           | exists().where(CatalogAddition.instrument_id == Instrument.id)),
         exists().where(Transaction.instrument_id == Instrument.id),
         exists().where(PositionLot.instrument_id == Instrument.id),
         exists().where(CorporateAction.target_instrument_id == Instrument.id),
