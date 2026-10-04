@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { api } from "../../api/endpoints";
@@ -10,14 +11,15 @@ const LATEST = 3;
 
 /** The latest three scenarios on Analiza; nothing while the list cannot be read. */
 export function SimulatorCard() {
+  const titleId = useId(); // a tile of the Pulpit can show the card twice (plan 9)
   const scenarios = useQuery({ queryKey: keys.scenarios, queryFn: api.scenarios });
   const latest = (scenarios.data ?? []).slice(0, LATEST);
   const results = useScenarioResults(latest, "all");
   if (!scenarios.data) return null;
   return (
-    <section className={ui.section} aria-labelledby="simulator-title">
+    <section className={ui.section} aria-labelledby={titleId}>
       <div className={ui.sectionHead}>
-        <h2 id="simulator-title" className={ui.sectionTitle}>Symulator</h2>
+        <h2 id={titleId} className={ui.sectionTitle}>Symulator</h2>
         <Link className={ui.sectionMore} to="/analiza/symulator">Wszystkie scenariusze</Link>
       </div>
       <p className={styles.hint}>Różnica względem portfela za cały okres.</p>

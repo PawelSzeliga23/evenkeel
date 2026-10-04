@@ -8,7 +8,8 @@ describe("app shell", () => {
     renderApp("/historia");
 
     const nav = await screen.findByRole("navigation", { name: "Główna" });
-    const links = within(nav).getAllByRole("link");
+    // jsdom applies no @media, so the sidebar-only link reads as hidden here
+    const links = within(nav).getAllByRole("link", { hidden: true });
     expect(links.map((l) => l.textContent)).toEqual(["Pulpit", "Pozycje", "Dodaj", "Historia", "Analiza", "Ustawienia"]);
     expect(links.at(-1)!.className).toMatch(/pinned/);
   });
@@ -18,7 +19,7 @@ describe("app shell", () => {
     renderApp("/ustawienia");
 
     const nav = await screen.findByRole("navigation", { name: "Główna" });
-    expect(within(nav).getByRole("link", { name: "Ustawienia" })).toHaveAttribute("aria-current", "page");
+    expect(settingsLink(nav)).toHaveAttribute("aria-current", "page");
     expect(within(nav).getByRole("img", { name: "Evenkeel", hidden: true })).toBeInTheDocument(); // shown from 900 px
     expect(within(nav).getByRole("link", { name: "Dodaj" })).toHaveAttribute("href", "/dodaj");
     expect(within(nav).getByRole("link", { name: "Historia" })).toHaveAttribute("href", "/historia");
@@ -41,7 +42,7 @@ describe("Analiza in the bar", () => {
     const nav = await screen.findByRole("navigation", { name: "Główna" });
     expect(within(nav).getByRole("link", { name: "Analiza" })).toHaveAttribute("aria-current", "page");
     expect(within(nav).getByRole("link", { name: "Analiza" })).toHaveAttribute("href", "/analiza");
-    expect(within(nav).getByRole("link", { name: "Ustawienia" }).className).toMatch(/desktopOnly/);
+    expect(settingsLink(nav).className).toMatch(/desktopOnly/);
   });
 
   it("puts a gear to Ustawienia on Pulpit and a way back on Ustawienia", async () => {
@@ -59,3 +60,8 @@ describe("Analiza in the bar", () => {
     expect(screen.getAllByRole("link", { name: "Pulpit" }).some((link) => !link.closest("nav") && link.getAttribute("href") === "/")).toBe(true);
   });
 });
+
+/** The sidebar's Ustawienia: shown from 900 px, which jsdom (no @media) reads as hidden. */
+function settingsLink(nav: HTMLElement): HTMLElement {
+  return within(nav).getAllByRole("link", { hidden: true }).find((link) => link.getAttribute("href") === "/ustawienia")!;
+}

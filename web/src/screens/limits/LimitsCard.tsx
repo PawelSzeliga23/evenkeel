@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { api } from "../../api/endpoints";
@@ -27,12 +28,13 @@ function line(limit: Limit): string {
 }
 
 export function LimitsCard() {
+  const titleId = useId(); // a tile of the Pulpit can show the card twice (plan 9)
   const limits = useQuery({ queryKey: keys.limits, queryFn: api.limits });
   if (!limits.data || limits.data.length === 0) return null;
   return (
-    <section className={ui.section} aria-labelledby="limits-title">
+    <section className={ui.section} aria-labelledby={titleId}>
       <div className={ui.sectionHead}>
-        <h2 id="limits-title" className={ui.sectionTitle}>Limity IKE/IKZE</h2>
+        <h2 id={titleId} className={ui.sectionTitle}>Limity IKE/IKZE</h2>
         <Link className={ui.sectionMore} to="/limity" aria-label="Szczegóły limitów">Szczegóły</Link>
       </div>
       {byWrapper(limits.data).map(({ wrapper, current }) => (

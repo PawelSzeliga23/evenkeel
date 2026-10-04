@@ -133,7 +133,20 @@ export function PriceSection({ accountId, instrumentId, average, firstBuy }: {
   firstBuy: IsoDate | null;
 }) {
   const prefs = usePreferences();
-  const [range, setRange] = useState<PriceRange>(prefs.price_range);
+  return (
+    <section className={ui.section} aria-labelledby={TITLE_ID}>
+      <h2 id={TITLE_ID} className={ui.sectionTitle}>Wykres ceny</h2>
+      <PriceChartBody accountId={accountId} instrumentId={instrumentId} average={average} firstBuy={firstBuy}
+        initialRange={prefs.price_range} />
+    </section>
+  );
+}
+
+/** The range buttons and the chart, without a heading: the price chart section and the Pulpit's tile (plan 9). */
+export function PriceChartBody({ accountId, instrumentId, average, firstBuy, initialRange }: {
+  accountId: number; instrumentId: number; average: Money | null; firstBuy: IsoDate | null; initialRange: PriceRange;
+}) {
+  const [range, setRange] = useState<PriceRange>(initialRange);
   // One request per range: the API keeps every day of a short range and thins only a long one to ≤ 800 points.
   const from = rangeFrom(range, firstBuy, todayIso());
   const prices = useQuery({
@@ -142,12 +155,11 @@ export function PriceSection({ accountId, instrumentId, average, firstBuy }: {
     placeholderData: keepPreviousData,
   });
   return (
-    <section className={ui.section} aria-labelledby={TITLE_ID}>
-      <h2 id={TITLE_ID} className={ui.sectionTitle}>Wykres ceny</h2>
+    <>
       <Segmented label="Zakres wykresu ceny" options={PRICE_RANGES} value={range} onChange={setRange} />
       {prices.isPending ? <Skeleton rows={3} />
         : prices.isError ? <ErrorState error={prices.error} onRetry={() => void prices.refetch()} />
           : <Chart data={prices.data} average={average} sinceBuy={range === "buy"} />}
-    </section>
+    </>
   );
 }

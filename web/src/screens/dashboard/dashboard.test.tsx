@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NETWORK_MESSAGE } from "../../api/client";
 import { pluralPl } from "../../format";
-import { ACCOUNTS, EXPOSURE, HISTORY, LIMITS, POSITIONS, SUMMARY, position } from "../../test/fixtures";
+import { ACCOUNTS, ANALYTICS, EXPOSURE, HISTORY, LIMITS, POSITIONS, SUMMARY, position } from "../../test/fixtures";
 import { SIGNED_IN, USER, json, mockFetch, renderApp, type MockRoute } from "../../test/render";
 import { writeSelection } from "../../accounts/selection";
 import { formatRefreshed } from "../../format";
@@ -21,6 +21,7 @@ function routes(overrides: Partial<Record<string, MockRoute["respond"]>> = {}): 
     { path: "/api/portfolio/exposure", respond: overrides.exposure ?? (() => EXPOSURE) },
     { path: "/api/positions", respond: overrides.positions ?? (() => POSITIONS) },
     { path: "/api/portfolio/limits", respond: overrides.limits ?? (() => LIMITS) },
+    { path: "/api/analytics", respond: () => ANALYTICS },
   ];
 }
 
@@ -75,18 +76,18 @@ describe("dashboard screen", () => {
     mockFetch(routes());
     renderApp("/");
 
-    const card = await screen.findByRole("region", { name: "Limity IKE/IKZE" });
+    await screen.findByText(`IKE 2026: 12${T}000,00${T}zł z 28${T}260,00${T}zł`);
+    const card = screen.getByRole("region", { name: "Limity IKE/IKZE" });
     expect(within(card).getByText(`IKE 2026: 12${T}000,00${T}zł z 28${T}260,00${T}zł`)).toBeInTheDocument();
     expect(within(card).getByText(`IKZE 2026: przekroczono limit o 696,00${T}zł`)).toBeInTheDocument();
     expect(within(card).getByRole("link", { name: "Szczegóły limitów" })).toHaveAttribute("href", "/limity");
   });
 
-  it("hides the limits card without IKE or IKZE accounts", async () => {
-    const fetchMock = mockFetch(routes({ limits: () => [] }));
+  it("says there are no IKE or IKZE accounts in the limits tile", async () => {
+    mockFetch(routes({ limits: () => [] }));
     renderApp("/");
-    expect(await screen.findByText("Wartość portfela")).toBeInTheDocument();
-    await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => String(u).includes("/api/portfolio/limits"))).toBe(true));
-    expect(screen.queryByRole("region", { name: "Limity IKE/IKZE" })).not.toBeInTheDocument();
+    expect(await screen.findByText("Nie masz kont IKE ani IKZE.")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Szczegóły limitów" })).not.toBeInTheDocument();
   });
 
   it("shows the value, the day, the chart, allocation and the day's biggest moves", async () => {

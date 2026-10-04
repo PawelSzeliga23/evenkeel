@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { api } from "../../api/endpoints";
@@ -9,13 +10,14 @@ import styles from "./Review.module.css";
 
 /** On Analiza: when the last review was made, its „W skrócie”, and the way to the review screen; nothing while unreadable. */
 export function ReviewCard() {
+  const titleId = useId(); // a tile of the Pulpit can show the card twice (plan 9)
   const reviews = useQuery({ queryKey: keys.reviews, queryFn: api.reviews });
   if (!reviews.data) return null;
   const latest = reviews.data[0];
   return (
-    <section className={ui.section} aria-labelledby="review-title">
+    <section className={ui.section} aria-labelledby={titleId}>
       <div className={ui.sectionHead}>
-        <h2 id="review-title" className={ui.sectionTitle}>Przegląd AI</h2>
+        <h2 id={titleId} className={ui.sectionTitle}>Przegląd AI</h2>
         <Link className={ui.sectionMore} to="/analiza/przeglad">Przegląd portfela</Link>
       </div>
       <p className={styles.note}>

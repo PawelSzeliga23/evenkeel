@@ -1,5 +1,5 @@
 /** Wykres ceny (plan 7e): ranges and the names of the operation markers. */
-import type { IsoDate, Money, PriceChartData, PriceMarker, PriceNote } from "../../api/types";
+import type { IsoDate, Money, PositionDetail, PriceChartData, PriceMarker, PriceNote } from "../../api/types";
 import { NBSP, addMonths, formatDate, formatDecimal, formatMoney } from "../../format";
 
 export type PriceRange = "buy" | "6m" | "1y" | "5y" | "max";
@@ -59,4 +59,10 @@ export function markerLabel(marker: ChartMark, currency: string | null): string 
   const quantity = marker.quantity === null ? "" : `${formatDecimal(marker.quantity, 8)} szt.`;
   const price = marker.price === null ? "" : `po ${formatPrice(marker.price, currency)}`;
   return `${kind} ${day}, ${[quantity, price].filter(Boolean).join(" ")}`;
+}
+
+/** The position's first purchase day, where „Od zakupu” starts. */
+export function firstBuy(detail: PositionDetail): IsoDate | null {
+  const days = detail.transactions.filter((t) => t.type === "buy").map((t) => t.occurred_at.slice(0, 10)).sort();
+  return days[0] ?? null;
 }

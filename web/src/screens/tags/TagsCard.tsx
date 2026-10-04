@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { useAccountSelection } from "../../accounts/AccountSelection";
@@ -12,6 +13,7 @@ import styles from "./Tags.module.css";
 
 /** Analiza's card: the three largest tags with their shares; an invitation while there are none. */
 export function TagsCard() {
+  const titleId = useId(); // a tile of the Pulpit can show the card twice (plan 9)
   const [accountIds, , ready] = useAccountSelection();
   const report = useQuery({
     queryKey: keys.tagAnalytics(accountIds, "all"), queryFn: () => api.tagAnalytics(accountIds, "all"), enabled: ready,
@@ -22,9 +24,9 @@ export function TagsCard() {
   if (!data || (data.tags.length === 0 && !tags.data)) return null;
   const top = data.tags.slice(0, 3);
   return (
-    <section className={ui.section} aria-labelledby="tags-title">
+    <section className={ui.section} aria-labelledby={titleId}>
       <div className={ui.sectionHead}>
-        <h2 id="tags-title" className={ui.sectionTitle}>Tagi</h2>
+        <h2 id={titleId} className={ui.sectionTitle}>Tagi</h2>
         {top.length > 0 && <Link className={ui.sectionMore} to={TAGS_PATH}>Tagi</Link>}
       </div>
       {top.length === 0 ? <p className={styles.note}>{tags.data!.length === 0 ? NO_TAGS : NO_VALUE}</p> : (
