@@ -1,7 +1,8 @@
 # Plan 9b — wysokość kafelków w jednostkach U (propozycja do akceptacji)
 
-Data: 2026-10-04. Gałąź: `feature/dashboard-tiles` (plan 9, jeszcze nie scalony). Status: **czeka na akceptację
-wysokości przez właściciela** — dopiero potem plan i wykonanie.
+Data: 2026-10-04. Gałąź: `feature/dashboard-tiles` (plan 9, jeszcze nie scalony). Status: **zaakceptowane przez
+właściciela 2026-10-04** („tak do wszystkich 3 pytań” + zasada wysokości Analizy niżej). Następny krok po /clear:
+plan wykonania (writing-plans) i wykonanie bez kolejnych zgód (waiver planu 9), pytanie dopiero o scalenie.
 
 ## Ustalone z właścicielem
 
@@ -30,7 +31,7 @@ wysokości przez właściciela** — dopiero potem plan i wykonanie.
 | Wykres wartości | **M·4U** · **L·4U** · **L·6U** | niski szeroki do pasa nad innymi; duży jak dziś |
 | Wykres ceny | **M·5U** · **L·6U** | jak dziś; M bez legendy i podpowiedzi |
 | Alokacja | **S·2U** · **M·4U** · **L·4U** | S: pasek + największa część; M: pasek + lista (do 5); L: pasek + lista w 2 kolumnach |
-| Analiza | **M·3U** · **L·3U** · **L·6U** | M: do 4 miar 2×2; L·3U: do 6 miar w jednym/dwóch rzędach; L·6U: miary + wykres obsunięcia |
+| Analiza | **M** · **L** · **L + wykres** — wysokość rośnie z liczbą miar (zasada niżej) | M: miary po 2 w rzędzie; L: po 4 w rzędzie; L + wykres: miary po 4 w rzędzie i wykres obsunięcia |
 | Limity IKE/IKZE | **S·2U** nowy · **M·2U** | S: tylko % wykorzystania każdego limitu; M: jak dziś |
 | Dziś najbardziej | **M·4U** (3 poz.) · **M·5U** (5 poz.) · **L·5U** (5 poz. w 2 kolumnach) · **L·8U** (10 poz.) | liczba pozycji wynika z wariantu (znika ustawienie „Ile pozycji”) |
 | Walory | **M·3U** · **L·5U** nowy | mała / duża mapa cieplna |
@@ -39,17 +40,38 @@ wysokości przez właściciela** — dopiero potem plan i wykonanie.
 | Symulator | **M·4U** | jak dziś (3 scenariusze) |
 | Przegląd AI | **M·4U** · **L·4U** | skrót „W skrócie”, przewijany w kafelku |
 
+### Zasada wysokości Analizy (prośba właściciela)
+
+Wysokość Analizy nie jest jednym wariantem, tylko wynika z liczby wybranych miar (1–6), żeby kafelek nie miał pustego
+miejsca ani przewijania: **1U na nagłówek (tytuł, okres) + 1U na każdy rząd miar**.
+
+| Wariant | Miar w rzędzie | Wysokość | Przykłady |
+|---|---|---|---|
+| M | 2 | 1U + ⌈n / 2⌉U | 1–2 miary → 2U, 3–4 → 3U, 5–6 → 4U |
+| L | 4 | 1U + ⌈n / 4⌉U | 1–4 → 2U, 5–6 → 3U |
+| L + wykres | 4 | 1U + ⌈n / 4⌉U + 3U | 1–4 → 5U, 5–6 → 6U |
+
+Jedna miara (nazwa, liczba, dopisek „rocznie”) mieści się w 1U (72 px). Tę samą zasadę można później dać innym kafelkom
+z listą (np. „Dziś najbardziej”: 1U nagłówek + 1U na każdą pozycję), ale na razie zostają tam stałe warianty z tabeli.
+W ustawieniach Analizy przy wyborze miar widać, jak zmienia się wysokość („3 miary · M · 3U”).
+
 Układ domyślny (bez zapisanego): Wartość portfela M·4U + Wykres wartości… — do ustalenia po akceptacji tabeli; cel:
 dzisiejszy porządek bez przerw (np. Wartość portfela L·3U, Wykres wartości L·6U, Alokacja M·4U obok Analiza M·3U +
 Limity… — dobrać tak, by sumy U w parach się zgadzały).
 
-## Do decyzji właściciela przy akceptacji
+## Decyzje właściciela (2026-10-04)
 
-1. Czy 1U = 72 px pasuje (może 64 albo 80)?
-2. Czy warianty w tabeli wystarczą; co dodać / usunąć.
-3. Nowe rodzaje kafelków (propozycje, niekonieczne): **Ekspozycja walutowa** (S·2U %, M·3U pasek), **Ostatnie operacje**
-   (M·4U, 5 ostatnich z Historii), **Najlepsze i najgorsze walory** (M·4U, z Walorów za okres), **Gotówka na kontach**
-   (S·2U).
+1. **1U = 72 px** — tak.
+2. **Warianty z tabeli** — tak (Analiza według zasady wyżej).
+3. **Nowe rodzaje kafelków** — tak, wszystkie cztery:
+   - **Ekspozycja walutowa** — S·2U (udział największej waluty obcej w %), M·3U (pasek walut i lista); dane:
+     `/api/portfolio/exposure` (dzisiejszy podział), link do `/ekspozycja`;
+   - **Ostatnie operacje** — M·4U (3 ostatnie), M·6U (5 ostatnich); dane: `/api/history` (pierwsza strona), link do
+     Historii;
+   - **Najlepsze i najgorsze walory** — M·4U (po 2 najlepsze i najgorsze), L·4U (po 3, w dwóch kolumnach); okres
+     (1 dzień … wszystko) w ustawieniach; dane: `/api/analytics/holdings`, link do Walorów;
+   - **Gotówka na kontach** — S·2U (gotówka razem), M·3U (gotówka per konto); dane: `/api/positions` (pozycje
+     `kind = "cash"`).
 
 ## Zmiany w kodzie (po akceptacji)
 
