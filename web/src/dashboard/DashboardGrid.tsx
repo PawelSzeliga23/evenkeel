@@ -52,8 +52,8 @@ function EditableTile({ tile, index, count, summary, configuring, onConfigure, l
   const name = KINDS[tile.kind].name;
   return (
     <div ref={setNodeRef} className={styles.tileBox} data-kind={tile.kind} data-size={tile.size} data-editing
-      data-dragging={isDragging || undefined} role="group" aria-label={`Kafelek ${name}`}
-      style={{ transform: CSS.Translate.toString(transform), transition }} {...listeners}>
+      data-dragging={isDragging || undefined} data-configuring={configuring || undefined} role="group" aria-label={`Kafelek ${name}`}
+      style={{ transform: CSS.Translate.toString(transform), transition }} {...(configuring ? {} : listeners)}>
       <div className={styles.tileTools}>
         <button type="button" className={styles.tileTool} aria-label={`Usuń kafelek ${name}`}
           onClick={() => onChange(removeTile(layout, tile.id))}><CloseIcon /></button>

@@ -28,15 +28,24 @@
 .tileAllocTop { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; }
 
 /* editing (plan 9) */
+.tileHeadIcons { display: flex; align-items: center; }
 .tileEditButton { background: none; border: 0; cursor: pointer; }
 .tileEditBar {
-  position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  position: sticky; top: 0; z-index: 5; display: grid; gap: 10px;
   padding: 10px 0; background: var(--night); border-bottom: 1px solid var(--rule);
 }
-.tileEditEnd { display: flex; gap: 8px; margin-left: auto; }
+.tileEditEnd { order: -1; display: flex; justify-content: space-between; gap: 8px; }
+.tileEditTiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tileEditBar button { min-width: 0; white-space: nowrap; }
+@media (min-width: 900px) {
+  .tileEditBar { display: flex; align-items: center; }
+  .tileEditTiles { display: flex; }
+  .tileEditEnd { order: 0; margin-left: auto; }
+}
 .tileBox[data-editing] { padding-top: 44px; touch-action: manipulation; cursor: grab; }
+.tileBox[data-configuring] { grid-column: 1 / -1; cursor: auto; border-color: var(--amber-line); } /* room for its settings */
 .tileBox[data-dragging] { z-index: 4; cursor: grabbing; box-shadow: 0 12px 32px var(--shadow); }
-.tileGrid[data-editing] .tileBox:not([data-dragging]) { animation: tileWiggle .32s ease-in-out infinite alternate; }
+.tileGrid[data-editing] .tileBox:not([data-dragging]):not([data-configuring]) { animation: tileWiggle .32s ease-in-out infinite alternate; }
 .tileGrid[data-editing] .tileBox:nth-child(2n) { animation-delay: -.16s; }
 @keyframes tileWiggle { from { rotate: -.35deg; } to { rotate: .35deg; } }
 @media (prefers-reduced-motion: reduce) { .tileGrid[data-editing] .tileBox { animation: none; } }
@@ -58,7 +67,7 @@
 .tileKind small { color: var(--dim); }
 .tileField { display: grid; gap: 4px; font-size: 13px; color: var(--dim); }
 .tileField select {
-  min-height: 40px; padding: 0 10px; border: 1px solid var(--rule); border-radius: var(--r-control);
+  width: 100%; min-width: 0; min-height: 40px; padding: 0 10px; border: 1px solid var(--rule); border-radius: var(--r-control);
   background: var(--slab); color: var(--ink); font: inherit;
 }
 .tileChoices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; margin: 0; padding: 0; border: 0; font-size: 14px; }

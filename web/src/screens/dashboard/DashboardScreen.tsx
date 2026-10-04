@@ -101,7 +101,7 @@ export function DashboardScreen() {
     <>
       <div className={`${shell.phoneOnly} ${shell.topRow}`}>
         <Logo layout="inline" markSize={24} />
-        <span>
+        <span className={tiles.tileHeadIcons}>
           {!editing && (
             <button type="button" className={`${shell.gear} ${tiles.tileEditButton}`} aria-label="Edytuj pulpit"
               onClick={() => setParams({ edycja: "" })}><EditTilesIcon /></button>
@@ -160,11 +160,14 @@ export function DashboardScreen() {
     const full = shown.tiles.length >= MAX_TILES;
     return (
       <div className={ui.page}>
+        {/* phone: Anuluj and Gotowe on top, like iOS, the tile actions under them; computer: one row */}
         <div className={tiles.tileEditBar} role="toolbar" aria-label="Edycja pulpitu">
-          <button type="button" className={ui.primaryButton} disabled={full} onClick={() => setAdding(true)}>+ Dodaj kafelek</button>
-          <button type="button" className={ui.secondary} onClick={() => { setDraft(defaults); setConfiguring(null); }}>
-            Przywróć domyślny
-          </button>
+          <span className={tiles.tileEditTiles}>
+            <button type="button" className={ui.primaryButton} disabled={full} onClick={() => setAdding(true)}>+ Dodaj kafelek</button>
+            <button type="button" className={ui.secondary} onClick={() => { setDraft(defaults); setConfiguring(null); }}>
+              Przywróć domyślny
+            </button>
+          </span>
           <span className={tiles.tileEditEnd}>
             <button type="button" className={ui.secondary} onClick={stopEditing}>Anuluj</button>
             <button type="button" className={ui.primaryButton} disabled={save.isPending} onClick={done}>Gotowe</button>

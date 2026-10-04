@@ -318,16 +318,23 @@ test("pulpit z kafelków: dodanie miary na telefonie, układ na komputerze", asy
   await page.getByRole("link", { name: "Zobacz pulpit" }).click();
   await expect(page.getByText("Przeliczam wycenę…")).toBeHidden({ timeout: 45_000 });
 
+  // the wiggle of edited tiles never lets Playwright see a button stand still; reduced motion stops it, as for people who ask
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.getByRole("button", { name: "Edytuj pulpit" }).click();
   await page.getByRole("button", { name: "+ Dodaj kafelek" }).click();
   await page.getByRole("button", { name: /^Jedna miara/ }).click();
   await page.screenshot({ path: `${SCREENS}/pulpit-edycja.png`, fullPage: true });
+  await page.getByRole("button", { name: "Ustaw kafelek Jedna miara" }).click();
+  await page.screenshot({ path: `${SCREENS}/pulpit-edycja-kafelek.png` });
+  await page.getByRole("button", { name: "Zamknij ustawienia" }).click();
   await page.getByRole("button", { name: "Gotowe" }).click();
   await expect(page.getByRole("button", { name: "Gotowe" })).toBeHidden();
 
   await page.reload();
   await expect(page.getByRole("region", { name: "XIRR" })).toBeVisible({ timeout: 45_000 });
   await page.screenshot({ path: `${SCREENS}/pulpit-kafelki.png`, fullPage: true });
+  await page.waitForTimeout(3500); // the start-up splash stays at least 3 s
+  await page.screenshot({ path: `${SCREENS}/pulpit-naglowek.png` });
 
   // The same layout on a computer: a browser of its own, as the phone emulation keeps a phone's viewport.
   const computer = await browser.newContext({ viewport: { width: 1440, height: 900 }, locale: "pl-PL" });
