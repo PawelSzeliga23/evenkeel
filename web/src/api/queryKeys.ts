@@ -5,6 +5,7 @@ export const keys = {
   accountUsage: (id: number) => ["accounts", "usage", id] as const,
   portfolio: ["portfolio"] as const,
   refreshSchedule: ["portfolio", "schedule"] as const,
+  sessions: ["sessions"] as const,
   summary: (ids: readonly number[]) => ["portfolio", "summary", ids] as const,
   history: (ids: readonly number[], from: string | null) => ["portfolio", "history", ids, from] as const,
   exposure: (ids: readonly number[], day: string) => ["portfolio", "exposure", ids, day] as const,

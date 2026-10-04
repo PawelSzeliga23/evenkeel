@@ -562,3 +562,12 @@ export interface RefreshSchedule {
   timezone: string;
   last_refreshed_at: string | null;
 }
+
+/** Plan 8d: one signed-in device (GET /api/auth/sessions). */
+export interface SessionInfo {
+  id: string;
+  user_agent: string | null;
+  started_at: string;
+  last_used_at: string;
+  current: boolean;
+}

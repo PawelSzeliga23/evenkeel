@@ -29,7 +29,8 @@ export function contents(counts: BackupSummary["counts"]): string[] {
   return parts.filter(([n]) => n > 0).map(([n, one, few, many]) => `${n} ${pluralPl(n, one, few, many)}`);
 }
 
-function save(text: string): void {
+/** Saves the downloaded backup as a dated file (also from Usuń konto). */
+export function saveBackup(text: string): void {
   const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
   const link = document.createElement("a");
   link.href = url;
@@ -47,7 +48,7 @@ export function BackupScreen() {
   const [, setAccountIds] = useAccountSelection();
   const [file, setFile] = useState<File | null>(null);
   const [word, setWord] = useState("");
-  const download = useMutation({ mutationFn: api.backup, onSuccess: save });
+  const download = useMutation({ mutationFn: api.backup, onSuccess: saveBackup });
   const check = useMutation({ mutationFn: api.checkBackup });
   const restore = useMutation({
     mutationFn: () => api.restoreBackup(file!, word),

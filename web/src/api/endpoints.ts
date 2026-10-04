@@ -1,6 +1,6 @@
 import { request } from "./client";
 import type {
-  Account, AccountCreate, Analytics, BackupSummary, RefreshSchedule, AnalyticsPeriod, Holdings, HoldingsPeriod, IncomePeriod, IncomeReport, AccountUpdate, AccountUsage, CatalogGroup, CatalogItem, Review, ReviewListItem, Instrument, InstrumentUpdate, Scenario, ScenarioIn, ScenarioResult, BondDetail, BondIn, BondOut, Closed, EntryIn, EntryPatch, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Journal, JournalEntry, Limit, NoteHolding, NoteTargetIn, Position, PositionDetail, Preferences, PriceChartData, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, Tag, TagLinkIn, TagsReport, TokenOut, Transaction, TransactionIn, UserOut,
+  Account, AccountCreate, Analytics, BackupSummary, RefreshSchedule, SessionInfo, AnalyticsPeriod, Holdings, HoldingsPeriod, IncomePeriod, IncomeReport, AccountUpdate, AccountUsage, CatalogGroup, CatalogItem, Review, ReviewListItem, Instrument, InstrumentUpdate, Scenario, ScenarioIn, ScenarioResult, BondDetail, BondIn, BondOut, Closed, EntryIn, EntryPatch, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Journal, JournalEntry, Limit, NoteHolding, NoteTargetIn, Position, PositionDetail, Preferences, PriceChartData, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, Tag, TagLinkIn, TagsReport, TokenOut, Transaction, TransactionIn, UserOut,
 } from "./types";
 
 function filesForm(files: File[], field = "files"): FormData {
@@ -71,6 +71,11 @@ export const api = {
     form.append("confirm", confirm);
     return request<BackupSummary>("/api/backup/restore", { method: "POST", form });
   },
+  sessions: () => request<SessionInfo[]>("/api/auth/sessions"),
+  revokeSession: (id: string) => request<void>(`/api/auth/sessions/${id}`, { method: "DELETE" }),
+  revokeOtherSessions: () => request<void>("/api/auth/sessions/revoke-others", { method: "POST" }),
+  deleteUser: (password: string, confirm: string) =>
+    request<void>("/api/auth/account", { method: "DELETE", json: { password, confirm } }),
   refreshSchedule: () => request<RefreshSchedule>("/api/market/schedule"),
   commitImport: (files: File[]) => request<ImportResult>("/api/imports", { method: "POST", form: filesForm(files) }),
   createAccount: (body: AccountCreate) => request<Account>("/api/accounts", { method: "POST", json: body }),
