@@ -70,10 +70,13 @@ def test_preferences_need_a_session(client: TestClient) -> None:
 
 
 LAYOUT = {"version": 1, "tiles": [
-    {"id": "a1", "kind": "summary", "size": "L", "settings": {"fields": ["total_gain", "sharpe", "invested", "income"]}},
-    {"id": "b2", "kind": "metric", "size": "S", "settings": {"metric": "xirr"}},
-    {"id": "c3", "kind": "price_chart", "size": "M", "settings": {"account_id": 5, "instrument_id": 7, "range": "1y"}},
-    {"id": "d4", "kind": "holdings", "size": "M", "settings": {}},
+    {"id": "a1", "kind": "summary", "variant": "L", "settings": {"fields": ["total_gain", "sharpe", "invested", "income"]}},
+    {"id": "b2", "kind": "metric", "variant": "S1", "settings": {"metric": "xirr"}},
+    {"id": "c3", "kind": "price_chart", "variant": "M5", "settings": {"account_id": 5, "instrument_id": 7, "range": "1y"}},
+    {"id": "d4", "kind": "holdings", "variant": "L5", "settings": {}},
+    {"id": "e5", "kind": "operations", "variant": "M", "settings": {"count": 5}},
+    {"id": "f6", "kind": "extremes", "variant": "L", "settings": {"count": 3, "period": "1y"}},
+    {"id": "g7", "kind": "journal", "variant": "S2", "settings": {}},
 ]}
 
 
@@ -96,7 +99,11 @@ def test_a_bad_layout_is_refused(client: TestClient, login_as: LoginAs) -> None:
     bad = [
         {**LAYOUT, "version": 2},
         {"version": 1, "tiles": [{**tile, "kind": "weather"}]},
-        {"version": 1, "tiles": [{**tile, "size": "L"}]},  # a single metric is S only
+        {"version": 1, "tiles": [{**tile, "variant": "M4"}]},  # a single metric is S only
+        {"version": 1, "tiles": [{**tile, "size": "S"}]},  # a size and a variant at once
+        {"version": 1, "tiles": [{**{k: v for k, v in tile.items() if k != "variant"}, "size": "L"}]},
+        {"version": 1, "tiles": [{**LAYOUT["tiles"][0], "settings": {"fields": ["xirr"] * 9}}]},  # 8 fields at most
+        {"version": 1, "tiles": [{**LAYOUT["tiles"][5], "settings": {"count": 4, "period": "1y"}}]},
         {"version": 1, "tiles": [{**tile, "settings": {"metric": "luck"}}]},
         {"version": 1, "tiles": [{**tile, "settings": {"metric": "xirr", "x": 1}}]},
         {"version": 1, "tiles": [{**tile, "id": "bad id!"}]},
@@ -121,3 +128,25 @@ def test_a_stored_layout_that_no_longer_validates_reads_as_the_default(
     prefs = client.get("/api/auth/me", headers=anna).json()["preferences"]
 
     assert (prefs["dashboard"], prefs["value_range"]) == (None, "3M")
+
+
+def test_a_layout_of_plan_9_reads_and_saves_as_variants(client: TestClient, login_as: LoginAs, engine: Engine) -> None:
+    anna = login_as("anna@portfolio.dev")
+    old = {"version": 1, "tiles": [
+        {"id": "s", "kind": "summary", "size": "L", "settings": {"fields": ["total_gain"]}},
+        {"id": "m", "kind": "metric", "size": "S", "settings": {"metric": "xirr"}},
+        {"id": "v", "kind": "value_chart", "size": "L", "settings": {"range": "1R"}},
+        {"id": "a", "kind": "analysis", "size": "L", "settings": {"metrics": ["xirr"], "period": "all"}},
+        {"id": "l", "kind": "limits", "size": "M", "settings": {}},
+    ]}
+    with Session(engine) as db:
+        user = db.scalar(select(User).where(User.email == "anna@portfolio.dev"))
+        user.preferences = {"dashboard": old}
+        db.commit()
+
+    read = client.get("/api/auth/me", headers=anna).json()["preferences"]["dashboard"]
+    saved = client.patch("/api/me/preferences", json={"dashboard": old}, headers=anna).json()["dashboard"]
+
+    assert [(t["id"], t["variant"]) for t in read["tiles"]] == [("s", "L"), ("m", "S2"), ("v", "L6"), ("a", "Lc"), ("l", "M2")]
+    assert saved == read
+    assert all("size" not in t for t in saved["tiles"])
