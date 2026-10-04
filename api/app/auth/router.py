@@ -19,6 +19,8 @@ from app.config import Settings, get_settings
 from app.db import get_db
 from app.errors import ApiError
 from app.models import RefreshToken, User
+from app.preferences.router import preferences_of
+from app.scoping import UserScope
 
 logger = logging.getLogger(__name__)
 
@@ -115,8 +117,10 @@ def login(
 
 
 @router.get("/me", response_model=UserOut)
-def me(user: User = Depends(get_current_user)) -> User:
-    return user
+def me(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> UserOut:
+    out = UserOut.model_validate(user)
+    out.preferences = preferences_of(UserScope(db, user))
+    return out
 
 
 @router.post("/password", status_code=204)
