@@ -2,19 +2,21 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_USER: portfolio
-      POSTGRES_PASSWORD: portfolio
-      POSTGRES_DB: portfolio
+      POSTGRES_USER: ${POSTGRES_USER:?Ustaw POSTGRES_USER w pliku .env (skopiuj .env.example)}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Ustaw POSTGRES_PASSWORD w pliku .env (skopiuj .env.example)}
+      POSTGRES_DB: ${POSTGRES_DB:?Ustaw POSTGRES_DB w pliku .env (skopiuj .env.example)}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"  # only this computer
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U portfolio -d portfolio"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 2s
       timeout: 3s
       retries: 20
 
+  # Test databases live in memory (tmpfs), are emptied on every start and reachable only from this computer,
+  # so their fixed login is not a secret.
   db-test:
     image: postgres:16
     environment:
@@ -22,7 +24,7 @@ services:
       POSTGRES_PASSWORD: portfolio
       POSTGRES_DB: portfolio_test
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     tmpfs:
       - /var/lib/postgresql/data
     healthcheck:
@@ -35,7 +37,7 @@ services:
     build: ./api
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     environment:
-      DATABASE_URL: postgresql+psycopg://portfolio:portfolio@db:5432/portfolio
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       TEST_DATABASE_URL: postgresql+psycopg://portfolio:portfolio@db-test:5432/portfolio_test
       JWT_SECRET: ${JWT_SECRET:?Ustaw JWT_SECRET w pliku .env (skopiuj .env.example)}
       COOKIE_SECURE: "false"
@@ -58,7 +60,7 @@ services:
     build: ./api
     command: python -m app.worker
     environment:
-      DATABASE_URL: postgresql+psycopg://portfolio:portfolio@db:5432/portfolio
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       JWT_SECRET: ${JWT_SECRET:?Ustaw JWT_SECRET w pliku .env (skopiuj .env.example)}
       MARKET_DAILY_AT: ${MARKET_DAILY_AT:-23:00}
       PYTHONPATH: /app
@@ -77,7 +79,7 @@ services:
       POSTGRES_PASSWORD: portfolio
       POSTGRES_DB: portfolio_e2e
     ports:
-      - "5434:5432"
+      - "127.0.0.1:5434:5432"
     tmpfs:
       - /var/lib/postgresql/data
     healthcheck:
