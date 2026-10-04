@@ -1,12 +1,39 @@
-import { Outlet } from "react-router";
+import { useEffect } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router";
+import { START_SCREENS } from "../screens/settings/appearance";
+import { usePreferences } from "../settings/preferences";
+import { PrivacyProvider, usePrivacy } from "../settings/privacy";
 import { Nav } from "./Nav";
 import styles from "./shell.module.css";
 
-export function AppShell() {
+const STARTED = "evenkeel.started";
+
+/** Opens the chosen start screen once per tab session, when the app is entered at „/”. */
+function useStartScreen() {
+  const { start_screen } = usePreferences();
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    let started = true;
+    try { started = sessionStorage.getItem(STARTED) === "1"; sessionStorage.setItem(STARTED, "1"); } catch { /* none */ }
+    const path = START_SCREENS.find((s) => s.value === start_screen)?.path ?? "/";
+    if (!started && pathname === "/" && path !== "/") navigate(path, { replace: true });
+    // once, on entering the app
+  }, []);
+}
+
+function Shell() {
+  const [hidden] = usePrivacy();
+  useStartScreen();
   return (
     <div className={styles.shell}>
-      <main className={styles.main}><Outlet /></main>
+      {/* a new key re-renders the screen with the amounts shown or hidden */}
+      <main key={String(hidden)} className={styles.main}><Outlet /></main>
       <Nav />
     </div>
   );
+}
+
+export function AppShell() {
+  return <PrivacyProvider><Shell /></PrivacyProvider>;
 }

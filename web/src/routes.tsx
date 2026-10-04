@@ -26,6 +26,7 @@ import { AccountScreen } from "./screens/settings/AccountScreen";
 import { PasswordScreen } from "./screens/settings/PasswordScreen";
 import { PriceSourcesScreen } from "./screens/settings/PriceSourcesScreen";
 import { TagsSettingsScreen } from "./screens/settings/TagsSettingsScreen";
+import { AppearanceScreen } from "./screens/settings/AppearanceScreen";
 import { AboutScreen } from "./screens/settings/AboutScreen";
 import { AccountsScreen } from "./screens/settings/AccountsScreen";
 import { ProfileScreen } from "./screens/settings/ProfileScreen";
@@ -75,6 +76,7 @@ export const appRoutes: RouteObject[] = [
           { path: "/ustawienia/profil", element: <ProfileScreen /> },
           { path: "/ustawienia/konta", element: <AccountsScreen /> },
           { path: "/ustawienia/o-aplikacji", element: <AboutScreen /> },
+          { path: "/ustawienia/wyglad", element: <AppearanceScreen /> },
           { path: "/ustawienia/zrodla-cen", element: <PriceSourcesScreen /> },
           { path: "/ustawienia/tagi", element: <TagsSettingsScreen /> },
           { path: "/ustawienia/dziennik", element: <JournalScreen /> },

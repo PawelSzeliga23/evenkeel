@@ -9,7 +9,8 @@ import { ValueChart } from "../../charts/ValueChart";
 import { windowForRange, type ChartWindow, type YRange } from "../../charts/viewport";
 import { formatDayLong, formatMoney, formatRefreshed, formatPercent, pluralPl, signOf, sumMoney } from "../../format";
 import { Logo } from "../../brand/Logo";
-import { RefreshIcon, SettingsIcon } from "../../shell/icons";
+import { EyeIcon, EyeOffIcon, RefreshIcon, SettingsIcon } from "../../shell/icons";
+import { usePrivacy } from "../../settings/privacy";
 import shell from "../../shell/shell.module.css";
 import { AccountSelect } from "../../ui/AccountPicker";
 import { HeroAmount, Money } from "../../ui/Amount";
@@ -32,6 +33,7 @@ const tone = (value: string | null) => (signOf(value) > 0 ? "up" : signOf(value)
 export function DashboardScreen() {
   const queryClient = useQueryClient();
   const [accountIds, setAccountIds, ready] = useAccountSelection();
+  const [hidden, setHidden] = usePrivacy();
   const [range, setRange] = useState<Range>("1R");
   const [mode, setMode] = useState<AllocationMode>("kind");
   const [zoom, setZoom] = useState<ChartWindow | null>(null);
@@ -88,15 +90,21 @@ export function DashboardScreen() {
       </div>
       <div className={styles.bar}>
         {accounts.data ? <AccountSelect accounts={accounts.data} value={accountIds} onChange={setAccountIds} /> : <span />}
-        {refreshedAt ? (
-          <span className={styles.refreshed}>
-            <span className="dim">{formatRefreshed(refreshedAt)}</span>
-            <button type="button" className={styles.refresh} aria-label="Odśwież ceny" disabled={refresh.isPending}
-              data-spinning={refresh.isPending || recalculating} onClick={() => refresh.mutate()}>
-              <RefreshIcon />
-            </button>
-          </span>
-        ) : asOf && <span className="dim">{formatDayLong(asOf)}</span>}
+        <span className={styles.refreshed}>
+          {refreshedAt ? (
+            <>
+              <span className="dim">{formatRefreshed(refreshedAt)}</span>
+              <button type="button" className={styles.refresh} aria-label="Odśwież ceny" disabled={refresh.isPending}
+                data-spinning={refresh.isPending || recalculating} onClick={() => refresh.mutate()}>
+                <RefreshIcon />
+              </button>
+            </>
+          ) : asOf && <span className="dim">{formatDayLong(asOf)}</span>}
+          <button type="button" className={styles.refresh} aria-label={hidden ? "Pokaż kwoty" : "Ukryj kwoty"}
+            aria-pressed={hidden} onClick={() => setHidden(!hidden)}>
+            {hidden ? <EyeOffIcon /> : <EyeIcon />}
+          </button>
+        </span>
       </div>
       {refresh.isError && <p role="alert" className={styles.refreshError}>Nie udało się odświeżyć cen. Spróbuj ponownie.</p>}
     </>

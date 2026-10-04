@@ -5,6 +5,12 @@ export const MINUS = "−";
 
 type Sign = "" | "+" | "−";
 
+/** Plan 8a: amounts hidden from someone looking at the screen. Set by PrivacyProvider before the app renders. */
+export const HIDDEN = "••••";
+let hidden = false;
+export function setAmountsHidden(value: boolean): void { hidden = value; }
+export function amountsHidden(): boolean { return hidden; }
+
 function group(whole: string): string {
   return whole.replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);
 }
@@ -21,6 +27,7 @@ function signFor(negative: boolean, isZero: boolean, withPlus: boolean): Sign {
 }
 
 export function moneyParts(value: string, { sign = false }: { sign?: boolean } = {}) {
+  if (hidden) return { sign: "" as Sign, whole: HIDDEN, grosze: "••" };
   const { negative, whole, fraction } = split(value, 2);
   const isZero = !/[1-9]/.test(whole + fraction);
   return { sign: signFor(negative, isZero, sign), whole: group(whole), grosze: fraction };
@@ -29,6 +36,7 @@ export function moneyParts(value: string, { sign = false }: { sign?: boolean } =
 export function formatMoney(
   value: string, { sign = false, currency = "zł" }: { sign?: boolean; currency?: string | null } = {},
 ): string {
+  if (hidden) return currency === null ? HIDDEN : `${HIDDEN}${NBSP}${currency}`;
   const parts = moneyParts(value, { sign });
   const amount = `${parts.sign}${parts.whole},${parts.grosze}`;
   return currency === null ? amount : `${amount}${NBSP}${currency}`;

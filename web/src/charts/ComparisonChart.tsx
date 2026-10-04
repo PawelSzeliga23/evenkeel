@@ -1,6 +1,6 @@
 import { useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import type { IsoDate, Money } from "../api/types";
-import { formatDate, formatMoney } from "../format";
+import { HIDDEN, amountsHidden, formatDate, formatMoney } from "../format";
 import styles from "./ComparisonChart.module.css";
 import { axisLabel, niceStep, yDomain } from "./geometry";
 import { timeTicks } from "./timeTicks";
@@ -71,7 +71,7 @@ export function ComparisonChart({ dates, lines, invested = [], format = formatMo
     setHover(Math.min(Math.max(at + (event.key === "ArrowLeft" ? -1 : 1), 0), last));
   };
   const money = (value: Money | null | undefined) => (value == null ? "—" : format(value));
-  const label = (tick: number) => (unit === "percent" ? `${axisLabel(tick, step)} %` : axisLabel(tick, step));
+  const label = (tick: number) => (unit === "percent" ? `${axisLabel(tick, step)} %` : amountsHidden() ? HIDDEN : axisLabel(tick, step));
   const withInvested = invested.length > 0;
 
   return (
