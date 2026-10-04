@@ -1,7 +1,7 @@
 /* Plan 9: the Pulpit's tiles flow in rows; a size takes 1 (S), 2 (M) or all (L) columns. */
 .tileGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
 .tileBox {
-  position: relative; min-width: 0; grid-column: span 2;
+  position: relative; min-width: 0; overflow: hidden; grid-column: span 2;
   border: 1px solid var(--rule); border-radius: var(--r-sheet); padding: 16px;
   background: var(--night);
 }
@@ -20,12 +20,15 @@
   background: none; color: var(--ink); font: inherit; cursor: pointer;
 }
 .tileFigure { display: grid; gap: 4px; }
-.tileFigure dt { display: flex; align-items: center; gap: 2px; color: var(--dim); font-size: 13px; }
-.tileFigure dd { margin: 0; font-size: 22px; font-weight: 600; }
+.tileFigure dt { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; min-width: 0; color: var(--dim); font-size: 13px; }
+.tileFigure dd { margin: 0; font-size: 22px; font-weight: 600; overflow-wrap: anywhere; }
+/* a small tile is half a phone wide: a large amount must still fit */
+.tileBox[data-size="S"] .tileFigure dd { font-size: 18px; }
 .tileFigure small { color: var(--dim); font-size: 12px; }
 .tileMetrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; margin: 0; }
 .tileMetrics .tileFigure dd { font-size: 16px; font-weight: 500; }
-.tileAllocTop { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; }
+.tileAllocTop { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; font-size: 14px; }
+.tileAllocTop > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* editing (plan 9) */
 .tileHeadIcons { display: flex; align-items: center; }

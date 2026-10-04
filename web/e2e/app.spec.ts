@@ -327,6 +327,12 @@ test("pulpit z kafelków: dodanie miary na telefonie, układ na komputerze", asy
   await page.getByRole("button", { name: "Ustaw kafelek Jedna miara" }).click();
   await page.screenshot({ path: `${SCREENS}/pulpit-edycja-kafelek.png` });
   await page.getByRole("button", { name: "Zamknij ustawienia" }).click();
+  // a small allocation sits beside the metric, half a phone wide
+  await page.getByRole("button", { name: "+ Dodaj kafelek" }).click();
+  await page.getByRole("button", { name: /^Alokacja/ }).click();
+  await page.getByRole("button", { name: "Ustaw kafelek Alokacja" }).first().click();
+  await page.getByRole("radio", { name: "S" }).click();
+  await page.getByRole("button", { name: "Zamknij ustawienia" }).click();
   await page.getByRole("button", { name: "Gotowe" }).click();
   await expect(page.getByRole("button", { name: "Gotowe" })).toBeHidden();
 
