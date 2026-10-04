@@ -1,4 +1,5 @@
-.bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 13px; }
+/* min-width: 0 lets the bar shrink to the page, so a long account label ends with "…" instead of pushing the controls off screen. */
+.bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-width: 0; font-size: 13px; }
 .hero { display: grid; gap: 8px; }
 .today { font-size: 15px; }
 .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin: 6px 0 0; }
@@ -15,7 +16,7 @@
 .dot { width: 9px; height: 9px; border-radius: 3px; }
 .allocAmount { display: grid; text-align: right; }
 .allocAmount small { font-size: 12.5px; }
-.refreshed { display: inline-flex; align-items: center; gap: 2px; }
+.refreshed { display: inline-flex; flex: none; align-items: center; gap: 2px; }
 .refresh {
   display: grid; place-items: center; width: 44px; height: 44px; margin-right: -12px;
   background: none; border: 0; border-radius: 999px; color: var(--dim); cursor: pointer;
