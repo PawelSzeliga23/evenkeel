@@ -271,6 +271,9 @@ def test_bad_files_are_refused_and_the_old_data_stays(client: TestClient, login_
     assert status == 422 and "zła wartość amount w tabeli transactions" in message
     status, message = _rejected(client, anna, changed(lambda b: b["data"]["accounts"][0].update(kind="konto")))
     assert status == 422 and message.startswith("Plik kopii jest uszkodzony:")  # refused by the database
+    status, message = _rejected(client, anna, changed(
+        lambda b: b["data"]["instruments"][0].update(price_symbol="evil/../x?y")))
+    assert status == 422 and "zły symbol cen" in message
     assert _rejected(client, anna, json.dumps(good).encode(), confirm="tak") == (
         422, "Wpisz ZASTĄP, żeby wczytać kopię.")
     big = _upload(client, anna, "/api/backup/restore", b" " * (20 * 1024 * 1024 + 1), "ZASTĄP")

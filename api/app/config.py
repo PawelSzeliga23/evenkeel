@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     access_token_minutes: int = 15
     refresh_token_days: int = 30
     cookie_secure: bool = True
-    registration_mode: Literal["open", "invite"] = "open"
+    registration_mode: Literal["open", "invite"] = "invite"  # open only on purpose: e.g. a local copy
     invite_codes: str = ""
     # Behind a proxy (Cloudflare Tunnel) every request comes from the proxy; its header carries the real client IP
     # for the rate limits. Set it (e.g. CF-Connecting-IP) only when the API is reachable through that proxy alone,

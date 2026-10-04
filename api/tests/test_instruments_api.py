@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine, func, select, update
 from sqlalchemy.orm import Session
 
-from app.models import Instrument, PositionLot, Price, Transaction, User
+from app.models import Account, Instrument, PositionLot, Price, Transaction, User
 
 LoginAs = Callable[[str], dict[str, str]]
 CHECKED_AT = dt.datetime(2026, 9, 25, 21, 0, tzinfo=dt.UTC)
@@ -181,3 +181,26 @@ def test_a_spread_outside_0_to_5_percent_is_rejected(client: TestClient, world: 
                             headers=world["anna"])
 
     assert (response.status_code, response.json()["code"]) == (422, "validation_error")
+
+
+def test_an_instrument_others_hold_keeps_its_symbol_and_spread(
+    client: TestClient, world: dict, engine: Engine,
+) -> None:
+    vie = world["ids"]["VIE.FR"]
+    with Session(engine) as session:  # Anna starts holding Bartek's VIE.FR too
+        session.add(PositionLot(account_id=_anna_account(session), instrument_id=vie, xtb_position_id="1", side="buy",
+                                quantity=Decimal("1"), open_price=Decimal("30"),
+                                opened_at=dt.datetime(2026, 3, 3, tzinfo=dt.UTC), raw={}))
+        session.commit()
+
+    for body in ({"price_symbol": "VIE.PA"}, {"spread_pct": "0.2"}):
+        response = client.patch(f"/api/instruments/{vie}", json=body, headers=world["anna"])
+        assert (response.status_code, response.json()["code"]) == (409, "shared_instrument")
+    with Session(engine) as session:
+        instrument = session.get(Instrument, vie)
+        assert (instrument.price_symbol, instrument.spread_pct) == (None, None)
+
+
+def _anna_account(session: Session) -> int:
+    return session.scalar(select(Account.id).join(User, User.id == Account.user_id)
+                          .where(User.email == "anna@portfolio.dev"))

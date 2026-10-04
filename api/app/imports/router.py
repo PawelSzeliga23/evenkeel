@@ -17,9 +17,12 @@ from app.xtb.workbook import XtbFormatError
 router = APIRouter(prefix="/api/imports", tags=["imports"])
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+MAX_UPLOAD_FILES = 50
 
 
 def _read_uploads(files: list[UploadFile]) -> list[UploadedFile]:
+    if len(files) > MAX_UPLOAD_FILES:
+        raise ApiError(413, "too_many_files", f"Za dużo plików naraz (maks. {MAX_UPLOAD_FILES}).")
     uploads = []
     for file in files:
         content = file.file.read(MAX_UPLOAD_BYTES + 1)

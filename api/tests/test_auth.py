@@ -156,3 +156,9 @@ def test_one_e_mail_is_limited_across_ips(make_app: Callable[..., FastAPI]) -> N
                 for i in range(3)]
 
     assert statuses == [401, 401, 429]
+
+
+def test_registration_needs_an_invite_unless_opened_on_purpose() -> None:
+    from app.config import Settings
+
+    assert Settings.model_fields["registration_mode"].default == "invite"  # the container sets it explicitly

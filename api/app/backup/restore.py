@@ -1,6 +1,7 @@
 """Reading and restoring a backup: the whole file is checked first, then the user's data is replaced in one go."""
 import datetime as dt
 import json
+import re
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -14,6 +15,7 @@ from app.catalog.seed import ADDED_GROUP
 from app.catalog.service import curated_row
 from app.backup.tables import FORMAT, SHARED_KEYS, SHARED_VOLATILE, TABLES, VERSION
 from app.errors import ApiError
+from app.instruments.schemas import SYMBOL_PATTERN
 from app.models import (
     Account,
     AiReview,
@@ -145,6 +147,9 @@ def read_backup(content: bytes) -> Backup:
         if len(set(values)) != len(values):
             raise _corrupt(f"powtórzony numer w tabeli {name}")
         ids[name] = set(values)
+    for row in tables["instruments"]:  # a symbol the API would not accept could point the worker anywhere
+        if row.get("price_symbol") is not None and not re.match(SYMBOL_PATTERN, row["price_symbol"]):
+            raise _corrupt(f"zły symbol cen {row['price_symbol']}")
     tickers = [row["xtb_ticker"] for row in tables["instruments"]]
     if len(set(tickers)) != len(tickers):
         raise _corrupt("powtórzony instrument")

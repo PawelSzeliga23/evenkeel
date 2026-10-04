@@ -2,10 +2,13 @@ import datetime as dt
 import logging
 
 from fastapi import APIRouter, Depends
+from sqlalchemy import exists, select
 
+from app.catalog.service import curated
+from app.errors import ApiError
 from app.instruments.schemas import InstrumentOut, InstrumentUpdate
 from app.market.store import delete_prices, latest_prices
-from app.models import Instrument, Price
+from app.models import Account, CatalogAddition, Instrument, PositionLot, Price, User
 from app.scoping import DbId, UserScope, get_scope
 from app.valuation.service import holders, mark_stale
 
@@ -40,6 +43,9 @@ def list_instruments(scope: UserScope = Depends(get_scope)) -> list[InstrumentOu
 @router.patch("/{instrument_id}", response_model=InstrumentOut)
 def update_instrument(instrument_id: DbId, body: InstrumentUpdate, scope: UserScope = Depends(get_scope)) -> InstrumentOut:
     instrument = scope.get_instrument(instrument_id)
+    if body.model_fields_set & {"price_symbol", "spread_pct"} and _used_by_others(scope, instrument):
+        raise ApiError(409, "shared_instrument", "Ten instrument mają też inne osoby albo jest w katalogu symulatora — "
+                                                 "zmiana symbolu lub spreadu zmieniłaby ich wyceny.")
     if "price_symbol" in body.model_fields_set:
         _update_symbol(scope, instrument, body.price_symbol)
     if "spread_pct" in body.model_fields_set and body.spread_pct != instrument.spread_pct:
@@ -49,6 +55,18 @@ def update_instrument(instrument_id: DbId, body: InstrumentUpdate, scope: UserSc
         scope.db.commit()
         logger.info("User %s set spread of %s to %s %%", scope.user.id, instrument.xtb_ticker, body.spread_pct)
     return _out(instrument, latest_prices(scope.db, [instrument.id]).get(instrument.id))
+
+
+def _used_by_others(scope: UserScope, instrument: Instrument) -> bool:
+    """Instruments are shared: their symbol and spread may be changed only by their sole user."""
+    if any(user_id != scope.user.id for user_id in holders(scope.db, [instrument.id])):
+        return True
+    others = select(Account.id).where(Account.user_id != scope.user.id)
+    return bool(scope.db.scalar(select(
+        exists().where(PositionLot.instrument_id == instrument.id, PositionLot.account_id.in_(others))
+        | exists().where(CatalogAddition.instrument_id == instrument.id, CatalogAddition.user_id != scope.user.id)
+        # the starter list is in every user's simulator
+        | (exists().where(Instrument.id == instrument.id, curated()) & exists().where(User.id != scope.user.id)))))
 
 
 def _update_symbol(scope: UserScope, instrument: Instrument, symbol: str | None) -> None:
