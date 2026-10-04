@@ -5,10 +5,15 @@ import ui from "../../ui/ui.module.css";
 import type { StartScreen } from "../../api/types";
 import { usePreferences, useSavePreferences } from "../../settings/preferences";
 import { usePrivacy } from "../../settings/privacy";
+import { useTheme, type Theme } from "../../settings/theme";
+import { Segmented } from "../../ui/Segmented";
 import { useHashScroll } from "../../settings/useHashScroll";
 import { START_SCREENS } from "./appearance";
 
+const THEMES: { value: Theme; label: string }[] = [{ value: "dark", label: "Ciemny" }, { value: "light", label: "Jasny" }];
+
 export function AppearanceScreen() {
+  const [theme, setTheme] = useTheme();
   const [hidden, setHidden] = usePrivacy();
   const prefs = usePreferences();
   const save = useSavePreferences();
@@ -17,6 +22,11 @@ export function AppearanceScreen() {
     <div className={ui.page}>
       <BackLink to="/ustawienia" label="Ustawienia" />
       <h1 className={ui.pageTitle}>Wygląd i prywatność</h1>
+      <section id="motyw" className={ui.section} aria-labelledby="theme-title">
+        <h2 id="theme-title" className={ui.sectionTitle}>Motyw</h2>
+        <Segmented<Theme> label="Motyw" options={THEMES} value={theme} onChange={setTheme} />
+        <small className="dim">Tylko na tym urządzeniu.</small>
+      </section>
       <section className={ui.section} aria-label="Ukrywanie kwot">
         <label className={ui.toggle}>
           <input id="privacy-switch" type="checkbox" role="switch" checked={hidden} aria-describedby="hide-hint"

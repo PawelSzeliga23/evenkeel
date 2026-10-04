@@ -17,6 +17,10 @@ describe("settings search", () => {
 
   it("finds by keyword, by account name and by tag name", () => {
     expect(searchSettings("oko", accounts, tags).map((h) => h.title)).toContain("Ukrywanie kwot");
+    for (const word of ["motyw", "jasny", "ciemny", "kolor"]) {
+      expect(searchSettings(word, accounts, tags)).toContainEqual(
+        { title: "Motyw", place: "Wygląd i prywatność", to: "/ustawienia/wyglad#motyw" });
+    }
     expect(searchSettings("lodz", accounts, tags)).toContainEqual(
       { title: "Łódź — konto", place: "Konta", to: "/ustawienia/konta/4" });
     expect(searchSettings("emery", accounts, tags)).toContainEqual(

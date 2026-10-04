@@ -6,6 +6,7 @@ import { keys } from "../../api/queryKeys";
 import { useSession } from "../../auth/session";
 import { usePrivacy } from "../../settings/privacy";
 import { usePreferences } from "../../settings/preferences";
+import { useTheme } from "../../settings/theme";
 import { GROUPS, SETTINGS, searchSettings } from "../../settings/registry";
 import shell from "../../shell/shell.module.css";
 import { BackLink } from "../../ui/BackLink";
@@ -26,6 +27,7 @@ export function SettingsScreen() {
   const instruments = useQuery({ queryKey: keys.instruments, queryFn: api.instruments });
   const tags = useQuery({ queryKey: keys.tags, queryFn: api.tags });
   const [hidden] = usePrivacy();
+  const [theme] = useTheme();
   const prefs = usePreferences();
   const problems = instruments.data ? problemCount(instruments.data) : null;
   const values: Record<string, string | undefined> = {
@@ -33,6 +35,7 @@ export function SettingsScreen() {
     accounts: accounts.data ? String(accounts.data.length) : undefined,
     sources: problems === null ? undefined : problems ? `${problems} do sprawdzenia` : "w porządku",
     tags: tags.data ? String(tags.data.length) : undefined,
+    theme: theme === "light" ? "jasny" : "ciemny",
     hide: hidden ? "wł." : "wył.",
     start: START_SCREENS.find((s) => s.value === prefs.start_screen)?.label,
     about: __APP_VERSION__,
