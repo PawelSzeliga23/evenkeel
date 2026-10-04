@@ -11,7 +11,7 @@ HH_MM = r"^([01]\d|2[0-3]):[0-5]\d$"
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    database_url: str = "postgresql+psycopg://portfolio:portfolio@localhost:5432/portfolio"
+    database_url: str  # from the environment (.env), never in the code
     jwt_secret: str = Field(min_length=32)
     access_token_minutes: int = 15
     refresh_token_days: int = 30
