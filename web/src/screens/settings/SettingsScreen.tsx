@@ -15,6 +15,8 @@ import { START_SCREENS } from "./appearance";
 import { problemCount } from "./model";
 import styles from "./Settings.module.css";
 
+const CHEVRON = <span className={styles.chevron} aria-hidden="true">›</span>;
+
 /** Ustawienia (plan 8a): a search field over grouped rows, each opening its subpage. */
 export function SettingsScreen() {
   const { state } = useSession();
@@ -48,7 +50,7 @@ export function SettingsScreen() {
         hits.length === 0 ? <p className="dim">{`Brak wyników dla „${query.trim()}”.`}</p> : (
           <div className={styles.group}>
             {hits.map((hit) => (
-              <ListRow key={`${hit.to}-${hit.title}`} lead={hit.title.slice(0, 1)} title={hit.title} value=""
+              <ListRow key={`${hit.to}-${hit.title}`} lead={hit.title.slice(0, 1)} title={hit.title} value={CHEVRON}
                 subtitle={hit.place} to={hit.to} />
             ))}
           </div>
@@ -58,7 +60,9 @@ export function SettingsScreen() {
           <h2 className={ui.sectionTitle}>{group}</h2>
           <div className={styles.group}>
             {SETTINGS.filter((s) => s.group === group && !s.parent).map((s) => (
-              <ListRow key={s.id} lead={s.title.slice(0, 1)} title={s.title} value={values[s.id] ?? ""} to={s.to} />
+              <ListRow key={s.id} lead={s.title.slice(0, 1)} title={s.title} to={s.to}
+                subtitle={s.id === "profile" ? values.profile : undefined}
+                value={<>{s.id === "profile" ? "" : values[s.id] ?? ""}{CHEVRON}</>} />
             ))}
           </div>
         </section>

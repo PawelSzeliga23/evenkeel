@@ -29,3 +29,4 @@
   background: var(--slab); color: var(--ink); font: inherit;
 }
 .group { display: grid; border: 1px solid var(--rule); border-radius: var(--r-sheet); padding: 0 12px; }
+.chevron { margin-left: 8px; color: var(--dim); font-size: 18px; line-height: 1; }
