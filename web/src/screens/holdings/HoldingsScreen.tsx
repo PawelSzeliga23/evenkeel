@@ -15,6 +15,7 @@ import { RECALC_POLL_MS } from "../dashboard/model";
 import { HeatMap, holdingLabel } from "./HeatMap";
 import styles from "./Holdings.module.css";
 import { GAIN_LABEL, PERIODS, ranked, shown, type Ranking, type Shown } from "./model";
+import { usePreferences } from "../../settings/preferences";
 
 const tone = (value: string | null) => (signOf(value) > 0 ? "up" : signOf(value) < 0 ? "down" : "");
 const RANKINGS: { value: Ranking; label: string }[] = [{ value: "pln", label: "zł" }, { value: "pct", label: "%" }];
@@ -60,8 +61,9 @@ function GroupTable({ title, head, rows }: { title: string; head: string; rows: 
 /** Analiza → Walory: the heat map, the ranking and the gains by account and kind for a period. */
 export function HoldingsScreen() {
   const [accountIds, setAccountIds, ready] = useAccountSelection();
-  const [period, setPeriod] = useState<HoldingsPeriod>("1d");
-  const [withoutFixedIncome, setWithoutFixedIncome] = useState(false);
+  const prefs = usePreferences();
+  const [period, setPeriod] = useState<HoldingsPeriod>(prefs.holdings_period);
+  const [withoutFixedIncome, setWithoutFixedIncome] = useState(prefs.holdings_without_fixed_income);
   const [order, setOrder] = useState<Ranking>("pln");
   const [selected, setSelected] = useState<string | null>(null);
   const accounts = useQuery({ queryKey: keys.accounts, queryFn: api.accounts });

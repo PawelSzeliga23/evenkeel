@@ -17,6 +17,7 @@ import holdingsStyles from "../holdings/Holdings.module.css";
 import { PERIODS } from "../holdings/model";
 import { NO_TAGS, NO_VALUE, UNTAGGED, UNTAGGED_COLOR, chartLines, holdingsLabel, legend } from "./model";
 import styles from "./Tags.module.css";
+import { usePreferences } from "../../settings/preferences";
 
 const tone = (value: string | null) => (signOf(value) > 0 ? "up" : signOf(value) < 0 ? "down" : "");
 const share = (value: string | null) => formatPercent(value, { sign: false });
@@ -96,7 +97,8 @@ function History({ report }: { report: TagsReport }) {
 /** Analiza → Tagi (plan 7f-1): value, share and period gain per tag, and each tag's share over time. */
 export function TagsScreen() {
   const [accountIds, setAccountIds, ready] = useAccountSelection();
-  const [period, setPeriod] = useState<HoldingsPeriod>("all");
+  const prefs = usePreferences();
+  const [period, setPeriod] = useState<HoldingsPeriod>(prefs.holdings_period);
   const accounts = useQuery({ queryKey: keys.accounts, queryFn: api.accounts });
   const report = useQuery({
     queryKey: keys.tagAnalytics(accountIds, period),

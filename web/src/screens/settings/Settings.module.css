@@ -24,3 +24,9 @@
 .tagName { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
 .swatch { width: 44px; height: 44px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
 .swatch[aria-pressed="true"] { border-color: var(--ink); }
+.search {
+  width: 100%; min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--rule);
+  background: var(--slab); color: var(--ink); font: inherit;
+}
+.group { display: grid; border: 1px solid var(--rule); border-radius: var(--r-sheet); padding: 0 12px; }
+.chevron { margin-left: 8px; color: var(--dim); font-size: 18px; line-height: 1; }

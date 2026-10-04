@@ -1,6 +1,6 @@
 import { request } from "./client";
 import type {
-  Account, AccountCreate, Analytics, AnalyticsPeriod, Holdings, HoldingsPeriod, IncomePeriod, IncomeReport, AccountUpdate, AccountUsage, CatalogGroup, CatalogItem, Review, ReviewListItem, Instrument, InstrumentUpdate, Scenario, ScenarioIn, ScenarioResult, BondDetail, BondIn, BondOut, Closed, EntryIn, EntryPatch, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Journal, JournalEntry, Limit, NoteHolding, NoteTargetIn, Position, PositionDetail, PriceChartData, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, Tag, TagLinkIn, TagsReport, TokenOut, Transaction, TransactionIn, UserOut,
+  Account, AccountCreate, Analytics, AnalyticsPeriod, Holdings, HoldingsPeriod, IncomePeriod, IncomeReport, AccountUpdate, AccountUsage, CatalogGroup, CatalogItem, Review, ReviewListItem, Instrument, InstrumentUpdate, Scenario, ScenarioIn, ScenarioResult, BondDetail, BondIn, BondOut, Closed, EntryIn, EntryPatch, Exposure, History, HistoryFilters, HistoryPage, ImportResult, IsoDate, Journal, JournalEntry, Limit, NoteHolding, NoteTargetIn, Position, PositionDetail, Preferences, PriceChartData, RegisterIn, SavingsAccountCreate, SavingsAccountOut, SavingsFlowOut, Summary, Tag, TagLinkIn, TagsReport, TokenOut, Transaction, TransactionIn, UserOut,
 } from "./types";
 
 function filesForm(files: File[]): FormData {
@@ -104,4 +104,6 @@ export const api = {
   updateEntry: (id: number, body: EntryPatch) =>
     request<JournalEntry>(`/api/journal/${id}`, { method: "PATCH", json: body }),
   deleteEntry: (id: number) => request<void>(`/api/journal/${id}`, { method: "DELETE" }),
+  savePreferences: (patch: Partial<Preferences>) =>
+    request<Preferences>("/api/me/preferences", { method: "PATCH", json: patch }),
 };

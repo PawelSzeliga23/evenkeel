@@ -183,13 +183,18 @@ test("ustawienia: zmiana hasła, logowanie nowym hasłem, zamknięte inwestycje 
   await expect(page.getByText("Wgraj eksport z XTB, żeby zobaczyć swój portfel.")).toBeVisible();
 
   await page.getByRole("main").getByRole("link", { name: "Ustawienia" }).click(); // the gear on Pulpit (phone)
-  await page.getByRole("link", { name: "Zmień hasło" }).click();
+  await expect(page.getByRole("searchbox", { name: "Szukaj w ustawieniach" })).toBeVisible();
+  await expect(page.getByRole("status", { name: "Wczytuję Evenkeel" })).toHaveCount(0, { timeout: 10_000 });
+  await page.screenshot({ path: `${SCREENS}/ustawienia.png`, fullPage: true });
+  await page.getByRole("searchbox", { name: "Szukaj w ustawieniach" }).fill("hasło");
+  await page.getByRole("link", { name: /Zmień hasło/ }).click();
+  await expect(page).toHaveURL(/\/ustawienia\/haslo$/);
   await page.getByLabel("Obecne hasło").fill("e2e-haslo-12345");
   await page.getByLabel("Nowe hasło", { exact: true }).fill("e2e-nowe-haslo-678");
   await page.getByLabel("Powtórz nowe hasło").fill("e2e-nowe-haslo-678");
   await page.getByRole("button", { name: "Zmień hasło" }).click();
   await expect(page.getByText("Hasło zmienione. Inne urządzenia zostaną wylogowane.")).toBeVisible();
-  await page.screenshot({ path: `${SCREENS}/ustawienia.png`, fullPage: true });
+  await page.getByRole("link", { name: /Profil/ }).click();
 
   await page.getByRole("button", { name: "Wyloguj" }).click();
   await page.getByLabel("E-mail").fill(email);
@@ -198,8 +203,13 @@ test("ustawienia: zmiana hasła, logowanie nowym hasłem, zamknięte inwestycje 
   await expect(page.getByRole("alert")).toBeVisible();
   await page.getByLabel("Hasło").fill("e2e-nowe-haslo-678");
   await page.getByRole("button", { name: "Zaloguj się" }).click();
-  // the login returns to the page the user was on (settings)
-  await expect(page.getByRole("heading", { name: "Ustawienia", level: 1 })).toBeVisible();
+  // the login returns to the page the user was on (Profil)
+  await expect(page.getByRole("heading", { name: "Profil", level: 1 })).toBeVisible();
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto("/ustawienia");
+  await expect(page.getByRole("status", { name: "Wczytuję Evenkeel" })).toHaveCount(0, { timeout: 10_000 });
+  await page.screenshot({ path: `${SCREENS}/ustawienia-desktop.png` });
+  await page.setViewportSize({ width: 390, height: 844 });
 
   await page.getByRole("navigation", { name: "Główna" }).getByRole("link", { name: "Pozycje" }).click();
   await page.getByRole("button", { name: "Zamknięte" }).click();

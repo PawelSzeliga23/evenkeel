@@ -29,25 +29,55 @@ describe("settings model", () => {
 });
 
 describe("settings screen", () => {
-  it("shows the profile, the accounts and the price sources summary", async () => {
+  it("lists the settings in groups with their values", async () => {
     mockFetch([
       ...SIGNED_IN,
       { path: "/api/accounts", respond: () => ACCOUNTS },
       { path: "/api/instruments", respond: () => [instrument({}), BROKEN] },
+      { path: "/api/tags", respond: () => [{ id: 3, name: "Emerytura", color: "#5DB98A", links: 1 }] },
     ]);
     renderApp("/ustawienia");
 
     expect(await screen.findByRole("heading", { name: "Ustawienia" })).toBeInTheDocument();
-    expect(screen.getByText(USER.email)).toBeInTheDocument();
+    const account = screen.getByRole("region", { name: "Konto" });
+    expect(within(account).getByRole("link", { name: /Profil.*anna@portfolio\.dev/ })).toHaveAttribute("href", "/ustawienia/profil");
+    const portfolio = screen.getByRole("region", { name: "Portfel" });
+    expect(await within(portfolio).findByRole("link", { name: new RegExp(`Konta.*${ACCOUNTS.length}`) })).toHaveAttribute("href", "/ustawienia/konta");
+    expect(await within(portfolio).findByRole("link", { name: /Źródła cen.*1 do sprawdzenia/ })).toHaveAttribute("href", "/ustawienia/zrodla-cen");
+    expect(await within(portfolio).findByRole("link", { name: /Tagi walorów.*1/ })).toHaveAttribute("href", "/ustawienia/tagi");
+    expect(within(portfolio).getByRole("link", { name: /Dziennik/ })).toHaveAttribute("href", "/ustawienia/dziennik");
+    expect(screen.getByRole("link", { name: /Ukrywanie kwot.*wył\./ })).toHaveAttribute("href", "/ustawienia/wyglad");
+    expect(screen.getByRole("link", { name: /O aplikacji.*0\.1\.0/ })).toHaveAttribute("href", "/ustawienia/o-aplikacji");
+  });
+
+  it("searches the settings, the accounts and the tags", async () => {
+    mockFetch([...SIGNED_IN, { path: "/api/accounts", respond: () => ACCOUNTS }, { path: "/api/instruments", respond: () => [] },
+      { path: "/api/tags", respond: () => [] }]);
+    const { user } = renderApp("/ustawienia");
+
+    await user.type(await screen.findByRole("searchbox", { name: "Szukaj w ustawieniach" }), "hasło");
+    expect(screen.getByRole("link", { name: /Zmień hasło.*Profil/ })).toHaveAttribute("href", "/ustawienia/haslo");
+    expect(screen.queryByRole("region", { name: "Portfel" })).not.toBeInTheDocument();
+    await user.clear(screen.getByRole("searchbox"));
+    await user.type(screen.getByRole("searchbox"), "qwerty");
+    expect(screen.getByText("Brak wyników dla „qwerty”.")).toBeInTheDocument();
+  });
+
+  it("has the profile with the password and sign-out, and the about page", async () => {
+    mockFetch([...SIGNED_IN]);
+    renderApp("/ustawienia/profil");
+
+    expect(await screen.findByText(USER.email)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Zmień hasło" })).toHaveAttribute("href", "/ustawienia/haslo");
-    const accounts = screen.getByRole("region", { name: "Konta" });
-    expect(await within(accounts).findByRole("link", { name: /IKE.*Rachunek maklerski/ })).toHaveAttribute("href", "/ustawienia/konta/1");
-    expect(await screen.findByText("1 instrument wymaga uwagi.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Zobacz źródła cen" })).toHaveAttribute("href", "/ustawienia/zrodla-cen");
-    expect(screen.getByRole("link", { name: "Dziennik" })).toHaveAttribute("href", "/ustawienia/dziennik");
-    const about = screen.getByRole("region", { name: "O aplikacji" });
-    expect(within(about).getByRole("img", { name: "Evenkeel" })).toBeInTheDocument();
-    expect(within(about).getByText("Wersja 0.1.0")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Wyloguj" })).toBeInTheDocument();
+  });
+
+  it("lists the accounts on their own page", async () => {
+    mockFetch([...SIGNED_IN, { path: "/api/accounts", respond: () => ACCOUNTS }]);
+    renderApp("/ustawienia/konta");
+
+    expect(await screen.findByRole("link", { name: /IKE.*Rachunek maklerski/ })).toHaveAttribute("href", "/ustawienia/konta/1");
+    expect(screen.getAllByRole("link", { name: "Ustawienia" }).find((l) => !l.closest("nav"))).toHaveAttribute("href", "/ustawienia");
   });
 
   it("signs out to the login screen", async () => {
@@ -57,7 +87,7 @@ describe("settings screen", () => {
       { path: "/api/instruments", respond: () => [] },
       { method: "POST", path: "/api/auth/logout", respond: () => json(204, undefined) },
     ]);
-    const { user } = renderApp("/ustawienia");
+    const { user } = renderApp("/ustawienia/profil");
 
     await user.click(await screen.findByRole("button", { name: "Wyloguj" }));
     expect(await screen.findByRole("button", { name: "Zaloguj się" })).toBeInTheDocument();

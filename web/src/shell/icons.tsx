@@ -18,3 +18,14 @@ export const SettingsIcon = () => (
   </svg>
 );
 export const AnalysisIcon = () => <svg {...box}><path {...line} d="M3 17l5-6 4 3 8-9" /><path {...line} d="M15 5h5v5" /></svg>;
+export const EyeIcon = () => (
+  <svg {...box} width={20} height={20}>
+    <path {...line} d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle {...line} cx="12" cy="12" r="3" />
+  </svg>
+);
+export const EyeOffIcon = () => (
+  <svg {...box} width={20} height={20}>
+    <path {...line} d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle {...line} cx="12" cy="12" r="3" />
+    <path {...line} d="M4 4l16 16" />
+  </svg>
+);

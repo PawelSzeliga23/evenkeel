@@ -1,6 +1,7 @@
 from datetime import date, datetime
 
 from sqlalchemy import Date, DateTime, ForeignKey, String, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -15,6 +16,7 @@ class User(Base):
     base_currency: Mapped[str] = mapped_column(String(3), server_default="PLN")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     valuations_stale_from: Mapped[date | None] = mapped_column(Date)
+    preferences: Mapped[dict] = mapped_column(JSONB, server_default="{}", default=dict)
 
 
 class RefreshToken(Base):

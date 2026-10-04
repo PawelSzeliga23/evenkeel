@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from "react-router";
 import { AccountSelectionProvider } from "../accounts/AccountSelection";
 import { ApiError, NETWORK_MESSAGE } from "../api/client";
+import { usePreferences } from "../settings/preferences";
 import { ErrorState } from "../ui/States";
 import styles from "./AuthScreens.module.css";
 import { useSession } from "./session";
@@ -32,6 +33,7 @@ function ServerProblem() {
 export function RequireAuth() {
   const { state } = useSession();
   const location = useLocation();
+  const prefs = usePreferences();
   if (state.status === "loading") return <Splash />;
   if (state.status === "offline") return <Offline />;
   if (state.status === "serverError") return <ServerProblem />;
@@ -39,7 +41,8 @@ export function RequireAuth() {
     return <Navigate to="/logowanie" replace state={{ from: location.pathname, expired: state.expired, offlineLogout: state.offlineLogout === true }} />;
   }
   return (
-    <AccountSelectionProvider key={state.user.id} userId={state.user.id}>
+    <AccountSelectionProvider key={state.user.id} userId={state.user.id} start={prefs.accounts_start}
+      fixed={prefs.accounts_fixed}>
       <Outlet />
     </AccountSelectionProvider>
   );

@@ -2,6 +2,8 @@ from typing import Annotated
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, EmailStr, Field
 
+from app.preferences.schemas import PreferencesOut
+
 
 def _strip(value: object) -> object:
     return value.strip() if isinstance(value, str) else value
@@ -34,3 +36,4 @@ class UserOut(BaseModel):
     id: int
     email: str
     base_currency: str
+    preferences: PreferencesOut = Field(default_factory=PreferencesOut)

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api } from "../api/endpoints";
+import type { AccountsStart } from "../api/types";
 import { keys } from "../api/queryKeys";
 import { normalizeSelection, readSelection, writeSelection } from "./selection";
 
@@ -8,10 +9,14 @@ type Selection = [ids: number[], setIds: (ids: readonly number[]) => void, ready
 
 const SelectionContext = createContext<Selection | null>(null);
 
-/** One account choice for the whole signed-in app, remembered in this browser per user. */
-export function AccountSelectionProvider({ userId, children }: { userId: number; children: ReactNode }) {
+/** One account choice for the whole signed-in app, remembered in this browser per user; `start` picks the first one. */
+export function AccountSelectionProvider({ userId, start = "last", fixed = [], children }: {
+  userId: number; start?: AccountsStart; fixed?: readonly number[]; children: ReactNode;
+}) {
   const accounts = useQuery({ queryKey: keys.accounts, queryFn: api.accounts });
-  const [stored, setStored] = useState(() => readSelection(userId));
+  // Plan 8a: start with the last choice (remembered in this browser), the whole portfolio, or fixed accounts.
+  const [stored, setStored] = useState(() => (
+    start === "all" ? [] : start === "fixed" ? normalizeSelection(fixed, null) : readSelection(userId)));
   const known = useMemo(() => accounts.data?.map((account) => account.id) ?? null, [accounts.data]);
   const ids = useMemo(() => normalizeSelection(stored, known), [stored, known]);
   // Persist what normalization dropped, so a deleted account is not revived by a later new one.

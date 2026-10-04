@@ -138,3 +138,17 @@ describe("history", () => {
     expect(await screen.findByText(/2 szt. po 250,00 PLN/)).toBeInTheDocument();
   });
 });
+
+describe("Historia with hidden amounts", () => {
+  it("keeps a transaction's unit price visible (plan 8a)", async () => {
+    localStorage.setItem("evenkeel.hideAmounts", "true");
+    const buy = { ...PAGE_1.items[1]!, quantity: "2", price: "250.0000", price_currency: "PLN" };
+    mockFetch([
+      ...SIGNED_IN, { path: "/api/accounts", respond: () => ACCOUNTS },
+      { path: "/api/history", respond: () => ({ items: [buy], next_cursor: null }) },
+    ]);
+    renderApp("/historia");
+
+    expect(await screen.findByText(/2 szt. po 250,00 PLN/)).toBeInTheDocument();
+  });
+});

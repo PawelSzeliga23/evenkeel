@@ -26,7 +26,7 @@ function DeleteAccount({ account }: { account: Account }) {
     mutationFn: () => api.deleteAccount(account.id),
     onSuccess: () => {
       queryClient.removeQueries({ queryKey: keys.accountUsage(account.id) });
-      navigate("/ustawienia", { state: { notice: "Konto usunięte." } });
+      navigate("/ustawienia/konta", { state: { notice: "Konto usunięte." } });
       void invalidate();
     },
   });
@@ -107,7 +107,7 @@ export function AccountScreen() {
 
   return (
     <div className={ui.page}>
-      <BackLink to="/ustawienia" label="Ustawienia" />
+      <BackLink to="/ustawienia/konta" label="Konta" />
       {accounts.isPending ? <Skeleton rows={3} />
         : accounts.isError ? <ErrorState error={accounts.error} onRetry={() => void accounts.refetch()} />
         : !account ? <EmptyState title="Nie znaleziono konta." />

@@ -185,7 +185,7 @@ describe("sign-out", () => {
   it("signs out even when the server is down and says the server session will expire", async () => {
     mockFetch([...SIGNED_IN, { method: "POST", path: "/api/auth/logout", respond: () => { throw new TypeError("Failed to fetch"); } },
       { path: "/api/accounts", respond: () => [] }, { path: "/api/instruments", respond: () => [] }]);
-    const { user } = renderApp("/ustawienia");
+    const { user } = renderApp("/ustawienia/profil");
 
     await user.click(await screen.findByRole("button", { name: "Wyloguj" }));
 
@@ -200,7 +200,7 @@ describe("sign-out", () => {
       vi.stubGlobal("BroadcastChannel", NodeChannel);
     }
     mockFetch([...SIGNED_IN, { path: "/api/accounts", respond: () => [] }, { path: "/api/instruments", respond: () => [] }]);
-    renderApp("/ustawienia");
+    renderApp("/ustawienia/profil");
     expect(await screen.findByRole("button", { name: "Wyloguj" })).toBeInTheDocument();
 
     const other = new BroadcastChannel("portfolio-session");

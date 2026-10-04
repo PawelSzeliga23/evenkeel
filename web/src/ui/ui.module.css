@@ -80,3 +80,5 @@ a.row:hover b { color: var(--amber); }
 .notice { color: var(--ink); background: var(--amber-soft); border-radius: var(--r-control); padding: 10px 14px; }
 /* A heading with its "?" beside it, so the button does not join the heading's name. */
 .titleRow { display: flex; align-items: center; gap: 0; } /* InfoTip's own margin gives the usual 6 px */
+.toggle { display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
+.toggle input { width: 20px; height: 20px; accent-color: var(--amber); }

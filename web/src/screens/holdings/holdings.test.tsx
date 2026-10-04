@@ -15,16 +15,16 @@ function routes(answer: (url: URL) => unknown = () => HOLDINGS) {
 const ranking = () => within(screen.getByRole("list", { name: "Ranking" })).getAllByRole("listitem");
 
 describe("Walory", () => {
-  it("asks for the day by default and for the chosen period", async () => {
+  it("asks for the whole history by default (plan 8a) and for the chosen period", async () => {
     const fetchMock = routes();
     const { user } = renderApp("/analiza/walory");
 
     expect(await screen.findByRole("heading", { name: "Walory" })).toBeInTheDocument();
     await screen.findByRole("button", { name: /^SXR8, / });
-    expect(screen.getByRole("button", { name: "Dzień" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Wszystko" })).toHaveAttribute("aria-pressed", "true");
     await user.click(screen.getByRole("button", { name: "Rok" }));
     const urls = fetchMock.mock.calls.map(([url]) => String(url));
-    expect(urls.some((u) => u.includes("/api/analytics/holdings") && u.includes("period=1d"))).toBe(true);
+    expect(urls.some((u) => u.includes("/api/analytics/holdings") && u.includes("period=all"))).toBe(true);
     expect(urls.some((u) => u.includes("/api/analytics/holdings") && u.includes("period=1y"))).toBe(true);
   });
 

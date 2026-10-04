@@ -18,6 +18,11 @@ export function problemsFirst(instruments: Instrument[]): Instrument[] {
   );
 }
 
+/** How many instruments have a price problem (the Ustawienia row's value). */
+export function problemCount(instruments: Instrument[]): number {
+  return instruments.filter(hasPriceProblem).length;
+}
+
 export function problemsSummary(instruments: Instrument[]): string {
   if (instruments.length === 0) return "Nie masz jeszcze instrumentów.";
   const n = instruments.filter(hasPriceProblem).length;

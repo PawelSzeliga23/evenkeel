@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ApiError, refreshSession, setAccessToken, setSessionExpiredHandler } from "../api/client";
 import { api } from "../api/endpoints";
-import type { RegisterIn, UserOut } from "../api/types";
+import type { Preferences, RegisterIn, UserOut } from "../api/types";
 
 export type SessionState =
   | { status: "loading" }
@@ -18,6 +18,8 @@ interface Session {
   signOut(): Promise<void>;
   /** runs the startup restore again after it failed (no connection or a server error) */
   retry(): void;
+  /** the saved preferences, at once in the signed-in user */
+  setPreferences(preferences: Preferences): void;
 }
 
 export const SESSION_CHANNEL = "portfolio-session";
@@ -130,7 +132,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setState({ status: "anonymous", expired: false, offlineLogout: offline });
   }, [queryClient]);
 
-  const value = useMemo(() => ({ state, signIn, register, signOut, retry }), [state, signIn, register, signOut, retry]);
+  const setPreferences = useCallback((preferences: Preferences) => {
+    setState((current) => (current.status === "signedIn" ? { ...current, user: { ...current.user, preferences } } : current));
+  }, []);
+
+  const value = useMemo(
+    () => ({ state, signIn, register, signOut, retry, setPreferences }),
+    [state, signIn, register, signOut, retry, setPreferences],
+  );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 

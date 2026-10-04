@@ -61,7 +61,7 @@ describe("account settings", () => {
     await user.click(confirm);
 
     expect(await screen.findByText("Konto usunięte.")).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe("/ustawienia");
+    expect(router.state.location.pathname).toBe("/ustawienia/konta");
     expect(calls).toEqual([{ method: "DELETE" }]);
   });
 
@@ -70,7 +70,7 @@ describe("account settings", () => {
     renderApp("/ustawienia/konta/999");
 
     expect(await screen.findByText("Nie znaleziono konta.")).toBeInTheDocument();
-    for (const link of screen.getAllByRole("link", { name: "Ustawienia" })) expect(link).toHaveAttribute("href", "/ustawienia");
+    for (const link of screen.getAllByRole("link", { name: "Konta" })) expect(link).toHaveAttribute("href", "/ustawienia/konta");
     expect(screen.queryByLabelText("Nazwa")).not.toBeInTheDocument();
   });
 });

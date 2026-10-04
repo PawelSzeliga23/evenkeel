@@ -3,6 +3,16 @@ import { describe, expect, it } from "vitest";
 import { SIGNED_IN, mockFetch, renderApp } from "../test/render";
 
 describe("app shell", () => {
+  it("pins Ustawienia to the bottom of the sidebar, after the five tabs", async () => {
+    mockFetch([...SIGNED_IN, { path: "/api/accounts", respond: () => [] }, { path: "/api/instruments", respond: () => [] }]);
+    renderApp("/historia");
+
+    const nav = await screen.findByRole("navigation", { name: "Główna" });
+    const links = within(nav).getAllByRole("link");
+    expect(links.map((l) => l.textContent)).toEqual(["Pulpit", "Pozycje", "Dodaj", "Historia", "Analiza", "Ustawienia"]);
+    expect(links.at(-1)!.className).toMatch(/pinned/);
+  });
+
   it("shows the navigation with the current screen marked", async () => {
     mockFetch([...SIGNED_IN, { path: "/api/accounts", respond: () => [] }, { path: "/api/instruments", respond: () => [] }]);
     renderApp("/ustawienia");
