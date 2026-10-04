@@ -264,3 +264,25 @@ def test_the_price_chart_puts_entries_on_closes(client: TestClient, world: dict,
         ("2026-03-02", ["w poniedziałek"]), ("2026-06-15", ["w sobotę"]), ("2026-09-25", ["po ostatnim"])]
     assert notes[1]["entries"][0] == {"id": sat["id"], "entry_date": "2026-06-13", "body": "w sobotę"}
     assert [n["date"] for n in later] == ["2026-06-15", "2026-09-25"]
+
+
+def test_an_instrument_held_without_its_own_trades_links_to_its_lot_account(
+    client: TestClient, world: dict, engine: Engine,
+) -> None:
+    """E.g. received through a conversion: the user never traded it, but holds a lot of it."""
+    from app.models import PositionLot
+
+    with Session(engine) as db:
+        new = Instrument(xtb_ticker="NEW.PL", name="Po zamianie", category="stock", currency="PLN", price_symbol="NEW.WA")
+        db.add(new)
+        db.flush()
+        db.add(PositionLot(account_id=world["plain"], instrument_id=new.id, xtb_position_id="conv-1", side="buy",
+                           quantity=Decimal("3"), open_price=Decimal("10"),
+                           opened_at=dt.datetime(2026, 5, 4, 10, tzinfo=dt.UTC), raw={}))
+        db.commit()
+        new_id = new.id
+
+    targets = {t["key"]: t for t in client.get("/api/journal/targets", headers=world["anna"]).json()}
+
+    assert targets[f"i:{new_id}"]["link"] == {"kind": "position", "account_id": world["plain"], "instrument_id": new_id,
+                                              "bond_holding_id": None}

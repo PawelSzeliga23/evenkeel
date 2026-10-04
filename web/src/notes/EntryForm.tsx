@@ -45,7 +45,7 @@ export function EntryForm({ id, initial, choices, targetLabel, busy, error, onSa
         <Field id={`${id}-target`} label="Dotyczy">
           <select id={`${id}-target`} value={draft.target} onChange={(e) => setDraft({ ...draft, target: e.target.value })}>
             <option value={PORTFOLIO}>Portfel</option>
-            {!known && <option value={draft.target}>{targetLabel ?? draft.target}</option>}
+            {!known && <option value={draft.target}>{targetLabel ?? "Wczytuję…"}</option>}
             {choices.map((c) => <option key={c.key} value={c.key}>{choiceLabel(c)}</option>)}
           </select>
         </Field>

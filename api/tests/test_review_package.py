@@ -322,3 +322,38 @@ def test_the_instructions_read_any_tag_names_as_roles() -> None:
     from app.reviews.prompt import INSTRUCTIONS
 
     assert "z tagów wynika, jaką rolę pełni każdy walor" in INSTRUCTIONS.replace("\n  ", " ")
+
+
+def test_package_with_tags_outside_the_chosen_accounts_does_not_say_there_are_none(
+    client: TestClient, tagged: dict,
+) -> None:
+    core = add_tag(client, tagged["anna"], "core")
+    add_link(client, tagged, core, instrument_id=tagged["sxr8"])
+
+    section = _section(_package(client, tagged["anna"], account_id=tagged["plain"]), "## Tagi").strip()
+
+    assert section != "Brak tagów." and "nie ma tagów" in section
+
+
+def test_package_says_when_the_valuation_is_still_being_recalculated(
+    client: TestClient, login_as: LoginAs, engine: Engine,
+) -> None:
+    from app.valuation.service import mark_stale
+
+    anna = login_as("anna@portfolio.dev")
+    with Session(engine) as db:
+        user_id = db.scalar(select(User.id).where(User.email == "anna@portfolio.dev"))
+        seed_holdings(db, user_id, seed_market(db))
+        mark_stale(db, [user_id], dt.date(2026, 3, 1))  # not valued yet: the worker will recompute
+        db.commit()
+
+    body = _package(client, anna)
+
+    for heading in ("## Tagi", "## Walory"):  # income comes from the operations, not from the valuation
+        assert "w trakcie przeliczania" in _section(body, heading), heading
+
+
+def test_a_table_cell_stays_on_one_line() -> None:
+    from app.reviews.fmt import table
+
+    assert table(["Nazwa"], [["Konto\r\nwspólne | żony"]]) == "| Nazwa |\n|---|\n| Konto wspólne / żony |"

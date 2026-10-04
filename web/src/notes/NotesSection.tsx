@@ -47,6 +47,13 @@ export function NotesSection({ notes, target, shared = true }: { notes: HoldingN
     mutationFn: (id: number) => api.deleteEntry(id),
     onSuccess: async () => { setEditing(null); await refresh(); },
   });
+  // Opening or closing an editor forgets the previous attempt's error — but not while a save is still running.
+  function edit(id: number | null) {
+    if (!update.isPending && !remove.isPending) { update.reset(); remove.reset(); }
+    setEditing(id);
+  }
+  function openAdding(open: boolean) { if (!add.isPending) add.reset(); setAdding(open); }
+  function editThesis(text: string | null) { if (!saveThesis.isPending) saveThesis.reset(); setThesis(text); }
 
   function submitThesis(event: FormEvent) {
     event.preventDefault();
@@ -62,7 +69,7 @@ export function NotesSection({ notes, target, shared = true }: { notes: HoldingN
         <div className={styles.blockHead}>
           <h3>Teza</h3>
           {notes.thesis && thesis === null && (
-            <button type="button" className={forms.link} onClick={() => setThesis(notes.thesis!.body)}>Edytuj</button>
+            <button type="button" className={forms.link} onClick={() => editThesis(notes.thesis!.body)}>Edytuj</button>
           )}
         </div>
         {thesis !== null ? (
@@ -74,7 +81,7 @@ export function NotesSection({ notes, target, shared = true }: { notes: HoldingN
             <FormError message={saveThesis.isError ? errorMessage(saveThesis.error) : null} />
             <div className={forms.actions}>
               <button type="submit" className={ui.primaryButton} disabled={saveThesis.isPending}>Zapisz</button>
-              <button type="button" className={forms.cancel} onClick={() => setThesis(null)}>Anuluj</button>
+              <button type="button" className={forms.cancel} onClick={() => editThesis(null)}>Anuluj</button>
             </div>
           </form>
         ) : notes.thesis ? (
@@ -83,18 +90,18 @@ export function NotesSection({ notes, target, shared = true }: { notes: HoldingN
             <small className="dim">{`zaktualizowano ${formatDate(notes.thesis.updated_at)}`}</small>
           </blockquote>
         ) : (
-          <button type="button" className={styles.add} onClick={() => setThesis("")}>+ Dodaj tezę</button>
+          <button type="button" className={styles.add} onClick={() => editThesis("")}>+ Dodaj tezę</button>
         )}
       </div>
 
       <div className={styles.block} role="group" aria-label="Dziennik">
         <div className={styles.blockHead}>
           <h3>Dziennik</h3>
-          <button type="button" className={forms.link} aria-expanded={adding} onClick={() => setAdding(!adding)}>+ Wpis</button>
+          <button type="button" className={forms.link} aria-expanded={adding} onClick={() => openAdding(!adding)}>+ Wpis</button>
         </div>
         {adding && (
           <EntryForm id="new-entry" initial={{ entry_date: todayIso(), body: "", target: key }} busy={add.isPending}
-            error={add.error} onSave={(draft) => add.mutate(draft)} onCancel={() => setAdding(false)} />
+            error={add.error} onSave={(draft) => add.mutate(draft)} onCancel={() => openAdding(false)} />
         )}
         {notes.recent.length === 0 && !adding && <p className="dim">{NO_ENTRIES}</p>}
         {notes.recent.length > 0 && (
@@ -104,9 +111,9 @@ export function NotesSection({ notes, target, shared = true }: { notes: HoldingN
                 {editing === entry.id ? (
                   <EntryForm id={`entry-${entry.id}`} initial={{ entry_date: entry.entry_date, body: entry.body, target: key }}
                     busy={update.isPending || remove.isPending} error={update.error ?? remove.error}
-                    onSave={(draft) => update.mutate({ id: entry.id, draft })} onCancel={() => setEditing(null)}
+                    onSave={(draft) => update.mutate({ id: entry.id, draft })} onCancel={() => edit(null)}
                     onDelete={() => remove.mutate(entry.id)} />
-                ) : <EntryRow entry={entry} onEdit={() => setEditing(entry.id)} />}
+                ) : <EntryRow entry={entry} onEdit={() => edit(entry.id)} />}
               </li>
             ))}
           </ul>

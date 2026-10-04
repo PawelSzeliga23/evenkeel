@@ -2,7 +2,9 @@
 the portfolio, so only the journal endpoints use it."""
 import datetime as dt
 
-from app.models import Account, BondHolding, Instrument, JournalEntry, Transaction
+from sqlalchemy import select
+
+from app.models import Account, BondHolding, Instrument, JournalEntry, PositionLot, Transaction
 from app.notes.keys import columns, key_of
 from app.notes.schemas import JournalEntryOut, TargetLinkOut, TargetOut
 from app.portfolio.service import list_positions
@@ -23,6 +25,13 @@ class Targets:
         newest_first = scope.transactions().where(Transaction.instrument_id.is_not(None)).with_only_columns(
             Transaction.instrument_id, Transaction.account_id)
         for instrument_id, account_id in db.execute(newest_first):
+            last_account.setdefault(instrument_id, account_id)
+        # Held without its own trades (e.g. received in a conversion): the account of its newest lot.
+        own_accounts = select(Account.id).where(Account.user_id == scope.user.id)
+        lots = (select(PositionLot.instrument_id, PositionLot.account_id)
+                .where(PositionLot.account_id.in_(own_accounts))
+                .order_by(PositionLot.opened_at.desc(), PositionLot.id.desc()))
+        for instrument_id, account_id in db.execute(lots):
             last_account.setdefault(instrument_id, account_id)
         self._items: dict[str, TargetOut] = {}
         for instrument in db.scalars(scope.instruments()):
