@@ -18,7 +18,7 @@
   fill: none; stroke: var(--amber); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round;
   stroke-dasharray: 1; stroke-dashoffset: 0;
 }
-.yAxis { fill: transparent; cursor: ns-resize; }
+.yAxis { fill: transparent; cursor: ns-resize; touch-action: none; }
 .cursor { stroke: var(--ink); stroke-opacity: .35; stroke-width: 1; }
 .hint {
   position: absolute; top: 56px; left: 50%; transform: translateX(-50%); z-index: 1; margin: 0; pointer-events: none;
