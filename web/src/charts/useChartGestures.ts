@@ -8,6 +8,7 @@ const AXIS_SPEED = 0.01;
 const DRAG_START_PX = 3;
 const TAP_MS = 300;
 const TAP_MOVE_PX = 10;
+const HOLD_MS = 400;
 
 interface Options {
   view: ChartWindow;
@@ -17,12 +18,17 @@ interface Options {
   y(): YRange;
   /** True when the owner has set the amounts by hand; then a drag moves them up and down too. */
   manualY: boolean;
+  /** False on a chart without a hand-set scale: its amounts axis then pans and scrolls like the rest. */
+  scaleY?: boolean;
   onChange(view: ChartWindow): void;
   onYChange(range: YRange): void;
   onReset(): void;
+  /** A finger held still for a moment: show the day at `x` (frame units); the finger then slides along the days. */
+  onHold?(x: number): void;
 }
 interface Gesture {
-  kind: "drag" | "pinch" | "scale";
+  kind: "drag" | "pinch" | "scale" | "inspect";
+  touch: boolean;
   view: ChartWindow;
   y: YRange;
   manualY: boolean;
@@ -54,9 +60,15 @@ function onYAxis(target: Element, clientX: number, frame: Frame): boolean {
   return rect.width > 0 && ((clientX - rect.left) / rect.width) * frame.width > frame.width - frame.right;
 }
 
+/** Where `clientX` falls on the frame, in frame units. */
+function frameX(target: Element, clientX: number, frame: Frame): number {
+  const rect = target.getBoundingClientRect();
+  return rect.width ? ((clientX - rect.left) / rect.width) * frame.width : 0;
+}
+
 /**
- * Ctrl + wheel and pinch zoom, mouse drag and two-finger pan, a mouse drag on the Y axis scales the amounts,
- * double click or tap resets.
+ * Ctrl + wheel and pinch zoom, a drag (mouse, or one finger sideways) and two-finger pan, a drag on the Y axis
+ * scales the amounts, a finger held still shows the day, double click or tap resets.
  */
 export function useChartGestures(options: Options) {
   const latest = useRef(options);
@@ -67,6 +79,9 @@ export function useChartGestures(options: Options) {
   const gesture = useRef<Gesture | null>(null);
   const down = useRef<Touch | null>(null);
   const lastTap = useRef<Touch | null>(null);
+  const hold = useRef<number | undefined>(undefined);
+
+  useEffect(() => () => window.clearTimeout(hold.current), []);
 
   // React's onWheel is passive, so preventDefault (keep the page still while zooming) needs a native listener.
   useEffect(() => {
@@ -86,17 +101,31 @@ export function useChartGestures(options: Options) {
       const frac = fracAt(target, event.clientX, frame);
       onChange(moveWindow(view, frac, frac, Math.exp(delta * WHEEL_SPEED), count));
     }
+    // The chart keeps `touch-action: pan-y` so a finger can still scroll the page; once a gesture of the chart is
+    // under way (two fingers, the amounts axis, a held finger) the page must stay still or the browser cancels it.
+    function onTouchMove(event: TouchEvent) {
+      const kind = gesture.current?.kind;
+      if (event.cancelable && (event.touches.length > 1 || kind === "scale" || kind === "inspect" || kind === "pinch")) {
+        event.preventDefault();
+      }
+    }
     target.addEventListener("wheel", onWheel, { passive: false });
+    target.addEventListener("touchmove", onTouchMove, { passive: false });
     return () => {
       target.removeEventListener("wheel", onWheel);
+      target.removeEventListener("touchmove", onTouchMove);
       window.clearTimeout(timer);
     };
   }, [svg]);
 
   function onPointerDown(event: PointerEvent<SVGSVGElement>): boolean {
-    const { view, frame, y, manualY } = latest.current;
+    const { view, frame, y, manualY, scaleY = true } = latest.current;
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    const base = { view, y: y(), manualY, dist: 1, startX: event.clientX, startY: event.clientY, moved: false };
+    const base = {
+      view, y: y(), manualY, dist: 1, startX: event.clientX, startY: event.clientY, moved: false,
+      touch: event.pointerType !== "mouse",
+    };
+    window.clearTimeout(hold.current);
     if (event.pointerType === "mouse") {
       if (event.button !== 0) return false;
       try {
@@ -104,7 +133,7 @@ export function useChartGestures(options: Options) {
       } catch {
         // Capture only keeps the drag alive outside the chart; without it the drag still works inside.
       }
-      const scale = onYAxis(event.currentTarget, event.clientX, frame);
+      const scale = scaleY && onYAxis(event.currentTarget, event.clientX, frame);
       gesture.current = { ...base, kind: scale ? "scale" : "drag", frac: fracAt(event.currentTarget, event.clientX, frame) };
       return scale;
     }
@@ -117,27 +146,43 @@ export function useChartGestures(options: Options) {
       down.current = null;
       return true;
     }
+    if (pointers.current.size > 2) return true;
     down.current = { time: event.timeStamp, x: event.clientX, y: event.clientY };
-    return false;
+    const target = event.currentTarget;
+    const scale = scaleY && onYAxis(target, event.clientX, frame);
+    const started: Gesture = { ...base, kind: scale ? "scale" : "drag", frac: fracAt(target, event.clientX, frame) };
+    gesture.current = started;
+    if (!scale) {
+      hold.current = window.setTimeout(() => {
+        if (gesture.current !== started || started.moved) return;
+        started.kind = "inspect";
+        down.current = null;
+        latest.current.onHold?.(frameX(target, started.startX, latest.current.frame));
+      }, HOLD_MS);
+    }
+    return true;
   }
 
   function onPointerMove(event: PointerEvent<SVGSVGElement>): boolean {
     if (!pointers.current.has(event.pointerId)) return false;
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
     const current = gesture.current;
-    if (!current) return false;
+    if (!current) return event.pointerType !== "mouse";
     const { count, frame, onChange, onYChange } = latest.current;
+    if (current.kind === "inspect") return false;
     if (current.kind !== "pinch") {
       const moved = Math.hypot(event.clientX - current.startX, event.clientY - current.startY);
-      if (!current.moved && moved < DRAG_START_PX) return current.kind === "scale";
+      if (!current.moved && moved < (current.touch ? TAP_MOVE_PX : DRAG_START_PX)) return current.touch || current.kind === "scale";
       current.moved = true;
+      window.clearTimeout(hold.current);
       const dy = (event.clientY - current.startY) * unitsPerPx(event.currentTarget, frame);
       if (current.kind === "scale") {
         onYChange(scaleRange(current.y, Math.exp(dy * AXIS_SPEED)));
         return true;
       }
       onChange(moveWindow(current.view, current.frac, fracAt(event.currentTarget, event.clientX, frame), 1, count));
-      if (current.manualY) {
+      // A finger's up and down belongs to the page, so only the mouse moves a hand-set scale.
+      if (current.manualY && !current.touch) {
         const plotHeight = frame.height - frame.top - frame.bottom;
         onYChange(shiftRange(current.y, (dy / plotHeight) * (current.y.max - current.y.min)));
       }
@@ -153,6 +198,7 @@ export function useChartGestures(options: Options) {
   function onPointerUp(event: PointerEvent<SVGSVGElement>): void {
     pointers.current.delete(event.pointerId);
     gesture.current = null;
+    window.clearTimeout(hold.current);
     const start = down.current;
     down.current = null;
     if (event.pointerType === "mouse" || event.type !== "pointerup" || !start) return;

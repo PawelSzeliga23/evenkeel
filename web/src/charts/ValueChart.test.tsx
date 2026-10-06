@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { HistoryPoint } from "../api/types";
 import { ValueChart } from "./ValueChart";
@@ -165,6 +165,85 @@ describe("ValueChart", () => {
     render(<ValueChart points={MONTH} yRange={{ min: 1100, max: 1160 }} />);
     expect(screen.getByText(`1${S}120`)).toBeInTheDocument();
     expect(screen.getByText(`1${S}140`)).toBeInTheDocument();
+  });
+});
+
+describe("ValueChart on a phone", () => {
+  const rect = { left: 0, width: 350, top: 0, height: 190 } as DOMRect;
+  const finger = { pointerId: 1, pointerType: "touch" };
+  const span = (range: { min: number; max: number }) => range.max - range.min;
+
+  it("pans when one finger slides sideways and shows no day", () => {
+    const onViewChange = vi.fn();
+    render(<ValueChart points={MONTH} view={{ from: 10, to: 20 }} onViewChange={onViewChange} />);
+    const svg = screen.getByRole("img");
+    vi.spyOn(svg, "getBoundingClientRect").mockReturnValue(rect);
+
+    fireEvent.pointerDown(svg, { ...finger, clientX: 150, clientY: 100 });
+    fireEvent.pointerMove(svg, { ...finger, clientX: 200, clientY: 100 });
+
+    const view = onViewChange.mock.calls.at(-1)![0] as { from: number; to: number };
+    expect(view.from).toBeLessThan(10);
+    expect(screen.queryByText(/^Wartość /)).not.toBeInTheDocument();
+  });
+
+  it("shows the day after the finger is held still, then follows it along the days", () => {
+    vi.useFakeTimers();
+    try {
+      const onViewChange = vi.fn();
+      render(<ValueChart points={TWO} onViewChange={onViewChange} />);
+      const svg = screen.getByRole("img");
+      vi.spyOn(svg, "getBoundingClientRect").mockReturnValue(rect);
+
+      fireEvent.pointerDown(svg, { ...finger, clientX: 60, clientY: 100 });
+      expect(screen.queryByText("01.09.2026")).not.toBeInTheDocument();
+      act(() => { vi.advanceTimersByTime(450); });
+      expect(screen.getByText("01.09.2026")).toBeInTheDocument();
+
+      fireEvent.pointerMove(svg, { ...finger, clientX: 300, clientY: 100 });
+      expect(screen.getByText("26.09.2026")).toBeInTheDocument();
+      expect(onViewChange).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stretches the amounts when a finger drags the Y axis up", () => {
+    const onYRangeChange = vi.fn();
+    render(<ValueChart points={MONTH} onYRangeChange={onYRangeChange} />);
+    const svg = screen.getByRole("img");
+    vi.spyOn(svg, "getBoundingClientRect").mockReturnValue(rect);
+
+    fireEvent.pointerDown(svg, { ...finger, clientX: 330, clientY: 100 });
+    fireEvent.pointerMove(svg, { ...finger, clientX: 330, clientY: 60 });
+
+    expect(span(onYRangeChange.mock.calls.at(-1)![0])).toBeLessThan(300);
+  });
+
+  it("keeps the page still while a finger scales the amounts", () => {
+    render(<ValueChart points={MONTH} onYRangeChange={vi.fn()} />);
+    const svg = screen.getByRole("img");
+    vi.spyOn(svg, "getBoundingClientRect").mockReturnValue(rect);
+
+    fireEvent.pointerDown(svg, { ...finger, clientX: 330, clientY: 100 });
+    const move = new Event("touchmove", { bubbles: true, cancelable: true });
+    Object.defineProperty(move, "touches", { value: [{}] });
+    svg.dispatchEvent(move);
+
+    expect(move.defaultPrevented).toBe(true);
+  });
+
+  it("lets one finger on the chart scroll the page", () => {
+    render(<ValueChart points={MONTH} />);
+    const svg = screen.getByRole("img");
+    vi.spyOn(svg, "getBoundingClientRect").mockReturnValue(rect);
+
+    fireEvent.pointerDown(svg, { ...finger, clientX: 150, clientY: 100 });
+    const move = new Event("touchmove", { bubbles: true, cancelable: true });
+    Object.defineProperty(move, "touches", { value: [{}] });
+    svg.dispatchEvent(move);
+
+    expect(move.defaultPrevented).toBe(false);
   });
 });
 

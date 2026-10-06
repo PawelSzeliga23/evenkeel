@@ -112,7 +112,7 @@ export function PriceChart({ data, average, selected, onSelect, view: requested,
   const view = clampWindow(requested ?? fullWindow(count), count);
   const shownY = useRef<YRange>({ min: 0, max: 1 });
   const gestures = useChartGestures({
-    view, count, frame, y: () => shownY.current, manualY: false, onYChange: () => {},
+    view, count, frame, y: () => shownY.current, manualY: false, scaleY: false, onYChange: () => {},
     onChange: (next) => {
       if (Math.abs(next.from - view.from) < 1e-6 && Math.abs(next.to - view.to) < 1e-6) return;
       onViewChange?.(next);

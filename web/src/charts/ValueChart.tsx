@@ -43,6 +43,7 @@ export function ValueChart({ points, view: requested, yRange = null, onViewChang
       onViewChange?.(next);
     },
     onReset: () => onReset?.(),
+    onHold: (px) => setActive(indexAt(px, view, frame, data.length)),
   });
 
   if (data.length < 2) {
